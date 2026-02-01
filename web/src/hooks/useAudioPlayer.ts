@@ -6,9 +6,12 @@ interface UseAudioPlayerReturn {
   pause: () => void
   setSource: (url: string) => void
   setVolume: (volume: number) => void  // 0-1
+  retry: () => void
   isPlaying: boolean
   isLoaded: boolean    // readyState >= 3 (HAVE_FUTURE_DATA)
   isLoading: boolean   // loading but not yet playable
+  isBuffering: boolean // stalled or waiting for data
+  hasError: boolean    // audio element error occurred
   currentTime: number  // current playback position in seconds
   audioElement: HTMLAudioElement | null
   gainNode: GainNode | null
@@ -31,6 +34,8 @@ export function useAudioPlayer(): UseAudioPlayerReturn {
   const [isPlaying, setIsPlaying] = useState(false)
   const [isLoaded, setIsLoaded] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [isBuffering, setIsBuffering] = useState(false)
+  const [hasError, setHasError] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
 
   // Audio graph refs (created once on mount)
@@ -38,6 +43,7 @@ export function useAudioPlayer(): UseAudioPlayerReturn {
   const sourceNodeRef = useRef<MediaElementAudioSourceNode | null>(null)
   const gainNodeRef = useRef<GainNode | null>(null)
   const analyserNodeRef = useRef<AnalyserNode | null>(null)
+  const stallRecoveryTimeoutRef = useRef<number | null>(null)
 
   // Create audio element and graph on mount
   useEffect(() => {
@@ -72,6 +78,7 @@ export function useAudioPlayer(): UseAudioPlayerReturn {
     const handleCanPlayThrough = () => {
       setIsLoaded(true)
       setIsLoading(false)
+      setIsBuffering(false)
     }
 
     const handleLoadStart = () => {
@@ -81,18 +88,48 @@ export function useAudioPlayer(): UseAudioPlayerReturn {
 
     const handleError = (e: ErrorEvent | Event) => {
       console.error('Audio element error:', e)
+      setHasError(true)
       setIsLoaded(false)
       setIsLoading(false)
+      setIsBuffering(false)
     }
 
     const handleTimeUpdate = () => {
       setCurrentTime(audio.currentTime)
     }
 
+    const handlePlaying = () => {
+      setIsBuffering(false)
+    }
+
+    const handleWaiting = () => {
+      setIsBuffering(true)
+    }
+
+    const handleStalled = () => {
+      setIsBuffering(true)
+
+      // Auto-recover from stalled state after 3s
+      if (stallRecoveryTimeoutRef.current !== null) {
+        window.clearTimeout(stallRecoveryTimeoutRef.current)
+      }
+
+      stallRecoveryTimeoutRef.current = window.setTimeout(() => {
+        console.log('Audio stalled - attempting recovery')
+        audio.load()
+        audio.play().catch((err) => {
+          console.error('Stall recovery failed:', err)
+        })
+      }, 3000)
+    }
+
     audio.addEventListener('canplaythrough', handleCanPlayThrough)
     audio.addEventListener('loadstart', handleLoadStart)
     audio.addEventListener('error', handleError)
     audio.addEventListener('timeupdate', handleTimeUpdate)
+    audio.addEventListener('playing', handlePlaying)
+    audio.addEventListener('waiting', handleWaiting)
+    audio.addEventListener('stalled', handleStalled)
 
     // Cleanup on unmount
     return () => {
@@ -100,6 +137,13 @@ export function useAudioPlayer(): UseAudioPlayerReturn {
       audio.removeEventListener('loadstart', handleLoadStart)
       audio.removeEventListener('error', handleError)
       audio.removeEventListener('timeupdate', handleTimeUpdate)
+      audio.removeEventListener('playing', handlePlaying)
+      audio.removeEventListener('waiting', handleWaiting)
+      audio.removeEventListener('stalled', handleStalled)
+
+      if (stallRecoveryTimeoutRef.current !== null) {
+        window.clearTimeout(stallRecoveryTimeoutRef.current)
+      }
 
       audio.pause()
       audio.src = ''
@@ -148,14 +192,30 @@ export function useAudioPlayer(): UseAudioPlayerReturn {
     gainNodeRef.current.gain.value = Math.max(0, Math.min(1, volume))
   }, [])
 
+  const retry = useCallback(() => {
+    if (!audioRef.current) return
+
+    setHasError(false)
+    setIsBuffering(false)
+
+    audioRef.current.load()
+    audioRef.current.play().catch((err) => {
+      console.error('Retry failed:', err)
+      setHasError(true)
+    })
+  }, [])
+
   return {
     play,
     pause,
     setSource,
     setVolume,
+    retry,
     isPlaying,
     isLoaded,
     isLoading,
+    isBuffering,
+    hasError,
     currentTime,
     audioElement: audioRef.current,
     gainNode: gainNodeRef.current,

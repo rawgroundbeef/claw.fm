@@ -12,6 +12,7 @@ interface UseCrossfadeReturn {
   setVolume: (volume: number) => void
   isPlaying: boolean
   isLoading: boolean
+  isBuffering: boolean
   currentTrack: NowPlayingTrack | null
   activeAnalyser: AnalyserNode | null  // For visualizer to consume
   currentTime: number        // Current playback position in seconds
@@ -235,6 +236,7 @@ export function useCrossfade(): UseCrossfadeReturn {
     setVolume,
     isPlaying,
     isLoading: active.isLoading,
+    isBuffering: active.isBuffering,
     currentTrack,
     activeAnalyser: active.analyserNode,
     currentTime: active.currentTime,

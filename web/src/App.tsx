@@ -1,6 +1,9 @@
 import { useState } from 'react'
 import { useNowPlaying } from './hooks/useNowPlaying'
 import { useCrossfade } from './hooks/useCrossfade'
+import { useRecovery } from './hooks/useRecovery'
+import { useServerTime } from './hooks/useServerTime'
+import { getCorrectPlaybackPosition } from './utils/timeSync'
 import { PlayerBar } from './components/Player/PlayerBar'
 import { PlayButton } from './components/Player/PlayButton'
 import { VolumeControl } from './components/Player/VolumeControl'
@@ -8,10 +11,14 @@ import { NowPlaying } from './components/Player/NowPlaying'
 import { ProgressBar } from './components/Player/ProgressBar'
 import { Waveform } from './components/Visualizer/Waveform'
 import { EmptyState } from './components/EmptyState'
+import { ReconnectingIndicator } from './components/ReconnectingIndicator'
 
 export default function App() {
   // Now playing state from API
   const nowPlaying = useNowPlaying()
+
+  // Server time sync
+  const { offset: serverOffset } = useServerTime()
 
   // Audio engine with crossfade
   const crossfade = useCrossfade()
@@ -19,6 +26,48 @@ export default function App() {
   // Volume state
   const [volume, setVolume] = useState<number>(0.8)
   const [muted, setMuted] = useState<boolean>(false)
+
+  // Recovery and resilience
+  const recovery = useRecovery({
+    isPlaying: crossfade.isPlaying,
+    onReconnect: () => {
+      // Re-fetch now-playing state
+      nowPlaying.refetch()
+
+      // Re-sync audio position if we have a track
+      if (nowPlaying.track && nowPlaying.startedAt) {
+        const position = getCorrectPlaybackPosition(
+          nowPlaying.startedAt,
+          nowPlaying.track.duration * 1000,
+          serverOffset
+        )
+
+        // Find active audio element from crossfade
+        const audioElement = crossfade.isPlaying
+          ? document.querySelector('audio') as HTMLAudioElement | null
+          : null
+
+        if (audioElement) {
+          audioElement.currentTime = position
+        }
+      }
+    },
+    onVisibilityRestore: () => {
+      // Re-sync audio position when tab is restored
+      if (nowPlaying.track && nowPlaying.startedAt) {
+        const position = getCorrectPlaybackPosition(
+          nowPlaying.startedAt,
+          nowPlaying.track.duration * 1000,
+          serverOffset
+        )
+
+        const audioElement = document.querySelector('audio') as HTMLAudioElement | null
+        if (audioElement) {
+          audioElement.currentTime = position
+        }
+      }
+    },
+  })
 
   // Volume change handler
   const handleVolumeChange = (v: number) => {
@@ -42,6 +91,12 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
+      {/* Reconnecting indicator */}
+      <ReconnectingIndicator
+        isReconnecting={recovery.isReconnecting}
+        isOffline={recovery.isOffline}
+      />
+
       {/* Main content area */}
       <main className="flex-1 flex flex-col items-center justify-center px-4 pb-20">
         {/* Header */}
@@ -82,16 +137,20 @@ export default function App() {
             {isPrePlay && (
               <button
                 onClick={crossfade.play}
-                disabled={crossfade.isLoading}
+                disabled={crossfade.isLoading || crossfade.isBuffering}
                 className="mt-4 w-20 h-20 rounded-full bg-electric hover:bg-electric-dark disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center transition-colors shadow-lg"
               >
-                <svg
-                  className="w-10 h-10 text-white ml-1"
-                  fill="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path d="M8 5v14l11-7z" />
-                </svg>
+                {crossfade.isBuffering ? (
+                  <div className="w-8 h-8 border-4 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <svg
+                    className="w-10 h-10 text-white ml-1"
+                    fill="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path d="M8 5v14l11-7z" />
+                  </svg>
+                )}
               </button>
             )}
           </div>
@@ -110,7 +169,7 @@ export default function App() {
           <div className="flex items-center space-x-4">
             <PlayButton
               isPlaying={crossfade.isPlaying}
-              isLoading={crossfade.isLoading}
+              isLoading={crossfade.isLoading || crossfade.isBuffering}
               disabled={isWaiting}
               onPlay={crossfade.play}
               onPause={crossfade.pause}

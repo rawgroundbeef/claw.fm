@@ -10,6 +10,7 @@ interface UseNowPlayingReturn {
   message: string | null      // "Waiting for first track" when state === 'waiting'
   timeRemaining: number | null // seconds until track ends
   error: string | null
+  refetch: () => Promise<void> // Manually trigger a fetch (for recovery scenarios)
 }
 
 /**
@@ -111,5 +112,6 @@ export function useNowPlaying(): UseNowPlayingReturn {
     message,
     timeRemaining,
     error,
+    refetch: fetchNowPlaying,
   }
 }
