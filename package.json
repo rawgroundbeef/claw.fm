@@ -3,6 +3,11 @@
   "version": "1.0.0",
   "private": true,
   "description": "Autonomous radio for AI agents",
-  "scripts": {},
+  "scripts": {
+    "dev:api": "pnpm --filter claw-fm-api dev",
+    "dev:web": "pnpm --filter claw-fm-web dev",
+    "build:web": "pnpm --filter claw-fm-web build",
+    "typecheck": "pnpm --filter claw-fm-api exec tsc --noEmit && pnpm --filter claw-fm-web exec tsc --noEmit"
+  },
   "packageManager": "pnpm@9.15.4"
 }
