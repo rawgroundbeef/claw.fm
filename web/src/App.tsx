@@ -1,23 +1,135 @@
-// Import Track type to verify @claw/shared package integration
-import type { Track } from '@claw/shared'
+import { useState } from 'react'
+import { useNowPlaying } from './hooks/useNowPlaying'
+import { useCrossfade } from './hooks/useCrossfade'
+import { PlayerBar } from './components/Player/PlayerBar'
+import { PlayButton } from './components/Player/PlayButton'
+import { VolumeControl } from './components/Player/VolumeControl'
+import { NowPlaying } from './components/Player/NowPlaying'
+import { ProgressBar } from './components/Player/ProgressBar'
+import { Waveform } from './components/Visualizer/Waveform'
+import { EmptyState } from './components/EmptyState'
 
 export default function App() {
-  // Verify the Track type is available (satisfies import verification)
-  void (() => {
-    const _typeCheck: Track | null = null
-    return _typeCheck
-  })
+  // Now playing state from API
+  const nowPlaying = useNowPlaying()
+
+  // Audio engine with crossfade
+  const crossfade = useCrossfade()
+
+  // Volume state
+  const [volume, setVolume] = useState<number>(0.8)
+  const [muted, setMuted] = useState<boolean>(false)
+
+  // Volume change handler
+  const handleVolumeChange = (v: number) => {
+    setVolume(v)
+    if (muted) {
+      setMuted(false)
+    }
+    crossfade.setVolume(v)
+  }
+
+  // Mute toggle handler
+  const handleMuteToggle = () => {
+    const newMuted = !muted
+    setMuted(newMuted)
+    crossfade.setVolume(newMuted ? 0 : volume)
+  }
+
+  // Determine state machine
+  const isWaiting = nowPlaying.state === 'waiting'
+  const isPrePlay = nowPlaying.state === 'playing' && !crossfade.isPlaying
+
   return (
-    <div className="min-h-screen bg-white flex items-center justify-center font-sans">
-      <div className="text-center">
-        <h1 className="text-7xl font-bold tracking-tight text-black">
-          claw.fm
-        </h1>
-        <p className="mt-4 text-xl text-gray-500">
-          AI radio, 24/7
-        </p>
-        <div className="mt-8 w-16 h-1 bg-electric mx-auto" />
-      </div>
+    <div className="min-h-screen bg-white flex flex-col">
+      {/* Main content area */}
+      <main className="flex-1 flex flex-col items-center justify-center px-4 pb-20">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-sm font-medium text-gray-400 tracking-widest uppercase">
+            claw.fm
+          </h1>
+        </div>
+
+        {/* Main visualizer and track info area */}
+        {isWaiting ? (
+          <EmptyState />
+        ) : (
+          <div className="w-full max-w-2xl flex flex-col items-center space-y-6">
+            {/* Waveform visualizer */}
+            <div className="w-full h-48 sm:h-64">
+              <Waveform
+                analyserNode={crossfade.activeAnalyser}
+                isPlaying={crossfade.isPlaying}
+                className="w-full h-full"
+              />
+            </div>
+
+            {/* Track info with crossfade transition */}
+            <div
+              key={crossfade.currentTrack?.id}
+              className="text-center track-info-enter track-info-active"
+            >
+              <h2 className="text-2xl font-bold text-black">
+                {crossfade.currentTrack?.title || 'Loading...'}
+              </h2>
+              <p className="text-lg text-gray-500 mt-1">
+                {crossfade.currentTrack?.artistName || ''}
+              </p>
+            </div>
+
+            {/* Large play button for pre-play landing */}
+            {isPrePlay && (
+              <button
+                onClick={crossfade.play}
+                disabled={crossfade.isLoading}
+                className="mt-4 w-20 h-20 rounded-full bg-electric hover:bg-electric-dark disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center transition-colors shadow-lg"
+              >
+                <svg
+                  className="w-10 h-10 text-white ml-1"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M8 5v14l11-7z" />
+                </svg>
+              </button>
+            )}
+          </div>
+        )}
+      </main>
+
+      {/* Fixed bottom player bar */}
+      <PlayerBar
+        leftContent={
+          <NowPlaying
+            track={crossfade.currentTrack}
+            isTransitioning={crossfade.isLoading}
+          />
+        }
+        centerContent={
+          <div className="flex items-center space-x-4">
+            <PlayButton
+              isPlaying={crossfade.isPlaying}
+              isLoading={crossfade.isLoading}
+              disabled={isWaiting}
+              onPlay={crossfade.play}
+              onPause={crossfade.pause}
+            />
+            <ProgressBar
+              currentTime={crossfade.currentTime}
+              duration={crossfade.duration}
+            />
+          </div>
+        }
+        rightContent={
+          <VolumeControl
+            volume={muted ? 0 : volume}
+            isMuted={muted}
+            onVolumeChange={handleVolumeChange}
+            onMuteToggle={handleMuteToggle}
+          />
+        }
+      />
     </div>
   )
 }
