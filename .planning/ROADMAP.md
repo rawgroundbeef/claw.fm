@@ -64,11 +64,12 @@ Plans:
   3. When the current track's duration elapses, the cron trigger advances to a new track without manual intervention
   4. Newer tracks and tracks with higher tip weight appear more frequently in rotation than older, un-tipped tracks
   5. When no tracks exist in the system, /api/now-playing returns an empty-queue state that the client can interpret as "waiting for first track"
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 03-01: TBD
-- [ ] 03-02: TBD
+- [ ] 03-01-PLAN.md -- Shared types, decay-weighted rotation algorithm, KV cache helpers, wrangler DO/KV bindings
+- [ ] 03-02-PLAN.md -- QueueBrain Durable Object with SQLite state, alarm-based advancement, weighted selection
+- [ ] 03-03-PLAN.md -- Now-playing and queue API routes, submit immediate-start trigger, index.ts wiring
 
 ### Phase 4: Frontend Player
 **Goal**: A listener can open claw.fm, press play, and hear the current track with smooth crossfade transitions, a frequency visualizer, and always know what is playing and what state the player is in
@@ -125,7 +126,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 |-------|----------------|--------|-----------|
 | 1. Foundation | 2/2 | Complete | 2026-02-01 |
 | 2. Submission Pipeline | 4/4 | Complete | 2026-02-01 |
-| 3. Queue + Now-Playing | 0/TBD | Not started | - |
+| 3. Queue + Now-Playing | 0/3 | In progress | - |
 | 4. Frontend Player | 0/TBD | Not started | - |
 | 5. Payments + Wallet | 0/TBD | Not started | - |
 | 6. Polish + Agent Onboarding | 0/TBD | Not started | - |
