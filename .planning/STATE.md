@@ -60,10 +60,13 @@ Recent decisions affecting current work:
 - [02-03]: Audio ArrayBuffer read once and reused for hashing, duration, and R2 upload
 - [02-03]: Duplicate detection uses crypto.subtle.digest (buffer already in memory)
 - [02-03]: Queue position calculated from total track count (approximate, refined in Phase 3)
+- [02-gaps]: Use @openfacilitator/sdk not x402.org/facilitator — user directive
 
 ### Pending Todos
 
-None yet.
+- [02-gap]: Replace x402.org facilitator fetch with @openfacilitator/sdk (user directive)
+- [02-gap]: Clean up dead hashFile import in submit.ts
+- [02-gap]: Resolve track R2 key format (timestamp-UUID vs trackId)
 
 ### Blockers/Concerns
 

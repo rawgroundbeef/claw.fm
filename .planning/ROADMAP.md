@@ -49,9 +49,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 02-01-PLAN.md -- D1 migration for submission fields, shared types update, genres endpoint, wrangler config
-- [ ] 02-02-PLAN.md -- Validation libraries (file-type, duration, hash, identicon, image) and x402 payment middleware
-- [ ] 02-03-PLAN.md -- POST /api/submit endpoint wiring validation, payment, storage, and persistence
+- [x] 02-01-PLAN.md -- D1 migration for submission fields, shared types update, genres endpoint, wrangler config (Completed 2026-02-01)
+- [x] 02-02-PLAN.md -- Validation libraries (file-type, duration, hash, identicon, image) and x402 payment middleware (Completed 2026-02-01)
+- [x] 02-03-PLAN.md -- POST /api/submit endpoint wiring validation, payment, storage, and persistence (Completed 2026-02-01)
 
 ### Phase 3: Queue + Now-Playing
 **Goal**: The station has a brain -- a cron-driven queue that selects tracks using decay-weighted rotation, advances automatically, and exposes now-playing state to any client
@@ -123,7 +123,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation | 2/2 | Complete | 2026-02-01 |
-| 2. Submission Pipeline | 0/3 | Not started | - |
+| 2. Submission Pipeline | 3/3 | Gaps found (6/8 verified) | 2026-02-01 |
 | 3. Queue + Now-Playing | 0/TBD | Not started | - |
 | 4. Frontend Player | 0/TBD | Not started | - |
 | 5. Payments + Wallet | 0/TBD | Not started | - |
