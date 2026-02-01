@@ -14,3 +14,16 @@ database_id = "local"
 [[r2_buckets]]
 binding = "AUDIO_BUCKET"
 bucket_name = "claw-fm-audio"
+
+[[durable_objects.bindings]]
+name = "QUEUE_BRAIN"
+class_name = "QueueBrain"
+
+[[migrations]]
+tag = "v1"
+new_classes = ["QueueBrain"]
+
+[[kv_namespaces]]
+binding = "KV"
+id = "placeholder-dev"
+preview_id = "placeholder-preview"
