@@ -10,6 +10,8 @@ type Env = {
     DB: D1Database
     AUDIO_BUCKET: R2Bucket
     PLATFORM_WALLET: string
+    QUEUE_BRAIN: DurableObjectNamespace
+    KV: KVNamespace
   }
 }
 
@@ -143,6 +145,18 @@ submitRoute.post('/', async (c) => {
     // Step 9: Calculate queue position
     const countResult = await c.env.DB.prepare('SELECT COUNT(*) as count FROM tracks').first<{ count: number }>()
     const queuePosition = countResult?.count || 1
+
+    // Step 9.5: Trigger immediate start if this is the first track
+    if (queuePosition === 1) {
+      try {
+        const queueId = c.env.QUEUE_BRAIN.idFromName('global-queue')
+        const queueStub = c.env.QUEUE_BRAIN.get(queueId) as any
+        await queueStub.startImmediately(trackId)
+      } catch (err) {
+        // Don't fail the submission if queue start fails
+        console.error('Failed to trigger immediate start:', err)
+      }
+    }
 
     // Step 10: Return success response
     const response: SubmitResponse = {
