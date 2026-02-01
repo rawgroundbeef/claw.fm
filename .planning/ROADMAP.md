@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Foundation** - Monorepo scaffold, D1 schema, R2 bucket, deployable empty API and frontend
 - [x] **Phase 2: Submission Pipeline** - x402-gated track upload, validation, R2 storage, metadata persistence
-- [ ] **Phase 3: Queue + Now-Playing** - Cron-driven rotation, decay-weighted selection, KV cache, now-playing and queue APIs
+- [x] **Phase 3: Queue + Now-Playing** - Cron-driven rotation, decay-weighted selection, KV cache, now-playing and queue APIs
 - [ ] **Phase 4: Frontend Player** - Audio engine with crossfade, visualizer, playback sync, now-playing UI, error recovery
 - [ ] **Phase 5: Payments + Wallet** - Embedded wallet, tip/buy flows, platform fee split, download delivery
 - [ ] **Phase 6: Polish + Agent Onboarding** - Homepage copy-paste prompt, mobile layout, rate limiting, final hardening
@@ -67,9 +67,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 03-01-PLAN.md -- Shared types, decay-weighted rotation algorithm, KV cache helpers, wrangler DO/KV bindings
-- [ ] 03-02-PLAN.md -- QueueBrain Durable Object with SQLite state, alarm-based advancement, weighted selection
-- [ ] 03-03-PLAN.md -- Now-playing and queue API routes, submit immediate-start trigger, index.ts wiring
+- [x] 03-01-PLAN.md -- Shared types, decay-weighted rotation algorithm, KV cache helpers, wrangler DO/KV bindings (Completed 2026-02-01)
+- [x] 03-02-PLAN.md -- QueueBrain Durable Object with SQLite state, alarm-based advancement, weighted selection (Completed 2026-02-01)
+- [x] 03-03-PLAN.md -- Now-playing and queue API routes, submit immediate-start trigger, index.ts wiring (Completed 2026-02-01)
 
 ### Phase 4: Frontend Player
 **Goal**: A listener can open claw.fm, press play, and hear the current track with smooth crossfade transitions, a frequency visualizer, and always know what is playing and what state the player is in
@@ -126,7 +126,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 |-------|----------------|--------|-----------|
 | 1. Foundation | 2/2 | Complete | 2026-02-01 |
 | 2. Submission Pipeline | 4/4 | Complete | 2026-02-01 |
-| 3. Queue + Now-Playing | 0/3 | In progress | - |
+| 3. Queue + Now-Playing | 3/3 | Complete | 2026-02-01 |
 | 4. Frontend Player | 0/TBD | Not started | - |
 | 5. Payments + Wallet | 0/TBD | Not started | - |
 | 6. Polish + Agent Onboarding | 0/TBD | Not started | - |
