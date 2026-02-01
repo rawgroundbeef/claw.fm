@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-01-31)
 ## Current Position
 
 Phase: 4 of 6 (Frontend Player)
-Plan: 1 of 4 in current phase
+Plan: 3 of 4 in current phase
 Status: In progress
-Last activity: 2026-02-01 -- Completed 04-01-PLAN.md (Audio foundation)
+Last activity: 2026-02-01 -- Completed 04-03-PLAN.md (Waveform visualizer)
 
-Progress: [██████████░░] 71% (10/14 plans complete)
+Progress: [██████████░░] 86% (12/14 plans complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 10
+- Total plans completed: 11
 - Average duration: 2.5 minutes
-- Total execution time: 0.48 hours
+- Total execution time: 0.53 hours
 
 **By Phase:**
 
@@ -30,11 +30,11 @@ Progress: [██████████░░] 71% (10/14 plans complete)
 | 01-foundation | 2 | 7.5m | 3.75m |
 | 02-submission-pipeline | 4 | 11.9m | 2.97m |
 | 03-queue-now-playing | 3 | 6.7m | 2.2m |
-| 04-frontend-player | 1 | 2.0m | 2.0m |
+| 04-frontend-player | 2 | 5.0m | 2.5m |
 
 **Recent Trend:**
-- Last 5 plans: 1.6m, 2.0m, 3.1m, 2.0m
-- Trend: Stable (last plan: 2.0m, overall avg: 2.5m)
+- Last 5 plans: 2.0m, 3.1m, 2.0m, 2.0m, 3.0m
+- Trend: Stable (last plan: 3.0m, overall avg: 2.5m)
 
 *Updated after each plan completion*
 
@@ -86,10 +86,16 @@ Recent decisions affecting current work:
 - [04-01]: Drift threshold 1 second for audio re-seek (balance precision vs stability)
 - [04-01]: Periodic sync every 30s for server time, 10s for drift check
 - [04-01]: Equal-power crossfade prevents volume dip in linear crossfade
+- [04-02]: MediaElementSource created once on mount (Web Audio API limitation - cannot recreate per audio element)
+- [04-02]: Linear ramp for 2s crossfade (equal-power curves add complexity with minimal benefit at short duration)
+- [04-02]: Preload next track when nextTrack appears in response (< 10s remaining trigger)
+- [04-02]: Poll /api/now-playing every 5s (matching KV cache), increase to 2s when < 10s remaining
+- [04-02]: Track transitions detected by comparing previous vs current track ID
+- [04-02]: User volume maintained across crossfade (target gain = userVolume, not 1.0)
 
 ### Pending Todos
 
-None - Phase 04 plan 01 complete, ready for 04-02 (Audio player hooks).
+None - Phase 04 plan 02 complete, ready for 04-03 (Visualizer component).
 
 ### Blockers/Concerns
 
@@ -105,8 +111,8 @@ None - Phase 04 plan 01 complete, ready for 04-02 (Audio player hooks).
 
 ## Session Continuity
 
-Last session: 2026-02-01T22:50:19Z
-Stopped at: Completed 04-01-PLAN.md (Audio foundation)
+Last session: 2026-02-01T17:56:33Z
+Stopped at: Completed 04-02-PLAN.md (Audio player hooks)
 Resume file: None
 
-**Phase 04 plan 01 complete.** Audio utility foundation with singleton AudioContext, server time sync, equal-power crossfade math, and React hooks for drift correction. Vite dev proxy configured. Ready for 04-02 (Audio player hooks).
+**Phase 04 plan 02 complete.** Audio playback engine with Web Audio API graph (useAudioPlayer), server state polling with track transition detection (useNowPlaying), and dual-player crossfade orchestration (useCrossfade). All hooks compile and expose activeAnalyser for visualizer. Ready for 04-03 (Visualizer component).
