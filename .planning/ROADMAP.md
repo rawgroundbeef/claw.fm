@@ -15,7 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Foundation** - Monorepo scaffold, D1 schema, R2 bucket, deployable empty API and frontend
 - [x] **Phase 2: Submission Pipeline** - x402-gated track upload, validation, R2 storage, metadata persistence
 - [x] **Phase 3: Queue + Now-Playing** - Cron-driven rotation, decay-weighted selection, KV cache, now-playing and queue APIs
-- [ ] **Phase 4: Frontend Player** - Audio engine with crossfade, visualizer, playback sync, now-playing UI, error recovery
+- [x] **Phase 4: Frontend Player** - Audio engine with crossfade, visualizer, playback sync, now-playing UI, error recovery
 - [ ] **Phase 5: Payments + Wallet** - Embedded wallet, tip/buy flows, platform fee split, download delivery
 - [ ] **Phase 6: Polish + Agent Onboarding** - Homepage copy-paste prompt, mobile layout, rate limiting, final hardening
 
@@ -84,12 +84,12 @@ Plans:
 **Plans**: 6 plans
 
 Plans:
-- [ ] 04-01-PLAN.md -- Audio utilities (AudioContext singleton, time sync, equal-power curves) and infrastructure config (Vite proxy, R2 CORS)
-- [ ] 04-02-PLAN.md -- Core audio engine hooks (useAudioPlayer, useCrossfade, useNowPlaying) for playback and track transitions
-- [ ] 04-03-PLAN.md -- Waveform visualizer (useVisualizer hook, Canvas component, idle animation)
-- [ ] 04-04-PLAN.md -- Player UI components (PlayerBar, PlayButton, VolumeControl, NowPlaying, ProgressBar, EmptyState)
-- [ ] 04-05-PLAN.md -- App.tsx integration wiring all hooks and components into the complete player application
-- [ ] 04-06-PLAN.md -- Error recovery and resilience (network drop, tab backgrounding, reconnection indicator)
+- [x] 04-01-PLAN.md -- Audio utilities (AudioContext singleton, time sync, equal-power curves) and infrastructure config (Vite proxy, R2 CORS) (Completed 2026-02-01)
+- [x] 04-02-PLAN.md -- Core audio engine hooks (useAudioPlayer, useCrossfade, useNowPlaying) for playback and track transitions (Completed 2026-02-01)
+- [x] 04-03-PLAN.md -- Waveform visualizer (useVisualizer hook, Canvas component, idle animation) (Completed 2026-02-01)
+- [x] 04-04-PLAN.md -- Player UI components (PlayerBar, PlayButton, VolumeControl, NowPlaying, ProgressBar, EmptyState) (Completed 2026-02-01)
+- [x] 04-05-PLAN.md -- App.tsx integration wiring all hooks and components into the complete player application (Completed 2026-02-01)
+- [x] 04-06-PLAN.md -- Error recovery and resilience (network drop, tab backgrounding, reconnection indicator) (Completed 2026-02-01)
 
 ### Phase 5: Payments + Wallet
 **Goal**: A listener can tip the current artist or buy/download a track using USDC on Base, with an embedded wallet created on-demand and 95% of payment reaching the agent
@@ -130,7 +130,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 | 1. Foundation | 2/2 | Complete | 2026-02-01 |
 | 2. Submission Pipeline | 4/4 | Complete | 2026-02-01 |
 | 3. Queue + Now-Playing | 3/3 | Complete | 2026-02-01 |
-| 4. Frontend Player | 0/6 | Not started | - |
+| 4. Frontend Player | 6/6 | Complete | 2026-02-01 |
 | 5. Payments + Wallet | 0/TBD | Not started | - |
 | 6. Polish + Agent Onboarding | 0/TBD | Not started | - |
 
