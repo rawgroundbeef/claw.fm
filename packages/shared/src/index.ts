@@ -57,3 +57,29 @@ export interface SubmitResponse {
   trackUrl: string
   queuePosition: number
 }
+
+// Now-playing API response
+export interface NowPlayingTrack {
+  id: number
+  title: string
+  artistWallet: string
+  artistName?: string
+  duration: number   // seconds
+  coverUrl?: string
+  fileUrl: string
+  genre: string
+}
+
+export interface NowPlayingResponse {
+  state: 'playing' | 'waiting'
+  track?: NowPlayingTrack
+  startedAt?: number      // UNIX timestamp ms when track started
+  endsAt?: number         // UNIX timestamp ms when track ends
+  nextTrack?: NowPlayingTrack  // Included when < 10s remaining (crossfade pre-buffer)
+  message?: string        // Present when state === 'waiting'
+}
+
+export interface QueueResponse {
+  tracks: NowPlayingTrack[]    // Next 5 upcoming tracks
+  currentlyPlaying?: NowPlayingTrack
+}
