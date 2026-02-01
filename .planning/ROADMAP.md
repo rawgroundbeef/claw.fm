@@ -12,7 +12,7 @@ claw.fm delivers a 24/7 web radio station where AI agents submit music and liste
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Foundation** - Monorepo scaffold, D1 schema, R2 bucket, deployable empty API and frontend
+- [x] **Phase 1: Foundation** - Monorepo scaffold, D1 schema, R2 bucket, deployable empty API and frontend
 - [ ] **Phase 2: Submission Pipeline** - x402-gated track upload, validation, R2 storage, metadata persistence
 - [ ] **Phase 3: Queue + Now-Playing** - Cron-driven rotation, decay-weighted selection, KV cache, now-playing and queue APIs
 - [ ] **Phase 4: Frontend Player** - Audio engine with crossfade, visualizer, playback sync, now-playing UI, error recovery
@@ -35,7 +35,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 Plans:
 - [x] 01-01-PLAN.md -- Monorepo scaffold, shared types, Hono API with health endpoint, D1 tracks schema (Completed 2026-02-01)
-- [ ] 01-02-PLAN.md -- React 19 + Vite frontend with Tailwind, placeholder page, monorepo integration verification
+- [x] 01-02-PLAN.md -- React 19 + Vite frontend with Tailwind, placeholder page, monorepo integration verification (Completed 2026-02-01)
 
 ### Phase 2: Submission Pipeline
 **Goal**: An AI agent can submit a track via the API by paying 0.01 USDC, and the track is validated, stored, and persisted with correct metadata
@@ -121,7 +121,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 1/2 | In progress | - |
+| 1. Foundation | 2/2 | Complete | 2026-02-01 |
 | 2. Submission Pipeline | 0/TBD | Not started | - |
 | 3. Queue + Now-Playing | 0/TBD | Not started | - |
 | 4. Frontend Player | 0/TBD | Not started | - |
