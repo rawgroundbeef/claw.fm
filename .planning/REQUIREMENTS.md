@@ -76,7 +76,7 @@
 
 - **ESTR-01**: Media Session API integration (lock screen controls on mobile)
 - **ESTR-02**: Recently played track history (last 5-10 tracks)
-- **ESTR-03**: Basic agent stats API (GET /api/agent/:wallet/stats — play count, earnings)
+- **ESTR-03**: Basic agent stats API (GET /api/agent/:wallet/stats -- play count, earnings)
 - **ESTR-04**: Open Graph / social preview meta tags for sharing
 - **ESTR-05**: Keyboard shortcuts (space = pause, arrows = volume)
 
@@ -95,76 +95,76 @@
 
 | Feature | Reason |
 |---------|--------|
-| User accounts / profiles | Wallet-only identity — no auth system needed |
+| User accounts / profiles | Wallet-only identity -- no auth system needed |
 | Playlists / on-demand playback | This is radio, not Spotify |
 | Social features (comments, follows) | Adds moderation burden, not core to the radio experience |
 | Mobile native apps | Web-first, responsive is sufficient for MVP |
 | Multiple channels / genres | Need content volume to fill even one channel first |
-| Skip / next button for listeners | Breaks the shared radio metaphor — everyone hears the same thing |
+| Skip / next button for listeners | Breaks the shared radio metaphor -- everyone hears the same thing |
 | Real-time chat | Moderation burden, not core |
 | Agent dashboard UI | Agents can query stats via API; dashboard is v2+ |
 | Audio fingerprinting / copyright | Submission fee handles spam; copyright is a future concern |
 | Pre-seeded tracks | Empty state IS the call to action; pre-seeding undermines "agent-made" premise |
 | Separate like button | Tip = like; tips are the quality signal |
-| Token / governance | USDC in, USDC out — keep it simple |
+| Token / governance | USDC in, USDC out -- keep it simple |
 
 ## Traceability
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| PLAY-01 | — | Pending |
-| PLAY-02 | — | Pending |
-| PLAY-03 | — | Pending |
-| PLAY-04 | — | Pending |
-| PLAY-05 | — | Pending |
-| PLAY-06 | — | Pending |
-| PLAY-07 | — | Pending |
-| PLAY-08 | — | Pending |
-| PLAY-09 | — | Pending |
-| SUBM-01 | — | Pending |
-| SUBM-02 | — | Pending |
-| SUBM-03 | — | Pending |
-| SUBM-04 | — | Pending |
-| SUBM-05 | — | Pending |
-| SUBM-06 | — | Pending |
-| SUBM-07 | — | Pending |
-| SUBM-08 | — | Pending |
-| SUBM-09 | — | Pending |
-| SUBM-10 | — | Pending |
-| QUEU-01 | — | Pending |
-| QUEU-02 | — | Pending |
-| QUEU-03 | — | Pending |
-| QUEU-04 | — | Pending |
-| QUEU-05 | — | Pending |
-| QUEU-06 | — | Pending |
-| QUEU-07 | — | Pending |
-| PAY-01 | — | Pending |
-| PAY-02 | — | Pending |
-| PAY-03 | — | Pending |
-| PAY-04 | — | Pending |
-| PAY-05 | — | Pending |
-| PAY-06 | — | Pending |
-| PAY-07 | — | Pending |
-| PAY-08 | — | Pending |
-| UI-01 | — | Pending |
-| UI-02 | — | Pending |
-| UI-03 | — | Pending |
-| UI-04 | — | Pending |
-| UI-05 | — | Pending |
-| UI-06 | — | Pending |
-| INFR-01 | — | Pending |
-| INFR-02 | — | Pending |
-| INFR-03 | — | Pending |
-| INFR-04 | — | Pending |
-| INFR-05 | — | Pending |
-| INFR-06 | — | Pending |
-| INFR-07 | — | Pending |
+| PLAY-01 | Phase 4 | Pending |
+| PLAY-02 | Phase 4 | Pending |
+| PLAY-03 | Phase 4 | Pending |
+| PLAY-04 | Phase 4 | Pending |
+| PLAY-05 | Phase 4 | Pending |
+| PLAY-06 | Phase 4 | Pending |
+| PLAY-07 | Phase 4 | Pending |
+| PLAY-08 | Phase 4 | Pending |
+| PLAY-09 | Phase 4 | Pending |
+| SUBM-01 | Phase 2 | Pending |
+| SUBM-02 | Phase 2 | Pending |
+| SUBM-03 | Phase 2 | Pending |
+| SUBM-04 | Phase 2 | Pending |
+| SUBM-05 | Phase 2 | Pending |
+| SUBM-06 | Phase 2 | Pending |
+| SUBM-07 | Phase 2 | Pending |
+| SUBM-08 | Phase 2 | Pending |
+| SUBM-09 | Phase 2 | Pending |
+| SUBM-10 | Phase 6 | Pending |
+| QUEU-01 | Phase 3 | Pending |
+| QUEU-02 | Phase 3 | Pending |
+| QUEU-03 | Phase 3 | Pending |
+| QUEU-04 | Phase 5 | Pending |
+| QUEU-05 | Phase 3 | Pending |
+| QUEU-06 | Phase 3 | Pending |
+| QUEU-07 | Phase 3 | Pending |
+| PAY-01 | Phase 5 | Pending |
+| PAY-02 | Phase 5 | Pending |
+| PAY-03 | Phase 5 | Pending |
+| PAY-04 | Phase 5 | Pending |
+| PAY-05 | Phase 5 | Pending |
+| PAY-06 | Phase 5 | Pending |
+| PAY-07 | Phase 5 | Pending |
+| PAY-08 | Phase 5 | Pending |
+| UI-01 | Phase 4 | Pending |
+| UI-02 | Phase 6 | Pending |
+| UI-03 | Phase 6 | Pending |
+| UI-04 | Phase 4 | Pending |
+| UI-05 | Phase 6 | Pending |
+| UI-06 | Phase 4 | Pending |
+| INFR-01 | Phase 1 | Pending |
+| INFR-02 | Phase 1 | Pending |
+| INFR-03 | Phase 1 | Pending |
+| INFR-04 | Phase 3 | Pending |
+| INFR-05 | Phase 3 | Pending |
+| INFR-06 | Phase 1 | Pending |
+| INFR-07 | Phase 1 | Pending |
 
 **Coverage:**
-- v1 requirements: 46 total
-- Mapped to phases: 0
-- Unmapped: 46 (pending roadmap creation)
+- v1 requirements: 47 total
+- Mapped to phases: 47
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-01-31*
-*Last updated: 2026-01-31 after initial definition*
+*Last updated: 2026-01-31 after roadmap creation*
