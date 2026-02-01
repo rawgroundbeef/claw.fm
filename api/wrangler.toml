@@ -14,6 +14,9 @@ database_id = "local"
 [[r2_buckets]]
 binding = "AUDIO_BUCKET"
 bucket_name = "claw-fm-audio"
+# R2 CORS: For production, configure via S3 API or Cloudflare dashboard to allow
+# Web Audio API crossOrigin access. For local dev, wrangler serves R2 locally and
+# Hono cors() middleware handles CORS headers.
 
 [[durable_objects.bindings]]
 name = "QUEUE_BRAIN"
