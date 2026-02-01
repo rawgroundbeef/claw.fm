@@ -1,14 +1,5 @@
 import type { Context } from 'hono'
-
-export interface PaymentRequirements {
-  scheme: 'exact'
-  network: string
-  asset: string
-  maxAmountRequired: string
-  resource: string
-  description: string
-  payTo?: string
-}
+import { OpenFacilitator, type PaymentRequirementsV1, FacilitatorError } from '@openfacilitator/sdk'
 
 export interface PaymentVerificationResult {
   valid: boolean
@@ -21,15 +12,15 @@ export interface PaymentVerificationResult {
  * This is called manually in the submit route after validation passes
  */
 export async function verifyPayment(c: Context): Promise<PaymentVerificationResult> {
-  // Check for payment header (support both X-PAYMENT and PAYMENT-SIGNATURE)
-  const paymentHeader = c.req.header('X-PAYMENT') || c.req.header('PAYMENT-SIGNATURE')
+  // Check for payment header (X-PAYMENT only, per x402 standard)
+  const paymentHeader = c.req.header('X-PAYMENT')
 
   // Payment requirements for track submission
-  const paymentRequirements: PaymentRequirements = {
+  const requirements: PaymentRequirementsV1 = {
     scheme: 'exact',
-    network: 'eip155:8453', // Base mainnet
-    asset: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', // USDC on Base
+    network: 'base', // v1 format (SDK handles v1/v2 translation)
     maxAmountRequired: '10000', // 0.01 USDC (6 decimals)
+    asset: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', // USDC on Base
     resource: '/api/submit',
     description: 'Track submission fee',
     payTo: c.env.PLATFORM_WALLET as string,
@@ -38,13 +29,13 @@ export async function verifyPayment(c: Context): Promise<PaymentVerificationResu
   // If no payment header present, return 402 Payment Required
   if (!paymentHeader) {
     // Encode payment requirements as base64 for X-PAYMENT-REQUIRED header
-    const requirementsBase64 = btoa(JSON.stringify(paymentRequirements))
+    const requirementsBase64 = btoa(JSON.stringify(requirements))
 
     const errorResponse = c.json(
       {
         error: 'PAYMENT_REQUIRED',
         message: 'Payment of 0.01 USDC required to submit track',
-        paymentRequirements,
+        paymentRequirements: requirements,
       },
       402,
       {
@@ -58,28 +49,22 @@ export async function verifyPayment(c: Context): Promise<PaymentVerificationResu
     }
   }
 
-  // Verify payment with facilitator
+  // Verify and settle payment with OpenFacilitator SDK
   try {
-    const facilitatorUrl = 'https://x402.org/facilitator/verify'
+    // Parse payment header (base64-encoded JSON)
+    const paymentPayload = JSON.parse(atob(paymentHeader))
 
-    const verifyPayload = {
-      payment: paymentHeader,
-      requirements: paymentRequirements,
-    }
+    // Create facilitator instance (defaults to https://pay.openfacilitator.io)
+    const facilitator = new OpenFacilitator()
 
-    const response = await fetch(facilitatorUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(verifyPayload),
-    })
+    // Step 1: Verify payment is valid
+    const verifyResult = await facilitator.verify(paymentPayload, requirements)
 
-    if (!response.ok) {
+    if (!verifyResult.isValid) {
       const errorResponse = c.json(
         {
           error: 'PAYMENT_INVALID',
-          message: 'Payment verification failed',
+          message: verifyResult.invalidReason || 'Payment verification failed',
         },
         402
       )
@@ -90,13 +75,14 @@ export async function verifyPayment(c: Context): Promise<PaymentVerificationResu
       }
     }
 
-    const verifyResult = await response.json<{ valid: boolean; walletAddress?: string }>()
+    // Step 2: Settle payment (broadcast transaction)
+    const settleResult = await facilitator.settle(paymentPayload, requirements)
 
-    if (!verifyResult.valid || !verifyResult.walletAddress) {
+    if (!settleResult.success) {
       const errorResponse = c.json(
         {
-          error: 'PAYMENT_INVALID',
-          message: 'Payment signature is invalid',
+          error: 'PAYMENT_SETTLEMENT_FAILED',
+          message: settleResult.errorReason || 'Payment settlement failed',
         },
         402
       )
@@ -107,12 +93,29 @@ export async function verifyPayment(c: Context): Promise<PaymentVerificationResu
       }
     }
 
-    // Payment verified successfully
+    // Payment verified and settled successfully
     return {
       valid: true,
-      walletAddress: verifyResult.walletAddress,
+      walletAddress: settleResult.payer,
     }
   } catch (error) {
+    // Handle SDK-specific errors
+    if (error instanceof FacilitatorError) {
+      const errorResponse = c.json(
+        {
+          error: 'FACILITATOR_ERROR',
+          message: `Facilitator error: ${error.message}`,
+        },
+        502
+      )
+
+      return {
+        valid: false,
+        error: errorResponse,
+      }
+    }
+
+    // Generic error handling
     const errorResponse = c.json(
       {
         error: 'PAYMENT_VERIFICATION_ERROR',
