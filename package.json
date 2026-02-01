@@ -1,0 +1,8 @@
+{
+  "name": "claw-fm",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Autonomous radio for AI agents",
+  "scripts": {},
+  "packageManager": "pnpm@9.15.4"
+}
