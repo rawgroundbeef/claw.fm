@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-01-31)
 ## Current Position
 
 Phase: 4 of 6 (Frontend Player)
-Plan: 3 of 4 in current phase
+Plan: 4 of 4 in current phase
 Status: In progress
-Last activity: 2026-02-01 -- Completed 04-03-PLAN.md (Waveform visualizer)
+Last activity: 2026-02-01 -- Completed 04-04-PLAN.md (Player UI components)
 
-Progress: [██████████░░] 86% (12/14 plans complete)
+Progress: [███████████░] 93% (13/14 plans complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 12
+- Total plans completed: 13
 - Average duration: 2.5 minutes
-- Total execution time: 0.58 hours
+- Total execution time: 0.63 hours
 
 **By Phase:**
 
@@ -30,10 +30,10 @@ Progress: [██████████░░] 86% (12/14 plans complete)
 | 01-foundation | 2 | 7.5m | 3.75m |
 | 02-submission-pipeline | 4 | 11.9m | 2.97m |
 | 03-queue-now-playing | 3 | 6.7m | 2.2m |
-| 04-frontend-player | 3 | 8.0m | 2.67m |
+| 04-frontend-player | 4 | 11.0m | 2.75m |
 
 **Recent Trend:**
-- Last 5 plans: 3.1m, 2.0m, 2.0m, 3.0m, 3.0m
+- Last 5 plans: 2.0m, 2.0m, 3.0m, 3.0m, 3.0m
 - Trend: Stable (last plan: 3.0m, overall avg: 2.5m)
 
 *Updated after each plan completion*
@@ -97,10 +97,15 @@ Recent decisions affecting current work:
 - [04-03]: Idle animation as utility function, not separate component (same drawing pipeline as live audio)
 - [04-03]: Type assertion (as any) for getByteTimeDomainData due to TS lib ArrayBufferLike mismatch
 - [04-03]: Explicitly create ArrayBuffer for Uint8Array to match Web Audio API expectations
+- [04-04]: Bottom-fixed player bar: 80px height, z-50, white bg with subtle shadow
+- [04-04]: Three-section layout: left (now-playing 25%), center (controls flex-1), right (volume 25%)
+- [04-04]: Inline SVG icons to avoid dependency bloat
+- [04-04]: Wallet truncation: first 6 + last 4 chars when artistName missing
+- [04-04]: M:SS time format with tabular-nums for consistent width
 
 ### Pending Todos
 
-None - Phase 04 plan 03 complete, ready for 04-04 (PlayerBar UI integration).
+None - Phase 04 plan 04 complete, ready for 04-05 (App.tsx integration).
 
 ### Blockers/Concerns
 
@@ -116,8 +121,8 @@ None - Phase 04 plan 03 complete, ready for 04-04 (PlayerBar UI integration).
 
 ## Session Continuity
 
-Last session: 2026-02-01T22:57:38Z
-Stopped at: Completed 04-03-PLAN.md (Waveform visualizer)
+Last session: 2026-02-01T23:04:47Z
+Stopped at: Completed 04-04-PLAN.md (Player UI components)
 Resume file: None
 
-**Phase 04 plan 03 complete.** Canvas 2D waveform visualizer with live AnalyserNode response, gentle breathing idle animation when paused, HiDPI support via devicePixelRatio scaling, and responsive resizing via ResizeObserver. useVisualizer hook drives 60fps animation loop with requestAnimationFrame. Ready for 04-04 (PlayerBar UI integration).
+**Phase 04 plan 04 complete.** Complete player UI component library: fixed bottom bar, play/pause button, volume slider, now-playing display, progress bar, and empty state. All components accept props and compile independently. Ready for 04-05 (App.tsx integration).
