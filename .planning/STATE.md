@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-01-31)
 ## Current Position
 
 Phase: 3 of 6 (Queue and Now-Playing)
-Plan: 2 of 3 in current phase
-Status: In progress
-Last activity: 2026-02-01 -- Completed 03-02-PLAN.md (QueueBrain DO)
+Plan: 3 of 3 in current phase
+Status: Phase complete
+Last activity: 2026-02-01 -- Completed 03-03-PLAN.md (API routes wiring)
 
-Progress: [█████████░] 89%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 8
-- Average duration: 2.7 minutes
-- Total execution time: 0.38 hours
+- Total plans completed: 9
+- Average duration: 2.6 minutes
+- Total execution time: 0.44 hours
 
 **By Phase:**
 
@@ -29,11 +29,11 @@ Progress: [█████████░] 89%
 |-------|-------|-------|----------|
 | 01-foundation | 2 | 7.5m | 3.75m |
 | 02-submission-pipeline | 4 | 11.9m | 2.97m |
-| 03-queue-now-playing | 2 | 3.6m | 1.8m |
+| 03-queue-now-playing | 3 | 6.7m | 2.2m |
 
 **Recent Trend:**
-- Last 5 plans: 4.1m, 2.1m, 1.6m, 2.0m
-- Trend: Accelerating (last plan: 2.0m, phase avg: 1.8m)
+- Last 5 plans: 2.1m, 1.6m, 2.0m, 3.1m
+- Trend: Stable (last plan: 3.1m, phase avg: 2.2m)
 
 *Updated after each plan completion*
 
@@ -77,10 +77,14 @@ Recent decisions affecting current work:
 - [03-02]: Single-track looping: always return tracks[0].id when catalog size is 1
 - [03-02]: Play history includes wallet column (avoids D1 joins for artist diversity filtering)
 - [03-02]: 24-hour history retention (prune on each recordPlay call)
+- [03-03]: DO stub typed as 'as any' for RPC method access (TypeScript limitation)
+- [03-03]: Queue preview not cached in KV (probabilistic result changes each call)
+- [03-03]: First-track detection via queuePosition === 1 from COUNT query
+- [03-03]: Crossfade pre-buffer triggers at < 10s remaining
 
 ### Pending Todos
 
-None - Phase 02 complete, all verification gaps closed.
+None - Phase 03 complete, ready for Phase 4 (Player).
 
 ### Blockers/Concerns
 
@@ -96,8 +100,8 @@ None - Phase 02 complete, all verification gaps closed.
 
 ## Session Continuity
 
-Last session: 2026-02-01T22:11:01Z
-Stopped at: Completed 03-02-PLAN.md (QueueBrain DO)
+Last session: 2026-02-01T21:50:54Z
+Stopped at: Completed 03-03-PLAN.md (API routes wiring)
 Resume file: None
 
-**Phase 03 (Queue and Now-Playing) in progress.** QueueBrain DO complete with SQLite state, alarm-based advancement, and weighted selection. Ready for API routes (Plan 03).
+**Phase 03 (Queue and Now-Playing) complete.** GET /api/now-playing with KV caching, GET /api/queue with probabilistic preview, and automatic first-track playback trigger all wired. Ready for Phase 4 (Player).
