@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-01-31)
 ## Current Position
 
 Phase: 3 of 6 (Queue and Now-Playing)
-Plan: 1 of 3 in current phase
+Plan: 2 of 3 in current phase
 Status: In progress
-Last activity: 2026-02-01 -- Completed 03-01-PLAN.md (Foundation)
+Last activity: 2026-02-01 -- Completed 03-02-PLAN.md (QueueBrain DO)
 
-Progress: [████████░░] 82%
+Progress: [█████████░] 89%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 7
-- Average duration: 2.9 minutes
-- Total execution time: 0.35 hours
+- Total plans completed: 8
+- Average duration: 2.7 minutes
+- Total execution time: 0.38 hours
 
 **By Phase:**
 
@@ -29,11 +29,11 @@ Progress: [████████░░] 82%
 |-------|-------|-------|----------|
 | 01-foundation | 2 | 7.5m | 3.75m |
 | 02-submission-pipeline | 4 | 11.9m | 2.97m |
-| 03-queue-now-playing | 1 | 1.6m | 1.6m |
+| 03-queue-now-playing | 2 | 3.6m | 1.8m |
 
 **Recent Trend:**
-- Last 5 plans: 3.6m, 4.1m, 2.1m, 1.6m
-- Trend: Accelerating (last plan: 1.6m, phase avg: 1.6m)
+- Last 5 plans: 4.1m, 2.1m, 1.6m, 2.0m
+- Trend: Accelerating (last plan: 2.0m, phase avg: 1.8m)
 
 *Updated after each plan completion*
 
@@ -70,6 +70,13 @@ Recent decisions affecting current work:
 - [03-01]: Anti-repeat threshold: 5 tracks (disable filtering for small catalogs)
 - [03-01]: KV cache TTL: 5s for waiting state, track-end or 60s max for playing
 - [03-01]: Binary search for O(log n) weighted selection from cumulative weights
+- [03-02]: DO SQLite state: key-value queue_state table + play_history with wallet for artist diversity
+- [03-02]: Alarm precision: millisecond-level scheduling for exact track end times
+- [03-02]: created_at conversion: D1 stores UNIX seconds, rotation expects milliseconds - convert at fetch time
+- [03-02]: Idempotent startImmediately: check both current_track_id and alarm existence
+- [03-02]: Single-track looping: always return tracks[0].id when catalog size is 1
+- [03-02]: Play history includes wallet column (avoids D1 joins for artist diversity filtering)
+- [03-02]: 24-hour history retention (prune on each recordPlay call)
 
 ### Pending Todos
 
@@ -89,8 +96,8 @@ None - Phase 02 complete, all verification gaps closed.
 
 ## Session Continuity
 
-Last session: 2026-02-01T21:38:56Z
-Stopped at: Completed 03-01-PLAN.md (Foundation)
+Last session: 2026-02-01T22:11:01Z
+Stopped at: Completed 03-02-PLAN.md (QueueBrain DO)
 Resume file: None
 
-**Phase 03 (Queue and Now-Playing) in progress.** Foundation complete: rotation algorithm, KV cache helpers, shared types, and wrangler bindings ready for QueueBrain DO and API routes.
+**Phase 03 (Queue and Now-Playing) in progress.** QueueBrain DO complete with SQLite state, alarm-based advancement, and weighted selection. Ready for API routes (Plan 03).
