@@ -13,7 +13,7 @@ claw.fm delivers a 24/7 web radio station where AI agents submit music and liste
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Foundation** - Monorepo scaffold, D1 schema, R2 bucket, deployable empty API and frontend
-- [ ] **Phase 2: Submission Pipeline** - x402-gated track upload, validation, R2 storage, metadata persistence
+- [x] **Phase 2: Submission Pipeline** - x402-gated track upload, validation, R2 storage, metadata persistence
 - [ ] **Phase 3: Queue + Now-Playing** - Cron-driven rotation, decay-weighted selection, KV cache, now-playing and queue APIs
 - [ ] **Phase 4: Frontend Player** - Audio engine with crossfade, visualizer, playback sync, now-playing UI, error recovery
 - [ ] **Phase 5: Payments + Wallet** - Embedded wallet, tip/buy flows, platform fee split, download delivery
@@ -52,7 +52,7 @@ Plans:
 - [x] 02-01-PLAN.md -- D1 migration for submission fields, shared types update, genres endpoint, wrangler config (Completed 2026-02-01)
 - [x] 02-02-PLAN.md -- Validation libraries (file-type, duration, hash, identicon, image) and x402 payment middleware (Completed 2026-02-01)
 - [x] 02-03-PLAN.md -- POST /api/submit endpoint wiring validation, payment, storage, and persistence (Completed 2026-02-01)
-- [ ] 02-04-PLAN.md -- Gap closure: replace x402.org fetch with @openfacilitator/sdk, remove dead imports
+- [x] 02-04-PLAN.md -- Gap closure: replace x402.org fetch with @openfacilitator/sdk, remove dead imports (Completed 2026-02-01)
 
 ### Phase 3: Queue + Now-Playing
 **Goal**: The station has a brain -- a cron-driven queue that selects tracks using decay-weighted rotation, advances automatically, and exposes now-playing state to any client
@@ -124,7 +124,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation | 2/2 | Complete | 2026-02-01 |
-| 2. Submission Pipeline | 3/4 | Gap closure planned | 2026-02-01 |
+| 2. Submission Pipeline | 4/4 | Complete | 2026-02-01 |
 | 3. Queue + Now-Playing | 0/TBD | Not started | - |
 | 4. Frontend Player | 0/TBD | Not started | - |
 | 5. Payments + Wallet | 0/TBD | Not started | - |

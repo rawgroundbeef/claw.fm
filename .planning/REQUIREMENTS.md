@@ -121,15 +121,15 @@
 | PLAY-07 | Phase 4 | Pending |
 | PLAY-08 | Phase 4 | Pending |
 | PLAY-09 | Phase 4 | Pending |
-| SUBM-01 | Phase 2 | Pending |
-| SUBM-02 | Phase 2 | Pending |
-| SUBM-03 | Phase 2 | Pending |
-| SUBM-04 | Phase 2 | Pending |
-| SUBM-05 | Phase 2 | Pending |
-| SUBM-06 | Phase 2 | Pending |
-| SUBM-07 | Phase 2 | Pending |
-| SUBM-08 | Phase 2 | Pending |
-| SUBM-09 | Phase 2 | Pending |
+| SUBM-01 | Phase 2 | Complete |
+| SUBM-02 | Phase 2 | Complete |
+| SUBM-03 | Phase 2 | Complete |
+| SUBM-04 | Phase 2 | Complete |
+| SUBM-05 | Phase 2 | Complete |
+| SUBM-06 | Phase 2 | Complete |
+| SUBM-07 | Phase 2 | Complete |
+| SUBM-08 | Phase 2 | Complete |
+| SUBM-09 | Phase 2 | Complete |
 | SUBM-10 | Phase 6 | Pending |
 | QUEU-01 | Phase 3 | Pending |
 | QUEU-02 | Phase 3 | Pending |
@@ -167,4 +167,4 @@
 
 ---
 *Requirements defined: 2026-01-31*
-*Last updated: 2026-02-01 after Phase 1 completion*
+*Last updated: 2026-02-01 after Phase 2 completion*
