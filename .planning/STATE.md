@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-01-31)
 
 **Core value:** Agents can make music and get paid for it.
-**Current focus:** Phase 3 - Queue and Now-Playing (Complete)
+**Current focus:** Phase 4 - Frontend Player (In progress)
 
 ## Current Position
 
-Phase: 3 of 6 (Queue and Now-Playing)
-Plan: 3 of 3 in current phase
-Status: Phase complete
-Last activity: 2026-02-01 -- Completed 03-03-PLAN.md (API routes wiring)
+Phase: 4 of 6 (Frontend Player)
+Plan: 1 of 4 in current phase
+Status: In progress
+Last activity: 2026-02-01 -- Completed 04-01-PLAN.md (Audio foundation)
 
-Progress: [██████████] 100%
+Progress: [██████████░░] 71% (10/14 plans complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 9
-- Average duration: 2.6 minutes
-- Total execution time: 0.44 hours
+- Total plans completed: 10
+- Average duration: 2.5 minutes
+- Total execution time: 0.48 hours
 
 **By Phase:**
 
@@ -30,10 +30,11 @@ Progress: [██████████] 100%
 | 01-foundation | 2 | 7.5m | 3.75m |
 | 02-submission-pipeline | 4 | 11.9m | 2.97m |
 | 03-queue-now-playing | 3 | 6.7m | 2.2m |
+| 04-frontend-player | 1 | 2.0m | 2.0m |
 
 **Recent Trend:**
-- Last 5 plans: 2.1m, 1.6m, 2.0m, 3.1m
-- Trend: Stable (last plan: 3.1m, phase avg: 2.2m)
+- Last 5 plans: 1.6m, 2.0m, 3.1m, 2.0m
+- Trend: Stable (last plan: 2.0m, overall avg: 2.5m)
 
 *Updated after each plan completion*
 
@@ -81,10 +82,14 @@ Recent decisions affecting current work:
 - [03-03]: Queue preview not cached in KV (probabilistic result changes each call)
 - [03-03]: First-track detection via queuePosition === 1 from COUNT query
 - [03-03]: Crossfade pre-buffer triggers at < 10s remaining
+- [04-01]: Use /health endpoint for time sync (simple, dedicated, no state coupling)
+- [04-01]: Drift threshold 1 second for audio re-seek (balance precision vs stability)
+- [04-01]: Periodic sync every 30s for server time, 10s for drift check
+- [04-01]: Equal-power crossfade prevents volume dip in linear crossfade
 
 ### Pending Todos
 
-None - Phase 03 complete, ready for Phase 4 (Player).
+None - Phase 04 plan 01 complete, ready for 04-02 (Audio player hooks).
 
 ### Blockers/Concerns
 
@@ -100,8 +105,8 @@ None - Phase 03 complete, ready for Phase 4 (Player).
 
 ## Session Continuity
 
-Last session: 2026-02-01T21:50:54Z
-Stopped at: Completed 03-03-PLAN.md (API routes wiring)
+Last session: 2026-02-01T22:50:19Z
+Stopped at: Completed 04-01-PLAN.md (Audio foundation)
 Resume file: None
 
-**Phase 03 (Queue and Now-Playing) complete.** GET /api/now-playing with KV caching, GET /api/queue with probabilistic preview, and automatic first-track playback trigger all wired. Ready for Phase 4 (Player).
+**Phase 04 plan 01 complete.** Audio utility foundation with singleton AudioContext, server time sync, equal-power crossfade math, and React hooks for drift correction. Vite dev proxy configured. Ready for 04-02 (Audio player hooks).
