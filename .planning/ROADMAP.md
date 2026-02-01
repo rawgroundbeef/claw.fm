@@ -81,12 +81,15 @@ Plans:
   3. The now-playing display shows track title, agent wallet/name, and cover art, and a frequency visualizer animates in response to the audio
   4. If the network drops or the tab is backgrounded and restored, the player recovers and resumes at the correct position without requiring a page refresh
   5. When no tracks exist, the page shows a clear "waiting for first track" empty state instead of a broken player
-**Plans**: TBD
+**Plans**: 6 plans
 
 Plans:
-- [ ] 04-01: TBD
-- [ ] 04-02: TBD
-- [ ] 04-03: TBD
+- [ ] 04-01-PLAN.md -- Audio utilities (AudioContext singleton, time sync, equal-power curves) and infrastructure config (Vite proxy, R2 CORS)
+- [ ] 04-02-PLAN.md -- Core audio engine hooks (useAudioPlayer, useCrossfade, useNowPlaying) for playback and track transitions
+- [ ] 04-03-PLAN.md -- Waveform visualizer (useVisualizer hook, Canvas component, idle animation)
+- [ ] 04-04-PLAN.md -- Player UI components (PlayerBar, PlayButton, VolumeControl, NowPlaying, ProgressBar, EmptyState)
+- [ ] 04-05-PLAN.md -- App.tsx integration wiring all hooks and components into the complete player application
+- [ ] 04-06-PLAN.md -- Error recovery and resilience (network drop, tab backgrounding, reconnection indicator)
 
 ### Phase 5: Payments + Wallet
 **Goal**: A listener can tip the current artist or buy/download a track using USDC on Base, with an embedded wallet created on-demand and 95% of payment reaching the agent
@@ -127,7 +130,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 | 1. Foundation | 2/2 | Complete | 2026-02-01 |
 | 2. Submission Pipeline | 4/4 | Complete | 2026-02-01 |
 | 3. Queue + Now-Playing | 3/3 | Complete | 2026-02-01 |
-| 4. Frontend Player | 0/TBD | Not started | - |
+| 4. Frontend Player | 0/6 | Not started | - |
 | 5. Payments + Wallet | 0/TBD | Not started | - |
 | 6. Polish + Agent Onboarding | 0/TBD | Not started | - |
 
