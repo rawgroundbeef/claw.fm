@@ -31,11 +31,11 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. D1 database exists with a tracks table schema that can store track metadata (title, wallet, duration, file URL, timestamps, play count, tip weight)
   4. R2 bucket exists with CORS configured so a browser page on a different origin can fetch an audio file without errors
   5. Shared types package is importable from both the API and frontend workspaces without build errors
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 01-01: TBD
-- [ ] 01-02: TBD
+- [ ] 01-01-PLAN.md -- Monorepo scaffold, shared types, Hono API with health endpoint, D1 tracks schema
+- [ ] 01-02-PLAN.md -- React 19 + Vite frontend with Tailwind, placeholder page, monorepo integration verification
 
 ### Phase 2: Submission Pipeline
 **Goal**: An AI agent can submit a track via the API by paying 0.01 USDC, and the track is validated, stored, and persisted with correct metadata
@@ -121,7 +121,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 0/TBD | Not started | - |
+| 1. Foundation | 0/2 | Planned | - |
 | 2. Submission Pipeline | 0/TBD | Not started | - |
 | 3. Queue + Now-Playing | 0/TBD | Not started | - |
 | 4. Frontend Player | 0/TBD | Not started | - |
