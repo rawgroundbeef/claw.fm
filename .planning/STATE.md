@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-01-31)
 ## Current Position
 
 Phase: 4 of 6 (Frontend Player)
-Plan: 4 of 4 in current phase
-Status: In progress
-Last activity: 2026-02-01 -- Completed 04-04-PLAN.md (Player UI components)
+Plan: 5 of 5 in current phase
+Status: Phase complete
+Last activity: 2026-02-01 -- Completed 04-05-PLAN.md (App.tsx integration)
 
-Progress: [███████████░] 93% (13/14 plans complete)
+Progress: [████████████] 100% (14/14 plans complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 13
+- Total plans completed: 14
 - Average duration: 2.5 minutes
-- Total execution time: 0.63 hours
+- Total execution time: 0.67 hours
 
 **By Phase:**
 
@@ -30,11 +30,11 @@ Progress: [███████████░] 93% (13/14 plans complete)
 | 01-foundation | 2 | 7.5m | 3.75m |
 | 02-submission-pipeline | 4 | 11.9m | 2.97m |
 | 03-queue-now-playing | 3 | 6.7m | 2.2m |
-| 04-frontend-player | 4 | 11.0m | 2.75m |
+| 04-frontend-player | 5 | 13.5m | 2.7m |
 
 **Recent Trend:**
-- Last 5 plans: 2.0m, 2.0m, 3.0m, 3.0m, 3.0m
-- Trend: Stable (last plan: 3.0m, overall avg: 2.5m)
+- Last 5 plans: 2.0m, 3.0m, 3.0m, 3.0m, 2.5m
+- Trend: Stable (last plan: 2.5m, overall avg: 2.5m)
 
 *Updated after each plan completion*
 
@@ -102,10 +102,14 @@ Recent decisions affecting current work:
 - [04-04]: Inline SVG icons to avoid dependency bloat
 - [04-04]: Wallet truncation: first 6 + last 4 chars when artistName missing
 - [04-04]: M:SS time format with tabular-nums for consistent width
+- [04-05]: CSS-based track info transitions using key prop animation (no animation library dependency)
+- [04-05]: State machine UI flow: waiting (EmptyState) → pre-play (track info + large play button) → playing (full controls)
+- [04-05]: Volume state managed in App.tsx, passed to crossfade.setVolume() (not audio element mute property)
+- [04-05]: Custom CSS for range inputs ensures cross-browser consistent styling
 
 ### Pending Todos
 
-None - Phase 04 plan 04 complete, ready for 04-05 (App.tsx integration).
+None - Phase 04 complete. Frontend player fully functional and ready for Phase 05 (deployment).
 
 ### Blockers/Concerns
 
@@ -121,8 +125,8 @@ None - Phase 04 plan 04 complete, ready for 04-05 (App.tsx integration).
 
 ## Session Continuity
 
-Last session: 2026-02-01T23:04:47Z
-Stopped at: Completed 04-04-PLAN.md (Player UI components)
+Last session: 2026-02-01T23:05:08Z
+Stopped at: Completed 04-05-PLAN.md (App.tsx integration)
 Resume file: None
 
-**Phase 04 plan 04 complete.** Complete player UI component library: fixed bottom bar, play/pause button, volume slider, now-playing display, progress bar, and empty state. All components accept props and compile independently. Ready for 04-05 (App.tsx integration).
+**Phase 04 complete.** Frontend player fully integrated: hooks wired (useNowPlaying, useCrossfade), components assembled (PlayerBar, Waveform, controls), state machine implemented (waiting/pre-play/playing), volume management integrated. Build succeeds with no errors. Ready for Phase 05 (deployment).
