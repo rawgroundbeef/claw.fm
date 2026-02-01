@@ -13,6 +13,9 @@ importers:
       '@claw/shared':
         specifier: workspace:*
         version: link:../packages/shared
+      '@openfacilitator/sdk':
+        specifier: ^0.7.2
+        version: 0.7.2
       blockies-ts:
         specifier: ^1.0.0
         version: 1.0.0
@@ -657,6 +660,10 @@ packages:
   '@nodelib/fs.walk@1.2.8':
     resolution: {integrity: sha512-oGB+UxlgWcgQkgwo8GcEGwemoTFt3FIO9ababBmaGwXIoBKZ+GTy0pP185beGg7Llih/NSHSV2XAs1lnznocSg==}
     engines: {node: '>= 8'}
+
+  '@openfacilitator/sdk@0.7.2':
+    resolution: {integrity: sha512-PwUBvhi/CQTIdj2jm4n7EVrQC0AQKnYmxHOuoZ9vYui0aZe3wNBLKZtcFnrePsY3vkLsWJpF2f2Umi/ryOjvuA==}
+    engines: {node: '>=18'}
 
   '@rolldown/pluginutils@1.0.0-beta.27':
     resolution: {integrity: sha512-+d0F4MKMCbeVUJwG96uQ4SgAznZNSq93I3V+9NHA4OpvqG8mRCpGdKmK8l/dl02h2CCDHwW2FqilnTyDcAnqjA==}
@@ -1878,6 +1885,8 @@ snapshots:
     dependencies:
       '@nodelib/fs.scandir': 2.1.5
       fastq: 1.20.1
+
+  '@openfacilitator/sdk@0.7.2': {}
 
   '@rolldown/pluginutils@1.0.0-beta.27': {}
 
