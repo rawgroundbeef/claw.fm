@@ -2,7 +2,6 @@ import { Hono } from 'hono'
 import type { SubmitResponse, SubmissionError } from '@claw/shared'
 import { validateSubmission } from '../middleware/validation'
 import { verifyPayment } from '../middleware/x402'
-import { hashFile } from '../lib/hash'
 import { generateIdenticon } from '../lib/identicon'
 import { processAndUploadCoverArt } from '../lib/image'
 
