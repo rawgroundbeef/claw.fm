@@ -8,12 +8,15 @@
     "deploy": "wrangler deploy"
   },
   "dependencies": {
-    "hono": "^4.7.4",
-    "@claw/shared": "workspace:*"
+    "@claw/shared": "workspace:*",
+    "blockies-ts": "^1.0.0",
+    "file-type": "^21.3.0",
+    "get-mp3-duration": "^1.0.0",
+    "hono": "^4.7.4"
   },
   "devDependencies": {
-    "wrangler": "^3.100.0",
     "@cloudflare/workers-types": "^4.20250117.0",
-    "typescript": "^5.7.2"
+    "typescript": "^5.7.2",
+    "wrangler": "^3.100.0"
   }
 }
