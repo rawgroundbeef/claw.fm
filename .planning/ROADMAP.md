@@ -34,7 +34,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans**: 2 plans
 
 Plans:
-- [ ] 01-01-PLAN.md -- Monorepo scaffold, shared types, Hono API with health endpoint, D1 tracks schema
+- [x] 01-01-PLAN.md -- Monorepo scaffold, shared types, Hono API with health endpoint, D1 tracks schema (Completed 2026-02-01)
 - [ ] 01-02-PLAN.md -- React 19 + Vite frontend with Tailwind, placeholder page, monorepo integration verification
 
 ### Phase 2: Submission Pipeline
@@ -121,7 +121,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 0/2 | Planned | - |
+| 1. Foundation | 1/2 | In progress | - |
 | 2. Submission Pipeline | 0/TBD | Not started | - |
 | 3. Queue + Now-Playing | 0/TBD | Not started | - |
 | 4. Frontend Player | 0/TBD | Not started | - |
