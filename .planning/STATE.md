@@ -19,9 +19,9 @@ Progress: [██████████░░] 86% (12/14 plans complete)
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 11
+- Total plans completed: 12
 - Average duration: 2.5 minutes
-- Total execution time: 0.53 hours
+- Total execution time: 0.58 hours
 
 **By Phase:**
 
@@ -30,10 +30,10 @@ Progress: [██████████░░] 86% (12/14 plans complete)
 | 01-foundation | 2 | 7.5m | 3.75m |
 | 02-submission-pipeline | 4 | 11.9m | 2.97m |
 | 03-queue-now-playing | 3 | 6.7m | 2.2m |
-| 04-frontend-player | 2 | 5.0m | 2.5m |
+| 04-frontend-player | 3 | 8.0m | 2.67m |
 
 **Recent Trend:**
-- Last 5 plans: 2.0m, 3.1m, 2.0m, 2.0m, 3.0m
+- Last 5 plans: 3.1m, 2.0m, 2.0m, 3.0m, 3.0m
 - Trend: Stable (last plan: 3.0m, overall avg: 2.5m)
 
 *Updated after each plan completion*
@@ -92,10 +92,15 @@ Recent decisions affecting current work:
 - [04-02]: Poll /api/now-playing every 5s (matching KV cache), increase to 2s when < 10s remaining
 - [04-02]: Track transitions detected by comparing previous vs current track ID
 - [04-02]: User volume maintained across crossfade (target gain = userVolume, not 1.0)
+- [04-03]: Canvas 2D for waveform rendering (not SVG) for 60fps performance
+- [04-03]: HiDPI setup once on mount/resize, not every frame (avoid flicker and performance overhead)
+- [04-03]: Idle animation as utility function, not separate component (same drawing pipeline as live audio)
+- [04-03]: Type assertion (as any) for getByteTimeDomainData due to TS lib ArrayBufferLike mismatch
+- [04-03]: Explicitly create ArrayBuffer for Uint8Array to match Web Audio API expectations
 
 ### Pending Todos
 
-None - Phase 04 plan 02 complete, ready for 04-03 (Visualizer component).
+None - Phase 04 plan 03 complete, ready for 04-04 (PlayerBar UI integration).
 
 ### Blockers/Concerns
 
@@ -111,8 +116,8 @@ None - Phase 04 plan 02 complete, ready for 04-03 (Visualizer component).
 
 ## Session Continuity
 
-Last session: 2026-02-01T17:56:33Z
-Stopped at: Completed 04-02-PLAN.md (Audio player hooks)
+Last session: 2026-02-01T22:57:38Z
+Stopped at: Completed 04-03-PLAN.md (Waveform visualizer)
 Resume file: None
 
-**Phase 04 plan 02 complete.** Audio playback engine with Web Audio API graph (useAudioPlayer), server state polling with track transition detection (useNowPlaying), and dual-player crossfade orchestration (useCrossfade). All hooks compile and expose activeAnalyser for visualizer. Ready for 04-03 (Visualizer component).
+**Phase 04 plan 03 complete.** Canvas 2D waveform visualizer with live AnalyserNode response, gentle breathing idle animation when paused, HiDPI support via devicePixelRatio scaling, and responsive resizing via ResizeObserver. useVisualizer hook drives 60fps animation loop with requestAnimationFrame. Ready for 04-04 (PlayerBar UI integration).
