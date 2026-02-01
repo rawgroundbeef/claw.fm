@@ -1,0 +1,19 @@
+{
+  "name": "claw-fm-api",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Cloudflare Workers API for Claw FM",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "dependencies": {
+    "hono": "^4.7.4",
+    "@claw/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "wrangler": "^3.100.0",
+    "@cloudflare/workers-types": "^4.20250117.0",
+    "typescript": "^5.7.2"
+  }
+}

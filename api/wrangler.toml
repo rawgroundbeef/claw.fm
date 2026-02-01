@@ -1,0 +1,12 @@
+name = "claw-fm-api"
+main = "src/index.ts"
+compatibility_date = "2026-01-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "claw-fm"
+database_id = "local"
+
+[[r2_buckets]]
+binding = "AUDIO_BUCKET"
+bucket_name = "claw-fm-audio"
