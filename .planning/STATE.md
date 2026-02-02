@@ -9,19 +9,19 @@ See: .planning/PROJECT.md (updated 2026-01-31)
 
 ## Current Position
 
-Phase: 4 of 6 (Frontend Player)
-Plan: 6 of 6 in current phase
-Status: Phase complete
-Last activity: 2026-02-01 -- Completed 04-06-PLAN.md (error recovery and resilience)
+Phase: 5 of 6 (Payments & Wallet)
+Plan: 2 of 3 in current phase
+Status: In progress
+Last activity: 2026-02-01 -- Completed 05-02-PLAN.md (API endpoints - tips & downloads)
 
-Progress: [████████████] 100% (15/15 plans complete)
+Progress: [████████████████] 88.9% (16/18 plans complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 15
-- Average duration: 2.54 minutes
-- Total execution time: 0.73 hours
+- Total plans completed: 16
+- Average duration: 2.53 minutes
+- Total execution time: 0.67 hours
 
 **By Phase:**
 
@@ -31,10 +31,11 @@ Progress: [████████████] 100% (15/15 plans complete)
 | 02-submission-pipeline | 4 | 11.9m | 2.97m |
 | 03-queue-now-playing | 3 | 6.7m | 2.2m |
 | 04-frontend-player | 6 | 16.1m | 2.68m |
+| 05-payments-wallet | 1 | 2.4m | 2.4m |
 
 **Recent Trend:**
-- Last 5 plans: 3.0m, 3.0m, 3.0m, 2.5m, 2.6m
-- Trend: Stable (last plan: 2.6m, overall avg: 2.54m)
+- Last 5 plans: 3.0m, 3.0m, 2.5m, 2.6m, 2.4m
+- Trend: Stable (last plan: 2.4m, overall avg: 2.53m)
 
 *Updated after each plan completion*
 
@@ -111,10 +112,16 @@ Recent decisions affecting current work:
 - [04-06]: Buffering state propagated from useAudioPlayer through useCrossfade to App.tsx UI
 - [04-06]: Page Visibility API for tab backgrounding detection and auto-restore
 - [04-06]: Window online/offline events for network drop detection
+- [05-02]: Tip weight scaling amount * 1e17 ($1 USDC = 2x boost, $0.25 = 1.25x, $5 = 6x)
+- [05-02]: 72-hour download URL expiry (balance UX and security)
+- [05-02]: HMAC-SHA256 with Web Crypto API for presigned URLs (no dependencies)
+- [05-02]: Relative download URLs resolved by frontend against API base
+- [05-02]: Token format {r2Key}:{expiresAt} prevents file/expiry manipulation
+- [05-02]: KV cache invalidation on tip (rotation weights changed)
 
 ### Pending Todos
 
-None - Phase 04 complete. Frontend player fully functional with error recovery and resilience. Ready for Phase 05 (deployment).
+None - Phase 05 Plan 02 complete. API endpoints ready for frontend integration in Plan 03.
 
 ### Blockers/Concerns
 
@@ -130,8 +137,8 @@ None - Phase 04 complete. Frontend player fully functional with error recovery a
 
 ## Session Continuity
 
-Last session: 2026-02-01T23:21:03Z
-Stopped at: Completed 04-06-PLAN.md (error recovery and resilience)
+Last session: 2026-02-01T23:24:44Z
+Stopped at: Completed 05-02-PLAN.md (API endpoints - tips & downloads)
 Resume file: None
 
-**Phase 04 complete.** Frontend player fully integrated with error recovery: hooks wired (useNowPlaying with refetch, useCrossfade with buffering, useRecovery), components assembled (PlayerBar, Waveform, controls, ReconnectingIndicator), state machine implemented (waiting/pre-play/playing), volume management integrated, network drop handling, tab backgrounding recovery, audio stall auto-retry. Build succeeds with no errors. Ready for Phase 05 (deployment).
+**Phase 05 Plan 02 complete.** API payment endpoints functional: POST /api/tip (updates tip_weight with USDC-to-boost scaling), POST /api/downloads/:trackId (generates HMAC-signed URLs with 72h expiry), GET /api/downloads/:trackId/file (verifies token, streams from R2). Shared payment types exported. Routes mounted. Zero new dependencies (native Web Crypto API). TypeScript compilation passes. Ready for Plan 03 (frontend payment flows).
