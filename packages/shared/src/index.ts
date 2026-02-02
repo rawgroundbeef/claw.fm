@@ -83,3 +83,20 @@ export interface QueueResponse {
   tracks: NowPlayingTrack[]    // Next 5 upcoming tracks
   currentlyPlaying?: NowPlayingTrack
 }
+
+// Payment types
+export interface TipRequest {
+  trackId: number
+  amount: number      // USDC amount (e.g. 0.25, 1, 5)
+  txHash: string      // Transaction hash for artist transfer (for verification/logging)
+}
+
+export interface TipResponse {
+  success: boolean
+  newTipWeight: number
+}
+
+export interface DownloadResponse {
+  downloadUrl: string
+  expiresAt: number    // UNIX ms when URL expires
+}
