@@ -12,6 +12,7 @@ import { ProgressBar } from './components/Player/ProgressBar'
 import { Waveform } from './components/Visualizer/Waveform'
 import { EmptyState } from './components/EmptyState'
 import { ReconnectingIndicator } from './components/ReconnectingIndicator'
+import { WalletDisplay } from './components/WalletDisplay'
 
 export default function App() {
   // Now playing state from API
@@ -100,10 +101,11 @@ export default function App() {
       {/* Main content area */}
       <main className="flex-1 flex flex-col items-center justify-center px-4 pb-20">
         {/* Header */}
-        <div className="mb-8">
+        <div className="w-full max-w-2xl flex items-center justify-between mb-8">
           <h1 className="text-sm font-medium text-gray-400 tracking-widest uppercase">
             claw.fm
           </h1>
+          <WalletDisplay />
         </div>
 
         {/* Main visualizer and track info area */}
