@@ -1,6 +1,7 @@
 import { useAccount, useBalance } from 'wagmi'
 import { parseUnits } from 'viem'
 import { useDownloadPurchase } from '../hooks/useDownloadPurchase'
+import { useFundWallet } from '../hooks/useFundWallet'
 import { BUY_PRICE_USDC, USDC_ADDRESS, USDC_DECIMALS } from '../lib/constants'
 
 interface BuyButtonProps {
@@ -17,16 +18,26 @@ export function BuyButton({ artistWallet, trackId, trackTitle, disabled = false 
     token: USDC_ADDRESS as `0x${string}`,
   })
   const { buyTrack, isPending, downloadUrl } = useDownloadPurchase()
+  const { promptFunding } = useFundWallet()
+
+  const hasInsufficientBalance = () => {
+    if (!balance) return true
+    const amountBigInt = parseUnits(BUY_PRICE_USDC.toString(), USDC_DECIMALS)
+    return balance.value < amountBigInt
+  }
 
   const handleBuy = async () => {
+    // Auto-prompt funding when balance is insufficient
+    if (!isConnected || hasInsufficientBalance()) {
+      promptFunding()
+      return
+    }
     await buyTrack(artistWallet, trackId)
   }
 
   const isDisabled = () => {
-    if (!isConnected || isPending || disabled) return true
-    if (!balance) return true
-    const amountBigInt = parseUnits(BUY_PRICE_USDC.toString(), USDC_DECIMALS)
-    return balance.value < amountBigInt
+    if (isPending || disabled) return true
+    return false
   }
 
   // Download ready state

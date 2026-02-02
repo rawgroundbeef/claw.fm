@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useAccount, useBalance } from 'wagmi'
 import { parseUnits } from 'viem'
 import { useUSDCTransfer } from '../hooks/useUSDCTransfer'
+import { useFundWallet } from '../hooks/useFundWallet'
 import { TIP_AMOUNTS, USDC_ADDRESS, USDC_DECIMALS } from '../lib/constants'
 
 interface TipButtonsProps {
@@ -18,9 +19,22 @@ export function TipButtons({ artistWallet, trackId, disabled = false, onTipSucce
     token: USDC_ADDRESS as `0x${string}`,
   })
   const { sendTransfer, isPending } = useUSDCTransfer()
+  const { promptFunding } = useFundWallet()
   const [activeAmount, setActiveAmount] = useState<number | null>(null)
 
+  const hasInsufficientBalance = (amount: number) => {
+    if (!balance) return true
+    const amountBigInt = parseUnits(amount.toString(), USDC_DECIMALS)
+    return balance.value < amountBigInt
+  }
+
   const handleTip = async (amount: number) => {
+    // Auto-prompt funding when balance is insufficient
+    if (!isConnected || hasInsufficientBalance(amount)) {
+      promptFunding()
+      return
+    }
+
     setActiveAmount(amount)
     const result = await sendTransfer(artistWallet, amount)
     setActiveAmount(null)
@@ -45,28 +59,22 @@ export function TipButtons({ artistWallet, trackId, disabled = false, onTipSucce
     }
   }
 
-  const isAmountDisabled = (amount: number) => {
-    if (!isConnected || isPending || disabled) return true
-    if (!balance) return true
-    const amountBigInt = parseUnits(amount.toString(), USDC_DECIMALS)
-    return balance.value < amountBigInt
-  }
+  const isButtonDisabled = isPending || disabled
 
   return (
     <div className="flex items-center gap-2">
       {TIP_AMOUNTS.map((amount) => {
         const isActive = activeAmount === amount
-        const isDisabled = isAmountDisabled(amount)
 
         return (
           <button
             key={amount}
             onClick={() => handleTip(amount)}
-            disabled={isDisabled}
+            disabled={isButtonDisabled}
             className={`
               px-4 py-2 text-sm font-medium rounded-full transition-colors
               ${
-                isDisabled
+                isButtonDisabled
                   ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                   : 'bg-indigo-500 text-white hover:bg-indigo-600'
               }

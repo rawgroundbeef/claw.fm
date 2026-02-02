@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useAccount, useConnect, useDisconnect, useBalance } from 'wagmi'
 import { coinbaseWallet } from 'wagmi/connectors'
 import { USDC_ADDRESS } from '../lib/constants'
+import { useFundWallet } from '../hooks/useFundWallet'
 
 export function WalletDisplay() {
   const { address, isConnected } = useAccount()
@@ -11,8 +12,9 @@ export function WalletDisplay() {
     address,
     token: USDC_ADDRESS,
   })
+  const { openFundingPopup } = useFundWallet()
 
-  const [showDisconnect, setShowDisconnect] = useState(false)
+  const [showMenu, setShowMenu] = useState(false)
 
   const handleConnect = () => {
     connect({
@@ -43,9 +45,15 @@ export function WalletDisplay() {
     : '0.00'
 
   return (
-    <div className="relative">
+    <div className="relative flex items-center gap-2">
       <button
-        onClick={() => setShowDisconnect(!showDisconnect)}
+        onClick={openFundingPopup}
+        className="px-3 py-2 text-sm font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-full transition-colors"
+      >
+        + Fund
+      </button>
+      <button
+        onClick={() => setShowMenu(!showMenu)}
         className="px-4 py-2 text-sm font-medium text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-full transition-colors flex items-center space-x-2"
       >
         <span>{truncatedAddress}</span>
@@ -53,11 +61,11 @@ export function WalletDisplay() {
         <span>{usdcBalance} USDC</span>
       </button>
 
-      {showDisconnect && (
+      {showMenu && (
         <button
           onClick={() => {
             disconnect()
-            setShowDisconnect(false)
+            setShowMenu(false)
           }}
           className="absolute top-full right-0 mt-2 px-4 py-2 text-sm font-medium text-red-600 bg-white hover:bg-red-50 rounded-lg shadow-lg border border-gray-200 whitespace-nowrap transition-colors"
         >
