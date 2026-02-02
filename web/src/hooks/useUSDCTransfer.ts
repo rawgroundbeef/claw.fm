@@ -1,66 +1,39 @@
 import { useState } from 'react'
-import { useWriteContract } from 'wagmi'
-import { parseUnits } from 'viem'
 import { toast } from 'sonner'
-import { USDC_ADDRESS, PLATFORM_WALLET, ERC20_TRANSFER_ABI, USDC_DECIMALS } from '../lib/constants'
+import { useWallet } from '../contexts/WalletContext'
 
 interface TransferResult {
   success: boolean
-  txHash?: string
   error?: string
 }
 
 export function useUSDCTransfer() {
-  const { writeContractAsync } = useWriteContract()
+  const { paymentFetch, refreshBalance } = useWallet()
   const [isPending, setIsPending] = useState(false)
 
-  const sendTransfer = async (artistWallet: string, usdcAmount: number): Promise<TransferResult> => {
+  const sendTip = async (trackId: number, amount: number): Promise<TransferResult> => {
     setIsPending(true)
-    let toastId: string | number | undefined
+    const toastId = toast.loading('Sending tip...')
 
     try {
-      // Calculate amounts - artist gets 95%, platform gets remainder
-      const total = parseUnits(usdcAmount.toString(), USDC_DECIMALS)
-      const artistAmount = (total * 95n) / 100n
-      const platformAmount = total - artistAmount
-
-      // Show loading toast
-      toastId = toast.loading('Sending tip...')
-
-      // Execute artist transfer (95%)
-      const artistTxHash = await writeContractAsync({
-        address: USDC_ADDRESS as `0x${string}`,
-        abi: ERC20_TRANSFER_ABI,
-        functionName: 'transfer',
-        args: [artistWallet as `0x${string}`, artistAmount]
+      const res = await paymentFetch('/api/tip', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ trackId, amount }),
       })
 
-      // Execute platform transfer (5%)
-      try {
-        await writeContractAsync({
-          address: USDC_ADDRESS as `0x${string}`,
-          abi: ERC20_TRANSFER_ABI,
-          functionName: 'transfer',
-          args: [PLATFORM_WALLET as `0x${string}`, platformAmount]
-        })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({ error: res.statusText }))
+        throw new Error(data.error || `Tip failed (${res.status})`)
+      }
 
-        // Both transfers succeeded
-        toast.dismiss(toastId)
-        toast.success('Tip sent!')
-        setIsPending(false)
-        return { success: true, txHash: artistTxHash }
-      } catch (platformError) {
-        // Artist transfer succeeded, platform transfer failed
-        toast.dismiss(toastId)
-        toast.success('Tip sent to artist. Platform fee pending.')
-        setIsPending(false)
-        return { success: true, txHash: artistTxHash }
-      }
+      toast.dismiss(toastId)
+      toast.success('Tip sent!')
+      await refreshBalance()
+      setIsPending(false)
+      return { success: true }
     } catch (error) {
-      // Artist transfer failed (or error before transfers)
-      if (toastId) {
-        toast.dismiss(toastId)
-      }
+      toast.dismiss(toastId)
       const errorMessage = error instanceof Error ? error.message : 'Transaction failed'
       toast.error(errorMessage)
       setIsPending(false)
@@ -68,5 +41,5 @@ export function useUSDCTransfer() {
     }
   }
 
-  return { sendTransfer, isPending }
+  return { sendTip, isPending }
 }

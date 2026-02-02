@@ -51,8 +51,14 @@ export function getCorrectPlaybackPosition(
   // Calculate elapsed time since track started
   const elapsedMs = serverNow - startedAt
 
+  // If elapsed exceeds duration, the track has expired (queue stuck).
+  // Play from the beginning rather than seeking to the end.
+  if (elapsedMs >= durationMs) {
+    return 0
+  }
+
   // Clamp to valid range (0 to duration)
-  const clampedMs = Math.max(0, Math.min(durationMs, elapsedMs))
+  const clampedMs = Math.max(0, elapsedMs)
 
   // Return position in seconds
   return clampedMs / 1000

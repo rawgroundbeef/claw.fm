@@ -129,6 +129,42 @@ export class QueueBrain extends DurableObject<Env> {
   }
 
   /**
+   * Force-start a track, replacing whatever is currently playing.
+   * DEV ONLY — used to skip the queue and play a specific track immediately.
+   */
+  async forceStart(trackId: number): Promise<boolean> {
+    const track = await this.fetchTrackById(trackId)
+    if (!track) {
+      throw new Error(`Track ${trackId} not found`)
+    }
+
+    // Cancel existing alarm
+    await this.ctx.storage.deleteAlarm()
+
+    // Set current track state
+    const now = Date.now()
+    const endsAt = now + (track.duration * 1000)
+
+    await this.setState('current_track_id', trackId.toString())
+    await this.setState('current_started_at', now.toString())
+    await this.setState('current_ends_at', endsAt.toString())
+
+    // Pre-select next track
+    const nextTrackId = await this.selectNext()
+    if (nextTrackId !== null) {
+      await this.setState('next_track_id', nextTrackId.toString())
+    }
+
+    // Schedule alarm for track end
+    await this.ctx.storage.setAlarm(endsAt)
+
+    // Invalidate KV cache
+    await this.env.KV.delete('now-playing')
+
+    return true
+  }
+
+  /**
    * Get queue preview (probabilistic simulation)
    * @param depth Number of tracks to preview
    * @returns Array of track IDs

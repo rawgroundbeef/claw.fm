@@ -7,6 +7,7 @@ import nowPlayingRoute from './routes/now-playing'
 import queueRoute from './routes/queue'
 import tipRoute from './routes/tip'
 import downloadsRoute from './routes/downloads'
+import audioRoute from './routes/audio'
 
 type Bindings = {
   DB: D1Database
@@ -35,6 +36,18 @@ app.route('/api/now-playing', nowPlayingRoute)
 app.route('/api/queue', queueRoute)
 app.route('/api/tip', tipRoute)
 app.route('/api/downloads', downloadsRoute)
+app.route('/audio', audioRoute)
+
+// DEV ONLY - seed route to trigger queue start (remove before deploy)
+app.post('/api/dev/seed-start', async (c) => {
+  const { trackId, force } = await c.req.json()
+  const queueId = c.env.QUEUE_BRAIN.idFromName('global-queue')
+  const queueStub = c.env.QUEUE_BRAIN.get(queueId) as any
+  const started = force
+    ? await queueStub.forceStart(trackId)
+    : await queueStub.startImmediately(trackId)
+  return c.json({ started, trackId })
+})
 
 export default app
 

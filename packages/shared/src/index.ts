@@ -88,7 +88,6 @@ export interface QueueResponse {
 export interface TipRequest {
   trackId: number
   amount: number      // USDC amount (e.g. 0.25, 1, 5)
-  txHash: string      // Transaction hash for artist transfer (for verification/logging)
 }
 
 export interface TipResponse {

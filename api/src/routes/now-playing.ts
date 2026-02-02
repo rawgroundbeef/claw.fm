@@ -69,6 +69,7 @@ nowPlayingRoute.get('/', async (c) => {
     }
 
     // Build NowPlayingTrack from D1 row
+    // file_url is an R2 key — prefix with /audio/ for the streaming route
     const track: NowPlayingTrack = {
       id: currentTrack.id,
       title: currentTrack.title,
@@ -76,7 +77,7 @@ nowPlayingRoute.get('/', async (c) => {
       artistName: currentTrack.artist_name,
       duration: currentTrack.duration,
       coverUrl: currentTrack.cover_url,
-      fileUrl: currentTrack.file_url,
+      fileUrl: `/audio/${currentTrack.file_url}`,
       genre: currentTrack.genre
     }
 
@@ -111,7 +112,7 @@ nowPlayingRoute.get('/', async (c) => {
             artistName: nextTrackData.artist_name,
             duration: nextTrackData.duration,
             coverUrl: nextTrackData.cover_url,
-            fileUrl: nextTrackData.file_url,
+            fileUrl: `/audio/${nextTrackData.file_url}`,
             genre: nextTrackData.genre
           }
         }

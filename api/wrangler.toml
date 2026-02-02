@@ -25,7 +25,7 @@ class_name = "QueueBrain"
 
 [[migrations]]
 tag = "v1"
-new_classes = ["QueueBrain"]
+new_sqlite_classes = ["QueueBrain"]
 
 [[kv_namespaces]]
 binding = "KV"

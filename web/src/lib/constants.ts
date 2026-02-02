@@ -27,3 +27,14 @@ export const ERC20_TRANSFER_ABI = [
     outputs: [{ name: '', type: 'bool' }],
   },
 ] as const
+
+// Minimal ERC20 ABI for balanceOf (used by WalletContext to poll USDC balance)
+export const ERC20_BALANCE_OF_ABI = [
+  {
+    name: 'balanceOf',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [{ name: 'account', type: 'address' }],
+    outputs: [{ name: '', type: 'uint256' }],
+  },
+] as const

@@ -10,14 +10,14 @@
   },
   "dependencies": {
     "@claw/shared": "workspace:*",
-    "@coinbase/onchainkit": "^1.1.2",
-    "@tanstack/react-query": "^5.90.20",
+    "@x402/core": "^2.2.0",
+    "@x402/evm": "^2.2.0",
+    "@x402/fetch": "^2.2.0",
     "react": "^19.0.0",
     "react-canvas-confetti": "^2.0.7",
     "react-dom": "^19.0.0",
     "sonner": "^2.0.7",
-    "viem": "^2.45.1",
-    "wagmi": "^2.16"
+    "viem": "^2.45.1"
   },
   "devDependencies": {
     "@types/react": "^19.0.0",

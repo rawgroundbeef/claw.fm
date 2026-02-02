@@ -7,57 +7,48 @@ export interface PaymentVerificationResult {
   error?: Response
 }
 
+export interface PaymentGateOptions {
+  getRequirements: (c: Context, body?: unknown) => Promise<PaymentRequirementsV1>
+}
+
 /**
- * Verify x402 payment header and extract wallet address
- * This is called manually in the submit route after validation passes
+ * Verify x402 payment header and extract wallet address.
+ * Accepts both v1 (X-PAYMENT) and v2 (PAYMENT-SIGNATURE) headers.
+ * Returns 402 with both v1 (X-PAYMENT-REQUIRED) and v2 (PAYMENT-REQUIRED) headers.
  */
-export async function verifyPayment(c: Context): Promise<PaymentVerificationResult> {
-  // Check for payment header (X-PAYMENT only, per x402 standard)
-  const paymentHeader = c.req.header('X-PAYMENT')
+export async function verifyPayment(
+  c: Context,
+  requirements: PaymentRequirementsV1,
+): Promise<PaymentVerificationResult> {
+  // Accept both v1 and v2 payment headers
+  const paymentHeader =
+    c.req.header('X-PAYMENT') || c.req.header('PAYMENT-SIGNATURE')
 
-  // Payment requirements for track submission
-  const requirements: PaymentRequirementsV1 = {
-    scheme: 'exact',
-    network: 'base', // v1 format (SDK handles v1/v2 translation)
-    maxAmountRequired: '10000', // 0.01 USDC (6 decimals)
-    asset: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', // USDC on Base
-    resource: '/api/submit',
-    description: 'Track submission fee',
-    payTo: c.env.PLATFORM_WALLET as string,
-  }
-
-  // If no payment header present, return 402 Payment Required
   if (!paymentHeader) {
-    // Encode payment requirements as base64 for X-PAYMENT-REQUIRED header
     const requirementsBase64 = btoa(JSON.stringify(requirements))
 
     const errorResponse = c.json(
       {
         error: 'PAYMENT_REQUIRED',
-        message: 'Payment of 0.01 USDC required to submit track',
+        message: `Payment of ${requirements.description || 'USDC'} required`,
         paymentRequirements: requirements,
       },
       402,
       {
+        // v1 header (existing agent clients)
         'X-PAYMENT-REQUIRED': requirementsBase64,
-      }
+        // v2 header (@x402/fetch browser client)
+        'PAYMENT-REQUIRED': requirementsBase64,
+      },
     )
 
-    return {
-      valid: false,
-      error: errorResponse,
-    }
+    return { valid: false, error: errorResponse }
   }
 
-  // Verify and settle payment with OpenFacilitator SDK
   try {
-    // Parse payment header (base64-encoded JSON)
     const paymentPayload = JSON.parse(atob(paymentHeader))
-
-    // Create facilitator instance (defaults to https://pay.openfacilitator.io)
     const facilitator = new OpenFacilitator()
 
-    // Step 1: Verify payment is valid
     const verifyResult = await facilitator.verify(paymentPayload, requirements)
 
     if (!verifyResult.isValid) {
@@ -66,16 +57,11 @@ export async function verifyPayment(c: Context): Promise<PaymentVerificationResu
           error: 'PAYMENT_INVALID',
           message: verifyResult.invalidReason || 'Payment verification failed',
         },
-        402
+        402,
       )
-
-      return {
-        valid: false,
-        error: errorResponse,
-      }
+      return { valid: false, error: errorResponse }
     }
 
-    // Step 2: Settle payment (broadcast transaction)
     const settleResult = await facilitator.settle(paymentPayload, requirements)
 
     if (!settleResult.success) {
@@ -84,49 +70,42 @@ export async function verifyPayment(c: Context): Promise<PaymentVerificationResu
           error: 'PAYMENT_SETTLEMENT_FAILED',
           message: settleResult.errorReason || 'Payment settlement failed',
         },
-        402
+        402,
       )
-
-      return {
-        valid: false,
-        error: errorResponse,
-      }
+      return { valid: false, error: errorResponse }
     }
 
-    // Payment verified and settled successfully
-    return {
-      valid: true,
-      walletAddress: settleResult.payer,
-    }
+    return { valid: true, walletAddress: settleResult.payer }
   } catch (error) {
-    // Handle SDK-specific errors
     if (error instanceof FacilitatorError) {
       const errorResponse = c.json(
         {
           error: 'FACILITATOR_ERROR',
           message: `Facilitator error: ${error.message}`,
         },
-        502
+        502,
       )
-
-      return {
-        valid: false,
-        error: errorResponse,
-      }
+      return { valid: false, error: errorResponse }
     }
 
-    // Generic error handling
     const errorResponse = c.json(
       {
         error: 'PAYMENT_VERIFICATION_ERROR',
         message: `Payment verification error: ${error instanceof Error ? error.message : 'Unknown error'}`,
       },
-      500
+      500,
     )
+    return { valid: false, error: errorResponse }
+  }
+}
 
-    return {
-      valid: false,
-      error: errorResponse,
-    }
+/**
+ * Create a payment gate for a route with dynamic requirements.
+ * Returns a function that can be called in route handlers.
+ */
+export function createPaymentGate(options: PaymentGateOptions) {
+  return async (c: Context, body?: unknown): Promise<PaymentVerificationResult> => {
+    const requirements = await options.getRequirements(c, body)
+    return verifyPayment(c, requirements)
   }
 }

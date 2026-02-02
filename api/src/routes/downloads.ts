@@ -1,16 +1,18 @@
 import { Hono } from 'hono'
 import type { DownloadResponse } from '@claw/shared'
 import { generateDownloadToken, verifyDownloadToken } from '../lib/presigned'
+import { verifyPayment } from '../middleware/x402'
 
 type Bindings = {
   DB: D1Database
   AUDIO_BUCKET: R2Bucket
   DOWNLOAD_SECRET: string
+  PLATFORM_WALLET: string
 }
 
 const downloads = new Hono<{ Bindings: Bindings }>()
 
-// POST /api/downloads/:trackId - Request download link
+// POST /api/downloads/:trackId - Request download link (x402-gated)
 downloads.post('/:trackId', async (c) => {
   try {
     const trackId = parseInt(c.req.param('trackId'))
@@ -21,31 +23,54 @@ downloads.post('/:trackId', async (c) => {
 
     // Look up track in D1
     const track = await c.env.DB.prepare(
-      'SELECT id, file_url, title FROM tracks WHERE id = ?'
+      'SELECT id, file_url, title, wallet FROM tracks WHERE id = ?'
     ).bind(trackId).first()
 
     if (!track) {
       return c.json({ error: 'Track not found' }, 404)
     }
 
-    // Extract R2 key from file_url
-    // file_url format: https://{bucket}.r2.dev/{key} or just the key
+    // x402 payment gate — $2 USDC for download
+    const paymentResult = await verifyPayment(c, {
+      scheme: 'exact',
+      network: 'base',
+      maxAmountRequired: '2000000', // $2 USDC (6 decimals)
+      asset: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+      resource: `/api/downloads/${trackId}`,
+      description: '$2 track download',
+      payTo: c.env.PLATFORM_WALLET,
+    })
+
+    if (!paymentResult.valid) {
+      return paymentResult.error!
+    }
+
+    // Record artist share (95%) for later settlement
+    const artistWallet = track.wallet as string
+    const artistShare = Math.floor(2 * 0.95 * 1e6) // $1.90 in atomic USDC
+    try {
+      await c.env.DB.prepare(
+        `INSERT INTO artist_earnings (artist_wallet, track_id, amount_usdc, payer_wallet, created_at)
+         VALUES (?, ?, ?, ?, unixepoch())`
+      ).bind(artistWallet, trackId, artistShare, paymentResult.walletAddress).run()
+    } catch {
+      console.warn('artist_earnings insert failed (table may not exist yet)')
+    }
+
+    // Generate download URL
     const fileUrl = track.file_url as string
     const r2Key = fileUrl.includes('://')
-      ? new URL(fileUrl).pathname.slice(1) // Remove leading slash
+      ? new URL(fileUrl).pathname.slice(1)
       : fileUrl
 
-    // Calculate expiry (72 hours from now)
     const expiresAt = Date.now() + (72 * 60 * 60 * 1000)
 
-    // Generate HMAC token
     const token = await generateDownloadToken(
       r2Key,
       expiresAt,
       c.env.DOWNLOAD_SECRET
     )
 
-    // Construct download URL (relative to API base)
     const downloadUrl = `/api/downloads/${trackId}/file?token=${token}&expires=${expiresAt}`
 
     const response: DownloadResponse = {
@@ -73,12 +98,10 @@ downloads.get('/:trackId/file', async (c) => {
 
     const expiresAt = parseInt(expiresStr)
 
-    // Check if expired
     if (Date.now() >= expiresAt) {
       return c.json({ error: 'Download link has expired' }, 403)
     }
 
-    // Look up track to get file_url
     const track = await c.env.DB.prepare(
       'SELECT id, file_url, title FROM tracks WHERE id = ?'
     ).bind(trackId).first()
@@ -87,13 +110,11 @@ downloads.get('/:trackId/file', async (c) => {
       return c.json({ error: 'Track not found' }, 404)
     }
 
-    // Extract R2 key from file_url
     const fileUrl = track.file_url as string
     const r2Key = fileUrl.includes('://')
       ? new URL(fileUrl).pathname.slice(1)
       : fileUrl
 
-    // Verify token
     const isValid = await verifyDownloadToken(
       r2Key,
       expiresAt,
@@ -105,14 +126,12 @@ downloads.get('/:trackId/file', async (c) => {
       return c.json({ error: 'Invalid download token' }, 403)
     }
 
-    // Fetch from R2
     const object = await c.env.AUDIO_BUCKET.get(r2Key)
 
     if (!object) {
       return c.json({ error: 'File not found in storage' }, 404)
     }
 
-    // Stream the file with download headers
     const title = track.title as string
     const filename = `${title.replace(/[^a-zA-Z0-9-_ ]/g, '')}.mp3`
 

@@ -1,46 +1,34 @@
-import { useAccount, useBalance } from 'wagmi'
+import { useState } from 'react'
 import { parseUnits } from 'viem'
+import { useWallet } from '../contexts/WalletContext'
 import { useDownloadPurchase } from '../hooks/useDownloadPurchase'
-import { useFundWallet } from '../hooks/useFundWallet'
-import { BUY_PRICE_USDC, USDC_ADDRESS, USDC_DECIMALS } from '../lib/constants'
+import { FundDialog } from './FundDialog'
+import { BUY_PRICE_USDC, USDC_DECIMALS } from '../lib/constants'
 
 interface BuyButtonProps {
-  artistWallet: string
   trackId: number
   trackTitle: string
   disabled?: boolean
 }
 
-export function BuyButton({ artistWallet, trackId, trackTitle, disabled = false }: BuyButtonProps) {
-  const { address, isConnected } = useAccount()
-  const { data: balance } = useBalance({
-    address,
-    token: USDC_ADDRESS as `0x${string}`,
-  })
+export function BuyButton({ trackId, trackTitle, disabled = false }: BuyButtonProps) {
+  const { usdcBalance } = useWallet()
   const { buyTrack, isPending, downloadUrl } = useDownloadPurchase()
-  const { promptFunding } = useFundWallet()
-
-  const hasInsufficientBalance = () => {
-    if (!balance) return true
-    const amountBigInt = parseUnits(BUY_PRICE_USDC.toString(), USDC_DECIMALS)
-    return balance.value < amountBigInt
-  }
+  const [showFundDialog, setShowFundDialog] = useState(false)
 
   const handleBuy = async () => {
-    // Auto-prompt funding when balance is insufficient
-    if (!isConnected || hasInsufficientBalance()) {
-      promptFunding()
+    const amountBigInt = parseUnits(BUY_PRICE_USDC.toString(), USDC_DECIMALS)
+    if (usdcBalance < amountBigInt) {
+      setShowFundDialog(true)
       return
     }
-    await buyTrack(artistWallet, trackId)
+    await buyTrack(trackId)
   }
 
-  const isDisabled = () => {
-    if (isPending || disabled) return true
-    return false
-  }
+  const isDisabled = isPending || disabled
 
-  // Download ready state
+  const fundDialog = <FundDialog open={showFundDialog} onClose={() => setShowFundDialog(false)} />
+
   if (downloadUrl) {
     return (
       <a
@@ -53,28 +41,30 @@ export function BuyButton({ artistWallet, trackId, trackTitle, disabled = false 
     )
   }
 
-  // Buy button
   return (
-    <button
-      onClick={handleBuy}
-      disabled={isDisabled()}
-      className={`
-        px-4 py-2 text-sm font-medium rounded-full transition-colors
-        ${
-          isDisabled()
-            ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-            : 'bg-emerald-500 text-white hover:bg-emerald-600'
-        }
-      `}
-    >
-      {isPending ? (
-        <span className="flex items-center gap-2">
-          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-          Processing...
-        </span>
-      ) : (
-        `Buy $${BUY_PRICE_USDC}`
-      )}
-    </button>
+    <>
+      <button
+        onClick={handleBuy}
+        disabled={isDisabled}
+        className={`
+          px-4 py-2 text-sm font-medium rounded-full transition-colors
+          ${
+            isDisabled
+              ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+              : 'bg-emerald-500 text-white hover:bg-emerald-600'
+          }
+        `}
+      >
+        {isPending ? (
+          <span className="flex items-center gap-2">
+            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            Processing...
+          </span>
+        ) : (
+          `Buy $${BUY_PRICE_USDC}`
+        )}
+      </button>
+      {fundDialog}
+    </>
   )
 }

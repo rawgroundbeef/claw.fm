@@ -148,7 +148,6 @@ export default function App() {
             {crossfade.isPlaying && crossfade.currentTrack && nowPlaying.track && (
               <div className="flex items-center gap-3 mt-4">
                 <TipButtons
-                  artistWallet={nowPlaying.track.artistWallet}
                   trackId={nowPlaying.track.id}
                   onTipSuccess={() => {
                     setShowConfetti(true)
@@ -157,7 +156,6 @@ export default function App() {
                 />
                 <div className="w-px h-8 bg-gray-200" />
                 <BuyButton
-                  artistWallet={nowPlaying.track.artistWallet}
                   trackId={nowPlaying.track.id}
                   trackTitle={nowPlaying.track.title}
                 />

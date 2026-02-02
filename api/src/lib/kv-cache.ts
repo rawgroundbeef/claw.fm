@@ -27,16 +27,17 @@ export async function getCachedNowPlaying(kv: KVNamespace): Promise<NowPlayingRe
  * @param endsAt Optional track end timestamp (for playing state)
  */
 export async function cacheNowPlaying(kv: KVNamespace, response: NowPlayingResponse, endsAt?: number): Promise<void> {
-  // Cache until track ends or max 60s, whichever is sooner
-  // For 'waiting' state, cache for only 5 seconds (might get track soon)
-  let ttl: number
+  // KV requires minimum 60s TTL
+  // For 'waiting' state, skip caching (state changes when first track arrives)
   if (response.state === 'waiting') {
-    ttl = 5
-  } else if (endsAt) {
+    return
+  }
+
+  // Cache until track ends or max 60s, with 60s minimum (KV requirement)
+  let ttl = 60
+  if (endsAt) {
     const secondsRemaining = Math.floor((endsAt - Date.now()) / 1000)
-    ttl = Math.max(1, Math.min(secondsRemaining, 60))
-  } else {
-    ttl = 60
+    ttl = Math.max(60, Math.min(secondsRemaining, 60))
   }
   await kv.put('now-playing', JSON.stringify(response), { expirationTtl: ttl })
 }

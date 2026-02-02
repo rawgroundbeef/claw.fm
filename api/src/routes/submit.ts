@@ -47,7 +47,15 @@ submitRoute.post('/', async (c) => {
     const fileHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
 
     // Step 4: Verify x402 payment
-    const paymentResult = await verifyPayment(c)
+    const paymentResult = await verifyPayment(c, {
+      scheme: 'exact',
+      network: 'base',
+      maxAmountRequired: '10000', // 0.01 USDC (6 decimals)
+      asset: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+      resource: '/api/submit',
+      description: 'Track submission fee',
+      payTo: c.env.PLATFORM_WALLET as string,
+    })
 
     if (!paymentResult.valid) {
       // verifyPayment already constructed the response with proper headers

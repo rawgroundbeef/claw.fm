@@ -62,8 +62,8 @@ export function useCrossfade(): UseCrossfadeReturn {
 
     const { inactive } = getActivePlayers()
 
-    // Check if already loaded
-    if (inactive.audioElement?.src === nowPlaying.nextTrack.fileUrl) {
+    // Check if already loaded (src is absolute, fileUrl is relative)
+    if (inactive.audioElement?.src?.endsWith(nowPlaying.nextTrack.fileUrl)) {
       return
     }
 
@@ -93,13 +93,13 @@ export function useCrossfade(): UseCrossfadeReturn {
       setCurrentTrack(newTrack)
 
       // Seek to correct position if we're joining mid-track
-      if (nowPlaying.startedAt && inactive.audioElement) {
+      if (nowPlaying.startedAt && active.audioElement) {
         const position = getCorrectPlaybackPosition(
           nowPlaying.startedAt,
           newTrack.duration * 1000,
           serverOffset
         )
-        inactive.audioElement.currentTime = position
+        active.audioElement.currentTime = position
       }
 
       return
@@ -180,14 +180,17 @@ export function useCrossfade(): UseCrossfadeReturn {
     const { active } = getActivePlayers()
 
     // Load track if not loaded
-    if (!active.audioElement?.src || active.audioElement.src !== nowPlaying.track.fileUrl) {
+    const audioEl = active.audioElement
+    const needsLoad = !audioEl?.src || !audioEl.src.endsWith(nowPlaying.track.fileUrl)
+    if (needsLoad) {
       active.setSource(nowPlaying.track.fileUrl)
       setCurrentTrack(nowPlaying.track)
 
-      // Wait for load
+      // Wait for load — use audioElement.readyState directly (not stale closure)
       await new Promise<void>((resolve) => {
+        if (!audioEl) { resolve(); return }
         const checkLoaded = setInterval(() => {
-          if (active.isLoaded) {
+          if (audioEl.readyState >= 3) {
             clearInterval(checkLoaded)
             resolve()
           }
