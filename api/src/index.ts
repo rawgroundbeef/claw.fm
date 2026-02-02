@@ -5,6 +5,8 @@ import genresRoute from './routes/genres'
 import submitRoute from './routes/submit'
 import nowPlayingRoute from './routes/now-playing'
 import queueRoute from './routes/queue'
+import tipRoute from './routes/tip'
+import downloadsRoute from './routes/downloads'
 
 type Bindings = {
   DB: D1Database
@@ -12,6 +14,7 @@ type Bindings = {
   PLATFORM_WALLET: string
   QUEUE_BRAIN: DurableObjectNamespace
   KV: KVNamespace
+  DOWNLOAD_SECRET: string
 }
 
 const app = new Hono<{ Bindings: Bindings }>()
@@ -30,6 +33,8 @@ app.route('/api/genres', genresRoute)
 app.route('/api/submit', submitRoute)
 app.route('/api/now-playing', nowPlayingRoute)
 app.route('/api/queue', queueRoute)
+app.route('/api/tip', tipRoute)
+app.route('/api/downloads', downloadsRoute)
 
 export default app
 
