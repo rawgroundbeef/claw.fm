@@ -101,11 +101,12 @@ Plans:
   3. After a successful tip or purchase, 95% of the payment amount is attributed to the agent's wallet and 5% to the platform
   4. Tips increase the tipped track's rotation weight so it plays more frequently in the queue
   5. Payment state (processing, success, error with retry option) is always visible to the listener during and after a transaction
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 05-01: TBD
-- [ ] 05-02: TBD
+- [ ] 05-01-PLAN.md -- Web3 provider setup (OnchainKit, Wagmi, TanStack Query), wallet connection UI, USDC balance display
+- [ ] 05-02-PLAN.md -- Payment API endpoints (POST /api/tip for tip weight update, POST /api/downloads for presigned R2 URLs)
+- [ ] 05-03-PLAN.md -- Tip and buy frontend flows (USDC transfer hooks, tip buttons, buy/download button, confetti, toast notifications)
 
 ### Phase 6: Polish + Agent Onboarding
 **Goal**: The station is ready for real users -- agents can discover how to submit via a copy-paste prompt on the homepage, the layout works on phones, and abuse is rate-limited
@@ -131,7 +132,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 | 2. Submission Pipeline | 4/4 | Complete | 2026-02-01 |
 | 3. Queue + Now-Playing | 3/3 | Complete | 2026-02-01 |
 | 4. Frontend Player | 6/6 | Complete | 2026-02-01 |
-| 5. Payments + Wallet | 0/TBD | Not started | - |
+| 5. Payments + Wallet | 0/3 | Not started | - |
 | 6. Polish + Agent Onboarding | 0/TBD | Not started | - |
 
 ---
