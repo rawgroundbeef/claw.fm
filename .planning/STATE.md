@@ -12,16 +12,16 @@ See: .planning/PROJECT.md (updated 2026-01-31)
 Phase: 5 of 6 (Payments & Wallet)
 Plan: 2 of 3 in current phase
 Status: In progress
-Last activity: 2026-02-01 -- Completed 05-02-PLAN.md (API endpoints - tips & downloads)
+Last activity: 2026-02-02 -- Completed 05-01-PLAN.md (Web3 provider setup and wallet UI)
 
-Progress: [████████████████] 88.9% (16/18 plans complete)
+Progress: [█████████████████] 94.4% (17/18 plans complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 16
-- Average duration: 2.53 minutes
-- Total execution time: 0.67 hours
+- Total plans completed: 17
+- Average duration: 2.62 minutes
+- Total execution time: 0.74 hours
 
 **By Phase:**
 
@@ -31,11 +31,11 @@ Progress: [████████████████] 88.9% (16/18 plans 
 | 02-submission-pipeline | 4 | 11.9m | 2.97m |
 | 03-queue-now-playing | 3 | 6.7m | 2.2m |
 | 04-frontend-player | 6 | 16.1m | 2.68m |
-| 05-payments-wallet | 1 | 2.4m | 2.4m |
+| 05-payments-wallet | 2 | 6.9m | 3.45m |
 
 **Recent Trend:**
-- Last 5 plans: 3.0m, 3.0m, 2.5m, 2.6m, 2.4m
-- Trend: Stable (last plan: 2.4m, overall avg: 2.53m)
+- Last 5 plans: 3.0m, 2.5m, 2.6m, 2.4m, 4.5m
+- Trend: Stable (last plan: 4.5m, overall avg: 2.62m)
 
 *Updated after each plan completion*
 
@@ -112,6 +112,11 @@ Recent decisions affecting current work:
 - [04-06]: Buffering state propagated from useAudioPlayer through useCrossfade to App.tsx UI
 - [04-06]: Page Visibility API for tab backgrounding detection and auto-restore
 - [04-06]: Window online/offline events for network drop detection
+- [05-01]: Wagmi v2.16 for OnchainKit 1.1.2 compatibility (peer dependency constraint)
+- [05-01]: smartWalletOnly preference enables on-demand Smart Wallet creation during first payment (PAY-03)
+- [05-01]: Minimal ERC20 ABI fragment for transfer function only (avoid full erc20Abi from viem)
+- [05-01]: OnchainKitProvider without apiKey (basic wallet functionality doesn't require it)
+- [05-01]: PLATFORM_WALLET from env var with fallback (deployment flexibility)
 - [05-02]: Tip weight scaling amount * 1e17 ($1 USDC = 2x boost, $0.25 = 1.25x, $5 = 6x)
 - [05-02]: 72-hour download URL expiry (balance UX and security)
 - [05-02]: HMAC-SHA256 with Web Crypto API for presigned URLs (no dependencies)
@@ -121,7 +126,7 @@ Recent decisions affecting current work:
 
 ### Pending Todos
 
-None - Phase 05 Plan 02 complete. API endpoints ready for frontend integration in Plan 03.
+None - Phase 05 Plans 01 and 02 complete. Web3 provider infrastructure and API endpoints ready for frontend payment flows in Plan 03.
 
 ### Blockers/Concerns
 
@@ -137,8 +142,8 @@ None - Phase 05 Plan 02 complete. API endpoints ready for frontend integration i
 
 ## Session Continuity
 
-Last session: 2026-02-01T23:24:44Z
-Stopped at: Completed 05-02-PLAN.md (API endpoints - tips & downloads)
+Last session: 2026-02-02T00:32:41Z
+Stopped at: Completed 05-01-PLAN.md (Web3 provider setup and wallet UI)
 Resume file: None
 
-**Phase 05 Plan 02 complete.** API payment endpoints functional: POST /api/tip (updates tip_weight with USDC-to-boost scaling), POST /api/downloads/:trackId (generates HMAC-signed URLs with 72h expiry), GET /api/downloads/:trackId/file (verifies token, streams from R2). Shared payment types exported. Routes mounted. Zero new dependencies (native Web Crypto API). TypeScript compilation passes. Ready for Plan 03 (frontend payment flows).
+**Phase 05 Plans 01 and 02 complete.** Web3 provider infrastructure functional: Wagmi v2 + OnchainKit + TanStack Query, wallet connection UI with Smart Wallet support (smartWalletOnly), USDC balance display, payment constants (USDC address, platform wallet, tip amounts, buy price, minimal ERC20 ABI), Sonner toast system. API payment endpoints functional: POST /api/tip, POST /api/downloads/:trackId, GET /api/downloads/:trackId/file with HMAC-signed URLs. All builds pass. Ready for Plan 03 (frontend payment flows - tip/buy UI components).
