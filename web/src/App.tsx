@@ -13,6 +13,9 @@ import { Waveform } from './components/Visualizer/Waveform'
 import { EmptyState } from './components/EmptyState'
 import { ReconnectingIndicator } from './components/ReconnectingIndicator'
 import { WalletDisplay } from './components/WalletDisplay'
+import { TipButtons } from './components/TipButtons'
+import { BuyButton } from './components/BuyButton'
+import { ConfettiCelebration } from './components/ConfettiCelebration'
 
 export default function App() {
   // Now playing state from API
@@ -27,6 +30,9 @@ export default function App() {
   // Volume state
   const [volume, setVolume] = useState<number>(0.8)
   const [muted, setMuted] = useState<boolean>(false)
+
+  // Confetti state
+  const [showConfetti, setShowConfetti] = useState(false)
 
   // Recovery and resilience
   const recovery = useRecovery({
@@ -92,6 +98,9 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
+      {/* Confetti celebration overlay */}
+      <ConfettiCelebration fire={showConfetti} />
+
       {/* Reconnecting indicator */}
       <ReconnectingIndicator
         isReconnecting={recovery.isReconnecting}
@@ -134,6 +143,26 @@ export default function App() {
                 {crossfade.currentTrack?.artistName || ''}
               </p>
             </div>
+
+            {/* Payment area - only show when playing */}
+            {crossfade.isPlaying && crossfade.currentTrack && nowPlaying.track && (
+              <div className="flex items-center gap-3 mt-4">
+                <TipButtons
+                  artistWallet={nowPlaying.track.artistWallet}
+                  trackId={nowPlaying.track.id}
+                  onTipSuccess={() => {
+                    setShowConfetti(true)
+                    setTimeout(() => setShowConfetti(false), 3000)
+                  }}
+                />
+                <div className="w-px h-8 bg-gray-200" />
+                <BuyButton
+                  artistWallet={nowPlaying.track.artistWallet}
+                  trackId={nowPlaying.track.id}
+                  trackTitle={nowPlaying.track.title}
+                />
+              </div>
+            )}
 
             {/* Large play button for pre-play landing */}
             {isPrePlay && (
