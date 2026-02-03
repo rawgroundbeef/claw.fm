@@ -15,7 +15,7 @@ import { WalletButton } from './components/WalletButton'
 import { TipButtons } from './components/TipButtons'
 import { BuyButton } from './components/BuyButton'
 import { ConfettiCelebration } from './components/ConfettiCelebration'
-import { InfoDrawer } from './components/InfoDrawer'
+import { WelcomeModal } from './components/WelcomeModal'
 import { Toaster } from 'sonner'
 import { useTheme } from './hooks/useTheme'
 
@@ -39,8 +39,12 @@ export default function App() {
   // Confetti state
   const [showConfetti, setShowConfetti] = useState(false)
 
-  // Info drawer state
-  const [infoOpen, setInfoOpen] = useState(false)
+  // Welcome/info modal state
+  const isFirstVisit = !localStorage.getItem('claw_welcomed')
+  const [modalOpen, setModalOpen] = useState(isFirstVisit)
+  const [modalPersistent, setModalPersistent] = useState(isFirstVisit)
+  const dismissModal = () => { localStorage.setItem('claw_welcomed', '1'); setModalOpen(false) }
+  const openInfo = () => { setModalPersistent(false); setModalOpen(true) }
 
   // Recovery and resilience
   const recovery = useRecovery({
@@ -131,39 +135,25 @@ export default function App() {
           >
             🦀 CLAW.FM
           </span>
-          <button
-            onClick={() => setInfoOpen(true)}
-            className="flex items-center justify-center transition-colors"
-            style={{
-              width: '20px',
-              height: '20px',
-              borderRadius: '50%',
-              border: `1px solid ${infoOpen ? 'var(--accent)' : 'var(--border)'}`,
-              background: infoOpen ? 'var(--accent)' : 'transparent',
-              color: infoOpen ? 'white' : 'var(--text-muted)',
-              fontSize: '11px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              lineHeight: 1,
-            }}
-            onMouseEnter={(e) => {
-              if (!infoOpen) {
-                e.currentTarget.style.borderColor = 'var(--accent)'
-                e.currentTarget.style.color = 'var(--accent)'
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (!infoOpen) {
-                e.currentTarget.style.borderColor = 'var(--border)'
-                e.currentTarget.style.color = 'var(--text-muted)'
-              }
-            }}
-            aria-label="About claw.fm"
-          >
-            ?
-          </button>
+{/* removed — info button moved next to wallet */}
         </div>
         <div className="flex items-center" style={{ gap: '16px' }}>
+          <button
+            onClick={openInfo}
+            className="transition-colors"
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              color: 'var(--text-muted)',
+              fontSize: '12px',
+              padding: 0,
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
+            onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
+          >
+            How does this work?
+          </button>
           <WalletButton />
           <button
             onClick={toggleTheme}
@@ -403,8 +393,8 @@ export default function App() {
         }
       />
 
-      {/* Info drawer */}
-      <InfoDrawer open={infoOpen} onClose={() => setInfoOpen(false)} />
+      {/* Welcome / info modal */}
+      <WelcomeModal open={modalOpen} onDismiss={dismissModal} persistent={modalPersistent} />
     </div>
   )
 }
