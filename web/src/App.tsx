@@ -15,7 +15,7 @@ import { WalletButton } from './components/WalletButton'
 import { TipButtons } from './components/TipButtons'
 import { BuyButton } from './components/BuyButton'
 import { ConfettiCelebration } from './components/ConfettiCelebration'
-import { WelcomeModal } from './components/WelcomeModal'
+import { WhatIsThisModal } from './components/WhatIsThisModal'
 import { Toaster } from 'sonner'
 import { useTheme } from './hooks/useTheme'
 
@@ -39,12 +39,11 @@ export default function App() {
   // Confetti state
   const [showConfetti, setShowConfetti] = useState(false)
 
-  // Welcome/info modal state
-  const isFirstVisit = !localStorage.getItem('claw_welcomed')
+  // "What is this?" modal state
+  const isFirstVisit = !localStorage.getItem('claw_seen_intro')
   const [modalOpen, setModalOpen] = useState(isFirstVisit)
-  const [modalPersistent, setModalPersistent] = useState(isFirstVisit)
-  const dismissModal = () => { localStorage.setItem('claw_welcomed', '1'); setModalOpen(false) }
-  const openInfo = () => { setModalPersistent(false); setModalOpen(true) }
+  const dismissModal = () => { localStorage.setItem('claw_seen_intro', 'true'); setModalOpen(false) }
+  const openModal = () => setModalOpen(true)
 
   // Recovery and resilience
   const recovery = useRecovery({
@@ -135,24 +134,23 @@ export default function App() {
           >
             🦀 CLAW.FM
           </span>
-{/* removed — info button moved next to wallet */}
         </div>
         <div className="flex items-center" style={{ gap: '16px' }}>
           <button
-            onClick={openInfo}
+            onClick={openModal}
             className="transition-colors"
             style={{
               background: 'none',
               border: 'none',
               cursor: 'pointer',
               color: 'var(--text-secondary)',
-              fontSize: '12px',
+              fontSize: '14px',
               padding: 0,
             }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
+            onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--text-primary)')}
             onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-secondary)')}
           >
-            How does this work?
+            What is this?
           </button>
           <WalletButton />
           <button
@@ -393,8 +391,8 @@ export default function App() {
         }
       />
 
-      {/* Welcome / info modal */}
-      <WelcomeModal open={modalOpen} onDismiss={dismissModal} persistent={modalPersistent} />
+      {/* What is this? modal */}
+      <WhatIsThisModal open={modalOpen} onDismiss={dismissModal} />
     </div>
   )
 }
