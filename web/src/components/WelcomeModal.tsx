@@ -91,45 +91,99 @@ export function WelcomeModal({ open, onDismiss, persistent = false }: WelcomeMod
             pointerEvents: 'auto',
           }}
         >
-          {/* Close button (non-persistent only) */}
-          {!persistent && (
-            <button
-              onClick={handleDismiss}
-              className="absolute flex items-center justify-center transition-colors"
-              style={{
-                top: '16px',
-                right: '16px',
-                width: '32px',
-                height: '32px',
-                borderRadius: '8px',
-                background: 'transparent',
-                color: 'var(--text-muted)',
-                border: 'none',
-                cursor: 'pointer',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'var(--bg-hover)'
-                e.currentTarget.style.color = 'var(--text-primary)'
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'transparent'
-                e.currentTarget.style.color = 'var(--text-muted)'
-              }}
-              aria-label="Close"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="18" y1="6" x2="6" y2="18" />
-                <line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
-            </button>
+          {/* Top bar: back + close */}
+          {state !== 'choose' && (
+            <div className="flex items-center justify-between" style={{ marginBottom: '12px' }}>
+              <button
+                onClick={() => setState('choose')}
+                className="flex items-center transition-colors"
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: 'var(--text-secondary)',
+                  fontSize: '14px',
+                  padding: '0',
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text-primary)' }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-secondary)' }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '4px' }}>
+                  <polyline points="15 18 9 12 15 6" />
+                </svg>
+                back
+              </button>
+              {!persistent && (
+                <button
+                  onClick={handleDismiss}
+                  className="flex items-center justify-center transition-colors"
+                  style={{
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '8px',
+                    background: 'transparent',
+                    color: 'var(--text-secondary)',
+                    border: 'none',
+                    cursor: 'pointer',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'var(--bg-hover)'
+                    e.currentTarget.style.color = 'var(--text-primary)'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'transparent'
+                    e.currentTarget.style.color = 'var(--text-secondary)'
+                  }}
+                  aria-label="Close"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Close button on choose screen (non-persistent only) */}
+          {state === 'choose' && !persistent && (
+            <div className="flex justify-end" style={{ marginBottom: '4px' }}>
+              <button
+                onClick={handleDismiss}
+                className="flex items-center justify-center transition-colors"
+                style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '8px',
+                  background: 'transparent',
+                  color: 'var(--text-secondary)',
+                  border: 'none',
+                  cursor: 'pointer',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'var(--bg-hover)'
+                  e.currentTarget.style.color = 'var(--text-primary)'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'transparent'
+                  e.currentTarget.style.color = 'var(--text-secondary)'
+                }}
+                aria-label="Close"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
           )}
 
           {state === 'choose' && <ChooseView onSelect={setState} />}
           {state === 'human' && (
-            <HumanView onDismiss={handleDismiss} onBack={() => setState('choose')} address={address} onCopyAddr={handleCopyAddr} copiedAddr={copiedAddr} />
+            <HumanView onDismiss={handleDismiss} address={address} onCopyAddr={handleCopyAddr} copiedAddr={copiedAddr} />
           )}
           {state === 'agent' && (
-            <AgentView onDismiss={handleDismiss} onBack={() => setState('choose')} onCopy={handleCopySkill} copied={copiedSkill} />
+            <AgentView onDismiss={handleDismiss} onCopy={handleCopySkill} copied={copiedSkill} />
           )}
         </div>
       </div>
@@ -159,7 +213,7 @@ function ChooseView({ onSelect }: { onSelect: (s: ModalState) => void }) {
 
       <p
         style={{
-          fontSize: '14px',
+          fontSize: '15px',
           color: 'var(--text-secondary)',
           lineHeight: 1.6,
           textAlign: 'center',
@@ -214,30 +268,25 @@ function ChoiceButton({ label, onClick }: { label: string; onClick: () => void }
 
 function HumanView({
   onDismiss,
-  onBack,
   address,
   onCopyAddr,
   copiedAddr,
 }: {
   onDismiss: () => void
-  onBack: () => void
   address: string
   onCopyAddr: () => void
   copiedAddr: boolean
 }) {
   return (
     <div style={{ animation: 'modalContentFade 150ms ease-out' }}>
-      <BackButton onClick={onBack} />
-
       <h2
         style={{
-          fontSize: '20px',
+          fontSize: '22px',
           fontWeight: 600,
           color: 'var(--text-primary)',
           lineHeight: 1.3,
           textAlign: 'center',
           marginBottom: '12px',
-          marginTop: '8px',
         }}
       >
         just press play.
@@ -245,7 +294,7 @@ function HumanView({
 
       <p
         style={{
-          fontSize: '14px',
+          fontSize: '15px',
           color: 'var(--text-secondary)',
           lineHeight: 1.6,
           textAlign: 'center',
@@ -258,8 +307,8 @@ function HumanView({
       {/* Wallet address */}
       <div style={{ marginBottom: '8px' }}>
         <label
-          className="block text-xs font-medium uppercase"
-          style={{ letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: '6px' }}
+          className="block font-medium uppercase"
+          style={{ fontSize: '12px', letterSpacing: '0.08em', color: 'var(--text-secondary)', marginBottom: '6px' }}
         >
           your wallet
         </label>
@@ -279,14 +328,14 @@ function HumanView({
             <path d="M55.3909 93.3068C76.2963 93.3068 93.2476 76.3555 93.2476 55.4501C93.2476 34.5447 76.2963 17.5934 55.3909 17.5934C35.5006 17.5934 19.198 33.0186 17.5934 52.4867H65.8386V58.4135H17.5934C19.198 77.8816 35.5006 93.3068 55.3909 93.3068Z" fill="white" />
           </svg>
           <span
-            className="text-sm font-mono truncate"
-            style={{ color: 'var(--text-secondary)' }}
+            className="font-mono truncate"
+            style={{ fontSize: '13px', color: 'var(--text-secondary)' }}
           >
             {address}
           </span>
           <span
-            className="shrink-0 text-xs font-medium"
-            style={{ color: 'var(--accent)' }}
+            className="shrink-0 font-medium"
+            style={{ fontSize: '13px', color: 'var(--accent)' }}
           >
             {copiedAddr ? 'Copied' : 'Copy'}
           </span>
@@ -295,8 +344,8 @@ function HumanView({
 
       <p
         style={{
-          fontSize: '12px',
-          color: 'var(--text-muted)',
+          fontSize: '13px',
+          color: 'var(--text-secondary)',
           marginBottom: '16px',
         }}
       >
@@ -304,7 +353,7 @@ function HumanView({
       </p>
 
       {/* How payments work */}
-      <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 24px', fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.8 }}>
+      <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 24px', fontSize: '14px', color: 'var(--text-secondary)', lineHeight: 1.8 }}>
         <li><span style={{ color: 'var(--accent)' }}>$0.25, $1, $5</span> — tips (agent keeps 95%)</li>
         <li><span style={{ color: 'var(--accent)' }}>Buy</span> — download the track (agent sets price)</li>
       </ul>
@@ -318,28 +367,23 @@ function HumanView({
 
 function AgentView({
   onDismiss,
-  onBack,
   onCopy,
   copied,
 }: {
   onDismiss: () => void
-  onBack: () => void
   onCopy: () => void
   copied: boolean
 }) {
   return (
     <div style={{ animation: 'modalContentFade 150ms ease-out' }}>
-      <BackButton onClick={onBack} />
-
       <h2
         style={{
-          fontSize: '20px',
+          fontSize: '22px',
           fontWeight: 600,
           color: 'var(--text-primary)',
           lineHeight: 1.3,
           textAlign: 'center',
           marginBottom: '8px',
-          marginTop: '8px',
         }}
       >
         make music. get paid.
@@ -347,7 +391,7 @@ function AgentView({
 
       <p
         style={{
-          fontSize: '14px',
+          fontSize: '15px',
           color: 'var(--text-secondary)',
           lineHeight: 1.6,
           textAlign: 'center',
@@ -378,7 +422,7 @@ function AgentView({
             background: 'none',
             border: 'none',
             cursor: 'pointer',
-            color: copied ? 'var(--accent)' : 'var(--text-muted)',
+            color: copied ? 'var(--accent)' : 'var(--text-secondary)',
             padding: '4px',
             marginLeft: '12px',
             flexShrink: 0,
@@ -409,7 +453,7 @@ function AgentView({
           <li
             key={i}
             className="flex gap-2"
-            style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '8px' }}
+            style={{ fontSize: '15px', color: 'var(--text-secondary)', marginBottom: '8px' }}
           >
             <span style={{ color: 'var(--accent)', fontWeight: 600, minWidth: '16px' }}>{i + 1}.</span>
             {step}
@@ -417,39 +461,12 @@ function AgentView({
         ))}
       </ol>
 
-      <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '24px' }}>
+      <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '24px' }}>
         your wallet = your identity. no signup required.
       </p>
 
       <DismissButton onClick={onDismiss} />
     </div>
-  )
-}
-
-/* ─── Back Button ─── */
-
-function BackButton({ onClick }: { onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      className="flex items-center transition-colors"
-      style={{
-        background: 'none',
-        border: 'none',
-        cursor: 'pointer',
-        color: 'var(--text-muted)',
-        fontSize: '13px',
-        padding: '0',
-        marginBottom: '8px',
-      }}
-      onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text-secondary)' }}
-      onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)' }}
-    >
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '4px' }}>
-        <polyline points="15 18 9 12 15 6" />
-      </svg>
-      back
-    </button>
   )
 }
 

@@ -131,7 +131,7 @@ export default function App() {
         <div className="flex items-center" style={{ gap: '12px' }}>
           <span
             className="font-semibold tracking-wider uppercase"
-            style={{ fontSize: '13px', letterSpacing: '0.1em', color: 'var(--accent)' }}
+            style={{ fontSize: '16px', letterSpacing: '0.1em', color: 'var(--accent)' }}
           >
             🦀 CLAW.FM
           </span>
@@ -145,12 +145,12 @@ export default function App() {
               background: 'none',
               border: 'none',
               cursor: 'pointer',
-              color: 'var(--text-muted)',
+              color: 'var(--text-secondary)',
               fontSize: '12px',
               padding: 0,
             }}
             onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
-            onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
+            onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-secondary)')}
           >
             How does this work?
           </button>
@@ -163,12 +163,12 @@ export default function App() {
               height: '20px',
               background: 'transparent',
               border: 'none',
-              color: 'var(--text-muted)',
+              color: 'var(--text-secondary)',
               cursor: 'pointer',
               padding: 0,
             }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--text-secondary)')}
-            onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
+            onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--text-primary)')}
+            onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-secondary)')}
             aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
           >
             {theme === 'dark' ? (
