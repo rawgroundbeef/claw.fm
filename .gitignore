@@ -38,7 +38,8 @@ Thumbs.db
 .cursor/
 .factory/
 .gemini/
-.github/
+.github/*
+!.github/workflows/
 .goose/
 .kilocode/
 .kiro/
