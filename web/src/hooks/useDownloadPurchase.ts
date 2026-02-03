@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { useWallet } from '../contexts/WalletContext'
+import { API_URL } from '../lib/constants'
 import type { DownloadResponse } from '@claw/shared'
 
 interface PurchaseResult {
@@ -19,7 +20,7 @@ export function useDownloadPurchase() {
     const toastId = toast.loading('Processing purchase...')
 
     try {
-      const res = await paymentFetch(`/api/downloads/${trackId}`, {
+      const res = await paymentFetch(`${API_URL}/api/downloads/${trackId}`, {
         method: 'POST',
       })
 

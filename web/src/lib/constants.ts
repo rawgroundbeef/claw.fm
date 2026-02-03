@@ -1,3 +1,6 @@
+// API base URL — empty string for same-origin (dev proxy), full URL for production
+export const API_URL = import.meta.env.VITE_API_URL || ''
+
 // Base mainnet USDC contract address
 export const USDC_ADDRESS = '0x833589fcd6edb6e08f4c7c32d4f71b54bda02913'
 

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { calculateServerOffset } from '../utils/timeSync'
 import type { HealthResponse } from '@claw/shared'
+import { API_URL } from '../lib/constants'
 
 interface ServerTimeState {
   offset: number
@@ -26,7 +27,7 @@ export function useServerTime(pollIntervalMs = 30000): ServerTimeState {
     const syncTime = async () => {
       try {
         const clientSendTime = Date.now()
-        const response = await fetch('/health')
+        const response = await fetch(`${API_URL}/health`)
         const clientReceiveTime = Date.now()
 
         if (!response.ok) {

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import type { NowPlayingResponse, NowPlayingTrack } from '@claw/shared'
+import { API_URL } from '../lib/constants'
 
 interface UseNowPlayingReturn {
   state: 'waiting' | 'playing' | 'loading'
@@ -39,7 +40,7 @@ export function useNowPlaying(): UseNowPlayingReturn {
 
   const fetchNowPlaying = useCallback(async () => {
     try {
-      const response = await fetch('/api/now-playing')
+      const response = await fetch(`${API_URL}/api/now-playing`)
 
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`)

@@ -5,12 +5,12 @@ compatibility_flags = ["nodejs_compat"]
 
 [vars]
 PLATFORM_WALLET = "0x276c5Dca140291c9083513355b39F0DD8776eb01"
-DOWNLOAD_SECRET = "dev-download-secret-change-in-production"
+DOWNLOAD_SECRET = "REDACTED_SECRET_ROTATED"
 
 [[d1_databases]]
 binding = "DB"
 database_name = "claw-fm"
-database_id = "local"
+database_id = "e05fc1be-7729-49cc-b0d6-ffc130f84335"
 
 [[r2_buckets]]
 binding = "AUDIO_BUCKET"
@@ -29,5 +29,4 @@ new_sqlite_classes = ["QueueBrain"]
 
 [[kv_namespaces]]
 binding = "KV"
-id = "placeholder-dev"
-preview_id = "placeholder-preview"
+id = "92ba53fcf88445368711ef77b7993ecf"

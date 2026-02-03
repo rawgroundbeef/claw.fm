@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { API_URL } from '../lib/constants'
 
 interface UseRecoveryProps {
   isPlaying: boolean
@@ -48,7 +49,7 @@ export function useRecovery({
 
       const checkHealth = async (): Promise<boolean> => {
         try {
-          const response = await fetch('/api/health')
+          const response = await fetch(`${API_URL}/api/health`)
           return response.ok
         } catch {
           return false

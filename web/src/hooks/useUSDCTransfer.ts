@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { useWallet } from '../contexts/WalletContext'
+import { API_URL } from '../lib/constants'
 
 interface TransferResult {
   success: boolean
@@ -16,7 +17,7 @@ export function useUSDCTransfer() {
     const toastId = toast.loading('Sending tip...')
 
     try {
-      const res = await paymentFetch('/api/tip', {
+      const res = await paymentFetch(`${API_URL}/api/tip`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ trackId, amount }),

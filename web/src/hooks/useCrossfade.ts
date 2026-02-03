@@ -5,6 +5,7 @@ import { useServerTime } from './useServerTime'
 import { getCorrectPlaybackPosition } from '../utils/timeSync'
 import { getAudioContext } from '../utils/audioContext'
 import type { NowPlayingTrack } from '@claw/shared'
+import { API_URL } from '../lib/constants'
 
 interface UseCrossfadeReturn {
   play: () => Promise<void>
@@ -68,7 +69,7 @@ export function useCrossfade(): UseCrossfadeReturn {
     }
 
     console.log('Preloading next track:', nowPlaying.nextTrack.title)
-    inactive.setSource(nowPlaying.nextTrack.fileUrl)
+    inactive.setSource(`${API_URL}${nowPlaying.nextTrack.fileUrl}`)
   }, [nowPlaying.nextTrack, getActivePlayers])
 
   // Handle track transitions
@@ -89,7 +90,7 @@ export function useCrossfade(): UseCrossfadeReturn {
     // If not playing yet, just load the first track
     if (!currentTrack) {
       console.log('Initial track load:', newTrack.title)
-      active.setSource(newTrack.fileUrl)
+      active.setSource(`${API_URL}${newTrack.fileUrl}`)
       setCurrentTrack(newTrack)
 
       // Seek to correct position if we're joining mid-track
@@ -183,7 +184,7 @@ export function useCrossfade(): UseCrossfadeReturn {
     const audioEl = active.audioElement
     const needsLoad = !audioEl?.src || !audioEl.src.endsWith(nowPlaying.track.fileUrl)
     if (needsLoad) {
-      active.setSource(nowPlaying.track.fileUrl)
+      active.setSource(`${API_URL}${nowPlaying.track.fileUrl}`)
       setCurrentTrack(nowPlaying.track)
 
       // Wait for load — use audioElement.readyState directly (not stale closure)
