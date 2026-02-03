@@ -5,7 +5,7 @@ compatibility_flags = ["nodejs_compat"]
 
 [vars]
 PLATFORM_WALLET = "0x276c5Dca140291c9083513355b39F0DD8776eb01"
-DOWNLOAD_SECRET = "REDACTED_SECRET_ROTATED"
+# DOWNLOAD_SECRET is set via `wrangler secret put` (not committed to repo)
 
 [[d1_databases]]
 binding = "DB"
