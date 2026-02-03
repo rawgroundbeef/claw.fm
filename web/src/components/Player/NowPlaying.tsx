@@ -26,20 +26,32 @@ export function NowPlaying({ track, isTransitioning = false }: NowPlayingProps) 
           <img
             src={track.coverUrl}
             alt={`${track.title} cover`}
-            className="w-14 h-14 rounded-lg object-cover"
+            className="w-12 h-12 object-cover"
+            style={{ borderRadius: '4px' }}
           />
         ) : (
-          // Placeholder gradient when no cover art
-          <div className="w-14 h-14 rounded-lg bg-gradient-to-br from-gray-200 to-gray-300" />
+          <div
+            className="w-12 h-12"
+            style={{
+              borderRadius: '4px',
+              background: 'var(--cover-gradient)',
+            }}
+          />
         )}
       </div>
 
       {/* Track Info */}
       <div className="flex-1 min-w-0">
-        <div className="text-sm font-medium text-gray-900 truncate">
+        <div
+          className="font-medium truncate"
+          style={{ fontSize: '14px', color: 'var(--text-primary)' }}
+        >
           {track.title}
         </div>
-        <div className="text-xs text-gray-500 truncate">
+        <div
+          className="truncate"
+          style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}
+        >
           {displayArtist}
         </div>
       </div>

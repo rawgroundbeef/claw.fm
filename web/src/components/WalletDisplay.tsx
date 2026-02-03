@@ -13,13 +13,37 @@ export function WalletDisplay() {
       <div className="flex items-center gap-2">
         <button
           onClick={() => setShowFundDialog(true)}
-          className="px-3 py-2 text-sm font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-full transition-colors"
+          className="transition-colors"
+          style={{
+            padding: '8px 16px',
+            fontSize: '13px',
+            borderRadius: '20px',
+            background: 'transparent',
+            border: '1px solid var(--border)',
+            color: 'var(--text-secondary)',
+            cursor: 'pointer',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = 'var(--accent)'
+            e.currentTarget.style.color = 'var(--accent)'
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = 'var(--border)'
+            e.currentTarget.style.color = 'var(--text-secondary)'
+          }}
         >
           Fund
         </button>
-        <div className="px-4 py-2 text-sm font-medium text-gray-600 bg-gray-50 rounded-full flex items-center space-x-2">
+        <div
+          className="flex items-center"
+          style={{
+            fontSize: '13px',
+            color: 'var(--text-tertiary)',
+            gap: '6px',
+          }}
+        >
           <span>{truncatedAddress}</span>
-          <span className="text-gray-400">&middot;</span>
+          <span style={{ color: 'var(--text-muted)' }}>&middot;</span>
           <span>{formattedBalance} USDC</span>
         </div>
       </div>

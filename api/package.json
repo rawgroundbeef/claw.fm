@@ -9,7 +9,7 @@
   },
   "dependencies": {
     "@claw/shared": "workspace:*",
-    "@openfacilitator/sdk": "^0.7.2",
+    "@openfacilitator/sdk": "^1.0.0",
     "blockies-ts": "^1.0.0",
     "file-type": "^21.3.0",
     "get-mp3-duration": "^1.0.0",

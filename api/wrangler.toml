@@ -4,7 +4,7 @@ compatibility_date = "2026-01-01"
 compatibility_flags = ["nodejs_compat"]
 
 [vars]
-PLATFORM_WALLET = "0x0000000000000000000000000000000000000000"
+PLATFORM_WALLET = "0x276c5Dca140291c9083513355b39F0DD8776eb01"
 DOWNLOAD_SECRET = "dev-download-secret-change-in-production"
 
 [[d1_databases]]

@@ -1,5 +1,10 @@
 import type { Context } from 'hono'
-import { OpenFacilitator, type PaymentRequirementsV1, FacilitatorError } from '@openfacilitator/sdk'
+import {
+  OpenFacilitator,
+  type PaymentPayload,
+  type PaymentRequirementsV1,
+  FacilitatorError,
+} from '@openfacilitator/sdk'
 
 export interface PaymentVerificationResult {
   valid: boolean
@@ -20,25 +25,45 @@ export async function verifyPayment(
   c: Context,
   requirements: PaymentRequirementsV1,
 ): Promise<PaymentVerificationResult> {
-  // Accept both v1 and v2 payment headers
   const paymentHeader =
     c.req.header('X-PAYMENT') || c.req.header('PAYMENT-SIGNATURE')
 
   if (!paymentHeader) {
-    const requirementsBase64 = btoa(JSON.stringify(requirements))
+    // v1 header: raw requirements for agent clients
+    const v1Base64 = btoa(JSON.stringify(requirements))
+
+    // v2 header: wrapped in PaymentRequired envelope for @x402/fetch clients
+    const v2Payload = {
+      x402Version: 2,
+      accepts: [{
+        scheme: requirements.scheme,
+        network: 'eip155:8453',
+        asset: requirements.asset,
+        payTo: requirements.payTo,
+        amount: requirements.maxAmountRequired,
+        maxTimeoutSeconds: 300,
+        extra: {
+          name: 'USD Coin',
+          version: '2',
+        },
+      }],
+      resource: {
+        url: requirements.resource || c.req.path,
+      },
+    }
+    const v2Base64 = btoa(JSON.stringify(v2Payload))
 
     const errorResponse = c.json(
       {
         error: 'PAYMENT_REQUIRED',
         message: `Payment of ${requirements.description || 'USDC'} required`,
         paymentRequirements: requirements,
+        x402Version: 1,
       },
       402,
       {
-        // v1 header (existing agent clients)
-        'X-PAYMENT-REQUIRED': requirementsBase64,
-        // v2 header (@x402/fetch browser client)
-        'PAYMENT-REQUIRED': requirementsBase64,
+        'X-PAYMENT-REQUIRED': v1Base64,
+        'PAYMENT-REQUIRED': v2Base64,
       },
     )
 
@@ -46,10 +71,15 @@ export async function verifyPayment(
   }
 
   try {
-    const paymentPayload = JSON.parse(atob(paymentHeader))
+    // Decode the full payment payload — SDK 1.0 handles v1/v2 natively
+    const paymentPayload: PaymentPayload = JSON.parse(atob(paymentHeader))
+
+    console.log('[x402] Payment payload version:', paymentPayload.x402Version)
+
     const facilitator = new OpenFacilitator()
 
     const verifyResult = await facilitator.verify(paymentPayload, requirements)
+    console.log('[x402] Verify:', verifyResult.isValid, verifyResult.invalidReason || '')
 
     if (!verifyResult.isValid) {
       const errorResponse = c.json(
@@ -63,6 +93,7 @@ export async function verifyPayment(
     }
 
     const settleResult = await facilitator.settle(paymentPayload, requirements)
+    console.log('[x402] Settle:', settleResult.success, settleResult.transaction || settleResult.errorReason || '')
 
     if (!settleResult.success) {
       const errorResponse = c.json(
@@ -77,6 +108,7 @@ export async function verifyPayment(
 
     return { valid: true, walletAddress: settleResult.payer }
   } catch (error) {
+    console.error('[x402] Exception:', error)
     if (error instanceof FacilitatorError) {
       const errorResponse = c.json(
         {

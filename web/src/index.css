@@ -2,7 +2,89 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Custom range input styling (volume slider) */
+/* ─── Color System ─── */
+:root {
+  --bg-primary: #0a0a0b;
+  --bg-secondary: #111111;
+  --bg-elevated: #1a1a1a;
+  --bg-hover: rgba(255, 255, 255, 0.08);
+  --bg-hover-strong: rgba(255, 255, 255, 0.12);
+
+  --text-primary: #ffffff;
+  --text-secondary: #888888;
+  --text-tertiary: #666666;
+  --text-muted: #444444;
+  --text-faint: #333333;
+
+  --accent: #ff6b4a;
+  --accent-hover: #ff5733;
+  --accent-glow: rgba(255, 107, 74, 0.5);
+  --accent-subtle: rgba(255, 107, 74, 0.08);
+  --accent-muted: rgba(255, 107, 74, 0.2);
+
+  --border: #2a2a2a;
+  --border-subtle: #1a1a1a;
+
+  --cover-gradient:
+    radial-gradient(circle at 30% 40%, var(--accent-muted) 0%, transparent 50%),
+    radial-gradient(circle at 70% 60%, rgba(255, 140, 100, 0.15) 0%, transparent 50%),
+    linear-gradient(135deg, #0f0d0c 0%, #1a1210 100%);
+
+  --cover-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.5),
+    0 0 100px var(--accent-subtle);
+
+  --backdrop-bg: rgba(0, 0, 0, 0.5);
+}
+
+:root.light {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f8f8f8;
+  --bg-elevated: #ffffff;
+  --bg-hover: rgba(0, 0, 0, 0.05);
+  --bg-hover-strong: rgba(0, 0, 0, 0.08);
+
+  --text-primary: #111111;
+  --text-secondary: #555555;
+  --text-tertiary: #777777;
+  --text-muted: #999999;
+  --text-faint: #cccccc;
+
+  --accent: #e85a3a;
+  --accent-hover: #d44a2a;
+  --accent-glow: rgba(232, 90, 58, 0.3);
+  --accent-subtle: rgba(232, 90, 58, 0.06);
+  --accent-muted: rgba(232, 90, 58, 0.15);
+
+  --border: #e5e5e5;
+  --border-subtle: #f0f0f0;
+
+  --cover-gradient:
+    radial-gradient(circle at 25% 35%, rgba(255, 107, 74, 0.25) 0%, transparent 45%),
+    radial-gradient(circle at 75% 65%, rgba(255, 160, 120, 0.2) 0%, transparent 50%),
+    radial-gradient(circle at 50% 50%, rgba(255, 200, 180, 0.3) 0%, transparent 70%),
+    linear-gradient(145deg, #f7f0ed 0%, #efe4df 50%, #e8dcd6 100%);
+
+  --cover-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.08),
+    0 2px 8px rgba(0, 0, 0, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+
+  --backdrop-bg: rgba(0, 0, 0, 0.3);
+}
+
+/* ─── Animations ─── */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+@keyframes wave {
+  0%, 100% { transform: scaleY(1); }
+  50% { transform: scaleY(0.5); }
+}
+
+/* ─── Range Input (volume slider) ─── */
 input[type="range"] {
   -webkit-appearance: none;
   appearance: none;
@@ -13,7 +95,7 @@ input[type="range"] {
 input[type="range"]::-webkit-slider-track {
   height: 4px;
   border-radius: 2px;
-  background: #e5e7eb;
+  background: var(--border);
 }
 
 input[type="range"]::-webkit-slider-thumb {
@@ -22,7 +104,7 @@ input[type="range"]::-webkit-slider-thumb {
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: #0066FF;
+  background: var(--accent);
   margin-top: -5px;
   border: none;
 }
@@ -30,18 +112,18 @@ input[type="range"]::-webkit-slider-thumb {
 input[type="range"]::-moz-range-track {
   height: 4px;
   border-radius: 2px;
-  background: #e5e7eb;
+  background: var(--border);
 }
 
 input[type="range"]::-moz-range-thumb {
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: #0066FF;
+  background: var(--accent);
   border: none;
 }
 
-/* Smooth transitions for track info */
+/* ─── Track Info Transitions ─── */
 .track-info-enter {
   opacity: 0;
   transform: translateY(4px);
@@ -53,7 +135,38 @@ input[type="range"]::-moz-range-thumb {
   transition: opacity 1s ease, transform 1s ease;
 }
 
-/* Body scroll padding for fixed player bar */
+/* ─── Drawer ─── */
+.drawer-slide-in {
+  animation: slideInRight 200ms ease-out;
+}
+
+@keyframes slideInRight {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+@media (max-width: 480px) {
+  .drawer-slide-in {
+    top: auto !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    max-height: 90vh !important;
+    border-left: none !important;
+    border-radius: 16px 16px 0 0;
+    animation: slideInUp 200ms ease-out;
+  }
+
+  @keyframes slideInUp {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+  }
+}
+
+/* ─── Base Styles ─── */
 body {
-  padding-bottom: 5rem;
+  background: var(--bg-primary);
+  color: var(--text-primary);
 }

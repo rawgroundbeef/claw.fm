@@ -6,11 +6,8 @@ export default {
   ],
   theme: {
     extend: {
-      colors: {
-        'electric': '#0066FF',
-      },
       fontFamily: {
-        sans: ['Inter', 'SF Pro Display', '-apple-system', 'BlinkMacSystemFont', 'system-ui', 'sans-serif'],
+        sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
       },
     },
   },

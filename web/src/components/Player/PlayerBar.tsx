@@ -6,8 +6,15 @@ interface PlayerBarProps {
 
 export function PlayerBar({ leftContent, centerContent, rightContent }: PlayerBarProps) {
   return (
-    <div className="fixed bottom-0 left-0 right-0 h-20 bg-white border-t border-gray-100 shadow-sm z-50">
-      <div className="h-full flex items-center justify-between px-4 gap-4">
+    <div
+      className="flex-shrink-0"
+      style={{
+        background: 'var(--bg-secondary)',
+        borderTop: '1px solid var(--border-subtle)',
+        padding: '16px 32px',
+      }}
+    >
+      <div className="flex items-center justify-between gap-4">
         {/* Left: Now Playing */}
         <div className="flex-shrink-0 w-1/4 min-w-0">
           {leftContent}

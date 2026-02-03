@@ -22,15 +22,21 @@ export function ProgressBar({ currentTime, duration }: ProgressBarProps) {
   return (
     <div className="w-full max-w-md">
       {/* Progress track */}
-      <div className="relative h-1 bg-gray-200 rounded-full overflow-hidden">
+      <div
+        className="relative h-1 rounded-full overflow-hidden"
+        style={{ background: 'var(--border)' }}
+      >
         <div
-          className="absolute top-0 left-0 h-full bg-electric transition-all duration-300"
-          style={{ width: `${progress}%` }}
+          className="absolute top-0 left-0 h-full transition-all duration-300"
+          style={{ width: `${progress}%`, background: 'var(--accent)' }}
         />
       </div>
 
       {/* Time labels */}
-      <div className="flex justify-between mt-1 text-xs text-gray-400 tabular-nums">
+      <div
+        className="flex justify-between mt-1 tabular-nums"
+        style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}
+      >
         <span>{formatTime(currentTime)}</span>
         <span>{remaining > 0 ? `-${formatTime(remaining)}` : '0:00'}</span>
       </div>

@@ -34,9 +34,22 @@ export function BuyButton({ trackId, trackTitle, disabled = false }: BuyButtonPr
       <a
         href={downloadUrl}
         download={`${trackTitle}.mp3`}
-        className="px-4 py-2 text-sm font-medium rounded-full bg-emerald-500 text-white hover:bg-emerald-600 transition-colors"
+        className="flex items-center justify-center font-medium transition-colors"
+        style={{
+          padding: '12px 28px',
+          fontSize: '14px',
+          borderRadius: '24px',
+          background: 'var(--accent)',
+          color: 'white',
+          gap: '8px',
+        }}
       >
-        Download Ready
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+          <polyline points="7 10 12 15 17 10" />
+          <line x1="12" y1="15" x2="12" y2="3" />
+        </svg>
+        Download
       </a>
     )
   }
@@ -46,22 +59,45 @@ export function BuyButton({ trackId, trackTitle, disabled = false }: BuyButtonPr
       <button
         onClick={handleBuy}
         disabled={isDisabled}
-        className={`
-          px-4 py-2 text-sm font-medium rounded-full transition-colors
-          ${
-            isDisabled
-              ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-              : 'bg-emerald-500 text-white hover:bg-emerald-600'
+        className="flex items-center justify-center font-medium transition-colors"
+        style={{
+          padding: '12px 28px',
+          fontSize: '14px',
+          borderRadius: '24px',
+          background: isDisabled ? 'var(--bg-hover)' : 'var(--accent)',
+          color: isDisabled ? 'var(--text-muted)' : 'white',
+          cursor: isDisabled ? 'not-allowed' : 'pointer',
+          gap: '8px',
+        }}
+        onMouseEnter={(e) => {
+          if (!isDisabled) {
+            e.currentTarget.style.background = 'var(--accent-hover)'
           }
-        `}
+        }}
+        onMouseLeave={(e) => {
+          if (!isDisabled) {
+            e.currentTarget.style.background = 'var(--accent)'
+          }
+        }}
       >
         {isPending ? (
-          <span className="flex items-center gap-2">
-            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+          <>
+            <div
+              className="border-2 border-white rounded-full animate-spin"
+              style={{ width: '16px', height: '16px', borderTopColor: 'transparent' }}
+            />
             Processing...
-          </span>
+          </>
         ) : (
-          `Buy $${BUY_PRICE_USDC}`
+          <>
+            {/* Download icon */}
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            Buy ${BUY_PRICE_USDC}
+          </>
         )}
       </button>
       {fundDialog}

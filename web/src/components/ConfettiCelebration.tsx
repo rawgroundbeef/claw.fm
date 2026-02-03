@@ -19,7 +19,7 @@ export function ConfettiCelebration({ fire }: ConfettiCelebrationProps) {
         particleCount: 80,
         spread: 60,
         origin: { y: 0.7 },
-        colors: ['#6366f1', '#8b5cf6', '#a855f7', '#ec4899']
+        colors: ['#ff6b4a', '#ff8c64', '#ff5733', '#ffad85']
       })
     }
   }, [fire])

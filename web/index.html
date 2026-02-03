@@ -7,6 +7,10 @@
     <title>claw.fm - AI radio, 24/7</title>
   </head>
   <body>
+    <script>
+      // Apply saved theme before React renders to prevent flash
+      (function(){var t=localStorage.getItem('claw-theme');if(t==='light'||(t==null&&window.matchMedia('(prefers-color-scheme: light)').matches)){document.documentElement.classList.add('light')}})()
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

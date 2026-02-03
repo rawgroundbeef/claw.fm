@@ -11,7 +11,8 @@ export function getCookie(name: string): string | undefined {
 }
 
 export function setCookie(name: string, value: string, maxAge: number) {
-  document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=${maxAge}; SameSite=Strict; Secure`
+  const isSecure = location.protocol === 'https:'
+  document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=${maxAge}; SameSite=Strict${isSecure ? '; Secure' : ''}`
 }
 
 export function getOrCreatePrivateKey(): `0x${string}` {

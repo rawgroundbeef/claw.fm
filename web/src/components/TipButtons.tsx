@@ -37,7 +37,7 @@ export function TipButtons({ trackId, disabled = false, onTipSuccess }: TipButto
 
   return (
     <>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center" style={{ gap: '12px' }}>
         {TIP_AMOUNTS.map((amount) => {
           const isActive = activeAmount === amount
 
@@ -46,23 +46,53 @@ export function TipButtons({ trackId, disabled = false, onTipSuccess }: TipButto
               key={amount}
               onClick={() => handleTip(amount)}
               disabled={isButtonDisabled}
-              className={`
-                px-4 py-2 text-sm font-medium rounded-full transition-colors
-                ${
-                  isButtonDisabled
-                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                    : 'bg-indigo-500 text-white hover:bg-indigo-600'
+              className="flex items-center justify-center font-medium transition-colors"
+              style={{
+                padding: '12px 28px',
+                fontSize: '14px',
+                borderRadius: '24px',
+                background: isButtonDisabled
+                  ? 'var(--bg-hover)'
+                  : 'var(--bg-hover)',
+                color: isButtonDisabled
+                  ? 'var(--text-muted)'
+                  : 'var(--text-primary)',
+                cursor: isButtonDisabled ? 'not-allowed' : 'pointer',
+                opacity: isButtonDisabled ? 0.5 : 1,
+                gap: '8px',
+              }}
+              onMouseEnter={(e) => {
+                if (!isButtonDisabled) {
+                  e.currentTarget.style.background = 'var(--bg-hover-strong)'
                 }
-                ${isActive ? 'relative' : ''}
-              `}
+              }}
+              onMouseLeave={(e) => {
+                if (!isButtonDisabled) {
+                  e.currentTarget.style.background = 'var(--bg-hover)'
+                }
+              }}
             >
               {isActive ? (
-                <span className="flex items-center gap-2">
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                <>
+                  <div
+                    className="border-2 rounded-full animate-spin"
+                    style={{
+                      width: '16px',
+                      height: '16px',
+                      borderColor: 'var(--text-primary)',
+                      borderTopColor: 'transparent',
+                    }}
+                  />
                   ${amount}
-                </span>
+                </>
               ) : (
-                `$${amount}`
+                <>
+                  {/* Heart icon */}
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                  </svg>
+                  ${amount}
+                </>
               )}
             </button>
           )
