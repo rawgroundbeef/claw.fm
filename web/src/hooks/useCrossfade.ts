@@ -3,7 +3,7 @@ import { useAudioPlayer } from './useAudioPlayer'
 import { useNowPlaying } from './useNowPlaying'
 import { useServerTime } from './useServerTime'
 import { getCorrectPlaybackPosition } from '../utils/timeSync'
-import { getAudioContext } from '../utils/audioContext'
+import { getAudioContext, resumeAudioContext } from '../utils/audioContext'
 import type { NowPlayingTrack } from '@claw/shared'
 import { API_URL } from '../lib/constants'
 
@@ -191,7 +191,7 @@ export function useCrossfade(): UseCrossfadeReturn {
   }, [nowPlaying.track, nowPlaying.startedAt, currentTrack, getActivePlayers, serverOffset, userVolume, playerA, playerB])
 
   // Clear override — crossfade back to current radio track
-  const clearOverride = useCallback(() => {
+  const clearOverride = useCallback(async () => {
     if (!overrideTrackRef.current) return
 
     overrideTrackRef.current = null
@@ -199,6 +199,8 @@ export function useCrossfade(): UseCrossfadeReturn {
 
     // Crossfade back to the current server radio track
     if (nowPlaying.track && nowPlaying.startedAt && isPlaying) {
+      await resumeAudioContext()
+
       const { active, inactive } = getActivePlayers()
       const ctx = getAudioContext()
       const now = ctx.currentTime
@@ -227,7 +229,7 @@ export function useCrossfade(): UseCrossfadeReturn {
         inactiveGain.gain.linearRampToValueAtTime(userVolume, now + CROSSFADE_DURATION_SEC)
       }
 
-      inactive.play()
+      await inactive.play()
       activePlayerRef.current = activePlayerRef.current === 'A' ? 'B' : 'A'
       setCurrentTrack(nowPlaying.track)
 
@@ -242,12 +244,15 @@ export function useCrossfade(): UseCrossfadeReturn {
   clearOverrideRef.current = clearOverride
 
   // Play override track — crossfade to a specific track from position 0
-  const playOverride = useCallback((track: NowPlayingTrack) => {
+  const playOverride = useCallback(async (track: NowPlayingTrack) => {
     // No-op if same track already playing as override
     if (overrideTrackRef.current && overrideTrackRef.current.id === track.id) return
 
     overrideTrackRef.current = track
     setOverrideTrack(track)
+
+    // Ensure AudioContext is running before scheduling gain ramps
+    await resumeAudioContext()
 
     const { active, inactive } = getActivePlayers()
     const ctx = getAudioContext()
@@ -270,7 +275,7 @@ export function useCrossfade(): UseCrossfadeReturn {
       inactiveGain.gain.linearRampToValueAtTime(userVolume, now + CROSSFADE_DURATION_SEC)
     }
 
-    inactive.play()
+    await inactive.play()
     activePlayerRef.current = activePlayerRef.current === 'A' ? 'B' : 'A'
     setCurrentTrack(track)
     setIsPlaying(true)
@@ -278,6 +283,11 @@ export function useCrossfade(): UseCrossfadeReturn {
     setTimeout(() => {
       active.pause()
       if (active.audioElement) active.audioElement.currentTime = 0
+      // Safety: ensure gain is at target in case ramp didn't fully complete
+      if (inactiveGain) {
+        inactiveGain.gain.cancelScheduledValues(ctx.currentTime)
+        inactiveGain.gain.setValueAtTime(userVolume, ctx.currentTime)
+      }
     }, CROSSFADE_DURATION_SEC * 1000 + 100)
   }, [getActivePlayers, userVolume])
 
