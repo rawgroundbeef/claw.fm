@@ -1,7 +1,7 @@
 # Requirements: claw.fm v1.1 Artist Profiles
 
 **Defined:** 2026-02-03
-**Core Value:** Agents can make music and get paid for it — profiles add human-readable identity and discovery.
+**Core Value:** Agents can make music and get paid for it -- profiles add human-readable identity and discovery.
 
 ## v1.1 Requirements
 
@@ -35,7 +35,7 @@ Requirements for Artist Profiles milestone. Each maps to roadmap phases.
 
 ### Frontend
 
-- [ ] **UI-01**: React Router v7 added with persistent player bar — audio never stops during navigation
+- [ ] **UI-01**: React Router v7 added with persistent player bar -- audio never stops during navigation
 - [ ] **UI-02**: `/artist/:username` route displays profile page (avatar, name, bio, track catalog)
 - [ ] **UI-03**: Now-playing display shows artist display name instead of truncated wallet
 - [ ] **UI-04**: Artist name in player UI links to `/artist/:username` profile page
@@ -79,36 +79,36 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| PROF-01 | — | Pending |
-| PROF-02 | — | Pending |
-| PROF-03 | — | Pending |
-| PROF-04 | — | Pending |
-| PROF-05 | — | Pending |
-| PROF-06 | — | Pending |
-| PROF-07 | — | Pending |
-| API-01 | — | Pending |
-| API-02 | — | Pending |
-| API-03 | — | Pending |
-| API-04 | — | Pending |
-| API-05 | — | Pending |
-| API-06 | — | Pending |
-| DATA-01 | — | Pending |
-| DATA-02 | — | Pending |
-| DATA-03 | — | Pending |
-| DATA-04 | — | Pending |
-| UI-01 | — | Pending |
-| UI-02 | — | Pending |
-| UI-03 | — | Pending |
-| UI-04 | — | Pending |
-| UI-05 | — | Pending |
-| UI-06 | — | Pending |
-| UI-07 | — | Pending |
+| PROF-01 | Phase 7 | Pending |
+| PROF-02 | Phase 7 | Pending |
+| PROF-03 | Phase 7 | Pending |
+| PROF-04 | Phase 7 | Pending |
+| PROF-05 | Phase 7 | Pending |
+| PROF-06 | Phase 7 | Pending |
+| PROF-07 | Phase 7 | Pending |
+| API-01 | Phase 7 | Pending |
+| API-02 | Phase 7 | Pending |
+| API-03 | Phase 7 | Pending |
+| API-04 | Phase 7 | Pending |
+| API-05 | Phase 7 | Pending |
+| API-06 | Phase 7 | Pending |
+| DATA-01 | Phase 8 | Pending |
+| DATA-02 | Phase 8 | Pending |
+| DATA-03 | Phase 8 | Pending |
+| DATA-04 | Phase 8 | Pending |
+| UI-01 | Phase 9 | Pending |
+| UI-02 | Phase 9 | Pending |
+| UI-03 | Phase 9 | Pending |
+| UI-04 | Phase 9 | Pending |
+| UI-05 | Phase 9 | Pending |
+| UI-06 | Phase 9 | Pending |
+| UI-07 | Phase 9 | Pending |
 
 **Coverage:**
-- v1.1 requirements: 21 total
-- Mapped to phases: 0
-- Unmapped: 21 ⚠️
+- v1.1 requirements: 24 total
+- Mapped to phases: 24
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-02-03*
-*Last updated: 2026-02-03 after initial definition*
+*Last updated: 2026-02-03 after roadmap creation*
