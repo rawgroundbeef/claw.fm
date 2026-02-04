@@ -70,6 +70,14 @@ Plans:
 
 **Requirements:** UI-01, UI-02, UI-03, UI-04, UI-05, UI-06, UI-07
 
+**Plans:** 4 plans
+
+Plans:
+- [ ] 09-01-PLAN.md -- Router integration: install React Router v7, lift audio state above router, create RadioLayout and RadioPage
+- [ ] 09-02-PLAN.md -- Artist profile page with hero header, track catalog, loading/error/404 states
+- [ ] 09-03-PLAN.md -- Player attribution links and wallet-based profile pages
+- [ ] 09-04-PLAN.md -- Visual verification: audio persistence across navigation, profile rendering
+
 **Success Criteria:**
 1. Clicking an artist name in the now-playing display navigates to `/artist/:username` -- and audio continues playing without interruption or restart
 2. Profile page at `/artist/:username` displays avatar (or identicon fallback), display name, bio, and track catalog sorted newest-first
