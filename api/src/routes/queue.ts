@@ -1,5 +1,6 @@
 import { Hono } from 'hono'
 import type { QueueResponse, NowPlayingTrack } from '@claw/shared'
+import { truncateBio } from '../lib/text-utils'
 
 type Env = {
   Bindings: {
@@ -35,9 +36,22 @@ queueRoute.get('/', async (c) => {
     // Step 4: Fetch metadata for each track ID from D1
     const placeholders = trackIds.map(() => '?').join(', ')
     const trackResults = await c.env.DB.prepare(`
-      SELECT id, title, wallet, artist_name, duration, file_url, cover_url, genre
-      FROM tracks
-      WHERE id IN (${placeholders})
+      SELECT
+        t.id,
+        t.title,
+        t.wallet,
+        t.artist_name,
+        t.duration,
+        t.file_url,
+        t.cover_url,
+        t.genre,
+        ap.username AS profile_username,
+        ap.display_name AS profile_display_name,
+        ap.avatar_url AS profile_avatar_url,
+        ap.bio AS profile_bio
+      FROM tracks t
+      LEFT JOIN artist_profiles ap ON t.wallet = ap.wallet
+      WHERE t.id IN (${placeholders})
     `).bind(...trackIds).all<{
       id: number
       title: string
@@ -47,6 +61,10 @@ queueRoute.get('/', async (c) => {
       file_url: string
       cover_url: string
       genre: string
+      profile_username: string | null
+      profile_display_name: string | null
+      profile_avatar_url: string | null
+      profile_bio: string | null
     }>()
 
     // Build a map for quick lookup
@@ -62,7 +80,11 @@ queueRoute.get('/', async (c) => {
           duration: row.duration,
           coverUrl: `/audio/${row.cover_url}`,
           fileUrl: `/audio/${row.file_url}`,
-          genre: row.genre
+          genre: row.genre,
+          artistUsername: row.profile_username || undefined,
+          artistDisplayName: row.profile_display_name || undefined,
+          artistAvatarUrl: row.profile_avatar_url || undefined,
+          artistBio: row.profile_bio ? truncateBio(row.profile_bio) : undefined
         })
       }
     }
@@ -82,9 +104,22 @@ queueRoute.get('/', async (c) => {
     const state = await queueStub.getCurrentState() as any
     if (state.currentTrackId) {
       const currentTrack = await c.env.DB.prepare(`
-        SELECT id, title, wallet, artist_name, duration, file_url, cover_url, genre
-        FROM tracks
-        WHERE id = ?
+        SELECT
+          t.id,
+          t.title,
+          t.wallet,
+          t.artist_name,
+          t.duration,
+          t.file_url,
+          t.cover_url,
+          t.genre,
+          ap.username AS profile_username,
+          ap.display_name AS profile_display_name,
+          ap.avatar_url AS profile_avatar_url,
+          ap.bio AS profile_bio
+        FROM tracks t
+        LEFT JOIN artist_profiles ap ON t.wallet = ap.wallet
+        WHERE t.id = ?
       `).bind(state.currentTrackId).first<{
         id: number
         title: string
@@ -94,6 +129,10 @@ queueRoute.get('/', async (c) => {
         file_url: string
         cover_url: string
         genre: string
+        profile_username: string | null
+        profile_display_name: string | null
+        profile_avatar_url: string | null
+        profile_bio: string | null
       }>()
 
       if (currentTrack) {
@@ -105,7 +144,11 @@ queueRoute.get('/', async (c) => {
           duration: currentTrack.duration,
           coverUrl: `/audio/${currentTrack.cover_url}`,
           fileUrl: `/audio/${currentTrack.file_url}`,
-          genre: currentTrack.genre
+          genre: currentTrack.genre,
+          artistUsername: currentTrack.profile_username || undefined,
+          artistDisplayName: currentTrack.profile_display_name || undefined,
+          artistAvatarUrl: currentTrack.profile_avatar_url || undefined,
+          artistBio: currentTrack.profile_bio ? truncateBio(currentTrack.profile_bio) : undefined
         }
       }
     }

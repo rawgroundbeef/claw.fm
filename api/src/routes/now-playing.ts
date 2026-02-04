@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import type { NowPlayingResponse, NowPlayingTrack } from '@claw/shared'
 import { getCachedNowPlaying, cacheNowPlaying } from '../lib/kv-cache'
+import { truncateBio } from '../lib/text-utils'
 
 type Env = {
   Bindings: {
@@ -42,9 +43,22 @@ nowPlayingRoute.get('/', async (c) => {
 
     // Step 4: Current track exists -- fetch full metadata from D1
     const currentTrack = await c.env.DB.prepare(`
-      SELECT id, title, wallet, artist_name, duration, file_url, cover_url, genre
-      FROM tracks
-      WHERE id = ?
+      SELECT
+        t.id,
+        t.title,
+        t.wallet,
+        t.artist_name,
+        t.duration,
+        t.file_url,
+        t.cover_url,
+        t.genre,
+        ap.username AS profile_username,
+        ap.display_name AS profile_display_name,
+        ap.avatar_url AS profile_avatar_url,
+        ap.bio AS profile_bio
+      FROM tracks t
+      LEFT JOIN artist_profiles ap ON t.wallet = ap.wallet
+      WHERE t.id = ?
     `).bind(state.currentTrackId).first<{
       id: number
       title: string
@@ -54,6 +68,10 @@ nowPlayingRoute.get('/', async (c) => {
       file_url: string
       cover_url: string
       genre: string
+      profile_username: string | null
+      profile_display_name: string | null
+      profile_avatar_url: string | null
+      profile_bio: string | null
     }>()
 
     if (!currentTrack) {
@@ -78,7 +96,11 @@ nowPlayingRoute.get('/', async (c) => {
       duration: currentTrack.duration,
       coverUrl: `/audio/${currentTrack.cover_url}`,
       fileUrl: `/audio/${currentTrack.file_url}`,
-      genre: currentTrack.genre
+      genre: currentTrack.genre,
+      artistUsername: currentTrack.profile_username || undefined,
+      artistDisplayName: currentTrack.profile_display_name || undefined,
+      artistAvatarUrl: currentTrack.profile_avatar_url || undefined,
+      artistBio: currentTrack.profile_bio ? truncateBio(currentTrack.profile_bio) : undefined
     }
 
     // Step 5: Check if next track should be included (crossfade pre-buffer)
@@ -90,9 +112,22 @@ nowPlayingRoute.get('/', async (c) => {
       if (timeRemaining < 10000) {
         // Less than 10s remaining, fetch next track metadata
         const nextTrackData = await c.env.DB.prepare(`
-          SELECT id, title, wallet, artist_name, duration, file_url, cover_url, genre
-          FROM tracks
-          WHERE id = ?
+          SELECT
+            t.id,
+            t.title,
+            t.wallet,
+            t.artist_name,
+            t.duration,
+            t.file_url,
+            t.cover_url,
+            t.genre,
+            ap.username AS profile_username,
+            ap.display_name AS profile_display_name,
+            ap.avatar_url AS profile_avatar_url,
+            ap.bio AS profile_bio
+          FROM tracks t
+          LEFT JOIN artist_profiles ap ON t.wallet = ap.wallet
+          WHERE t.id = ?
         `).bind(state.nextTrackId).first<{
           id: number
           title: string
@@ -102,6 +137,10 @@ nowPlayingRoute.get('/', async (c) => {
           file_url: string
           cover_url: string
           genre: string
+          profile_username: string | null
+          profile_display_name: string | null
+          profile_avatar_url: string | null
+          profile_bio: string | null
         }>()
 
         if (nextTrackData) {
@@ -113,7 +152,11 @@ nowPlayingRoute.get('/', async (c) => {
             duration: nextTrackData.duration,
             coverUrl: `/audio/${nextTrackData.cover_url}`,
             fileUrl: `/audio/${nextTrackData.file_url}`,
-            genre: nextTrackData.genre
+            genre: nextTrackData.genre,
+            artistUsername: nextTrackData.profile_username || undefined,
+            artistDisplayName: nextTrackData.profile_display_name || undefined,
+            artistAvatarUrl: nextTrackData.profile_avatar_url || undefined,
+            artistBio: nextTrackData.profile_bio ? truncateBio(nextTrackData.profile_bio) : undefined
           }
         }
       }
