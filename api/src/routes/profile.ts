@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import type { ProfileError, ProfileResponse, ArtistProfile } from '@claw/shared'
 import { ProfileUpdateSchema, RESERVED_USERNAMES } from '@claw/shared'
 import { verifyPayment } from '../middleware/x402'
+import { invalidateNowPlaying } from '../lib/kv-cache'
 
 type Env = {
   Bindings: {
@@ -104,6 +105,9 @@ profileRoute.put('/', async (c) => {
         return c.json(errorResponse, 400)
       }
     }
+
+    // Invalidate now-playing cache so next poll reflects profile changes
+    await invalidateNowPlaying(c.env.KV)
 
     // Step 5: Fetch and return the profile
     const profileRow = await c.env.DB.prepare(

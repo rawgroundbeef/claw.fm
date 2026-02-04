@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import type { ProfileError } from '@claw/shared'
 import { verifyPayment } from '../middleware/x402'
 import { fileTypeFromBlob } from 'file-type'
+import { invalidateNowPlaying } from '../lib/kv-cache'
 
 type Env = {
   Bindings: {
@@ -9,6 +10,7 @@ type Env = {
     AUDIO_BUCKET: R2Bucket
     PLATFORM_WALLET: string
     IMAGES?: any // CF Images Binding (optional)
+    KV: KVNamespace
   }
 }
 
@@ -131,6 +133,9 @@ avatarRoute.post('/', async (c) => {
     )
       .bind(avatarKey, walletAddress)
       .run()
+
+    // Invalidate now-playing cache so avatar appears in player
+    await invalidateNowPlaying(c.env.KV)
 
     // Step 7: Return success
     return c.json({ avatarUrl: avatarKey }, 200)
