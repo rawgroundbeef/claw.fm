@@ -1,447 +1,472 @@
-# Technology Stack
+# Technology Stack: v1.1 Artist Profiles
 
-**Project:** claw.fm -- 24/7 AI-generated music radio station
-**Researched:** 2026-01-31
-**Scope:** Additional libraries beyond base CF Workers + Hono + React + Vite stack
-**Overall confidence:** MEDIUM-HIGH (versions verified via npm registry; API behavior claims based on training data for browser APIs)
-
----
-
-## Decision Context
-
-The base stack is decided: Cloudflare Workers + Hono (API), React + Vite (frontend on CF Pages), D1 (database), R2 (audio storage), with x402/USDC payments on Base. This document covers the **additional** libraries needed for audio playback, visualization, audio processing, wallet integration, and upload handling.
+**Project:** claw.fm
+**Milestone:** v1.1 Artist Profiles
+**Researched:** 2026-02-03
+**Scope:** Stack additions/changes for artist profiles only (existing stack not re-evaluated)
+**Overall confidence:** HIGH
 
 ---
 
-## Recommended Stack
+## Executive Summary
 
-### 1. Browser Audio Playback (Gapless/Crossfade)
+Artist profiles require three new capabilities the existing stack lacks: (1) server-side image resizing for avatar uploads, (2) client-side routing for profile pages, and (3) username validation. The good news: all three can be solved with minimal additions. The Cloudflare Images binding handles avatar resizing natively without WASM complexity. React Router v7 in declarative mode adds client-side routing with a single dependency. Username validation needs no library -- a regex plus a hand-curated blocklist in `@claw/shared` is the right weight for this project.
 
-| Technology | Version | Purpose | Why Recommended |
-|------------|---------|---------|-----------------|
-| **Native Web Audio API + HTMLAudioElement** | Browser built-in | Core audio playback, crossfade, gapless transitions | Zero dependencies, full control over crossfade timing, required anyway for visualization |
+**Total new dependencies: 1** (`react-router`)
+**Total new CF bindings: 1** (Images)
+**Total new CF services: 0** (Images free tier covers this volume)
 
-**Recommendation: Do NOT use Howler.js. Use native Web Audio API directly.**
+---
 
-**Rationale:**
+## New Stack Additions
 
-Howler.js (v2.2.4) is an audio convenience library, but for claw.fm it adds complexity without solving the actual hard problem. Here is why:
+### 1. Image Processing: Cloudflare Images Binding
 
-1. **Crossfade requires Web Audio API regardless.** Howler uses Web Audio API under the hood. To crossfade two tracks, you need two audio sources with independent gain nodes. Howler abstracts this but in a way that makes crossfade control harder, not easier.
+| Attribute | Detail |
+|-----------|--------|
+| Technology | Cloudflare Images Binding (native Workers API) |
+| Version | Current (GA since Feb 2025) |
+| Purpose | Resize and re-encode avatar uploads before storing in R2 |
+| Confidence | HIGH |
 
-2. **Gapless playback needs precise scheduling.** The Web Audio API's `AudioContext.currentTime` provides sample-accurate scheduling. You pre-buffer the next track and schedule it to start exactly when the current track ends (or overlapping for crossfade). This is a ~50 line implementation, not a library problem.
+**Why this over alternatives:**
 
-3. **Visualization requires direct AnalyserNode access.** You need `AnalyserNode.getByteFrequencyData()` for the frequency visualizer. With Howler, you would still need to reach into its internal AudioContext. Going native means one consistent audio graph.
+| Option | Verdict | Reasoning |
+|--------|---------|-----------|
+| **CF Images Binding** | **RECOMMENDED** | Native to Workers runtime. No WASM bundle overhead. Handles resize + format conversion in one call. Free tier of 5,000 unique transformations/month is more than sufficient for profile avatars. Works directly with R2 bytes -- no URL needed. Supported in local dev via Wrangler. |
+| `@cf-wasm/photon` (v0.3.4) | Not recommended | Third-party WASM library. 128MB Worker memory limit is a concern. Known production issues with images >3MB. Adds WASM binary to Worker bundle size. More moving parts for a simple resize operation. |
+| Client-side only resize (Canvas API) | Not sufficient alone | Cannot trust client-side validation for security. Malicious clients can bypass canvas resize and send arbitrary data. Server must validate and re-process regardless. |
+| Sharp | Not possible | Requires Node.js native bindings. Does not work in Workers `workerd` runtime. |
 
-**Architecture for crossfade playback:**
+**Configuration -- add to `api/wrangler.toml`:**
 
+```toml
+[images]
+binding = "IMAGES"
 ```
-AudioContext
-  +-- GainNode (Track A) -- connected to destination
-  |     +-- MediaElementAudioSourceNode (current track)
-  +-- GainNode (Track B) -- connected to destination
-  |     +-- MediaElementAudioSourceNode (next track)
-  +-- AnalyserNode -- for visualization (connected before destination)
-```
 
-- Two `<audio>` elements, alternating roles (A plays, B pre-buffers)
-- Each routed through its own `GainNode` for volume control
-- Crossfade = ramp GainNode A down while ramping GainNode B up over ~3 seconds
-- Both feed into an `AnalyserNode` before reaching `AudioContext.destination`
-- Use `audio.duration` and `timeupdate` events to trigger crossfade ~5s before track end
-- Pre-fetch next track URL from API when current track is ~30s from ending
-
-**Key browser API methods:**
-- `new AudioContext()` -- create audio context
-- `audioContext.createMediaElementSource(audioElement)` -- connect HTML audio to Web Audio graph
-- `audioContext.createGain()` -- volume control per track
-- `audioContext.createAnalyser()` -- frequency data for visualizer
-- `gainNode.gain.linearRampToValueAtTime(value, time)` -- smooth crossfade
-- `analyserNode.getByteFrequencyData(dataArray)` -- frequency bins for visualizer
-
-**No library needed.** The implementation is straightforward and avoids a dependency that would fight against direct Web Audio API access.
-
-### 2. Frequency Visualizer
-
-| Technology | Version | Purpose | Why Recommended |
-|------------|---------|---------|-----------------|
-| **Web Audio API AnalyserNode** | Browser built-in | Extract frequency data from playing audio | Only way to get real-time frequency data; no library alternative |
-| **Canvas 2D / requestAnimationFrame** | Browser built-in | Render frequency bars | Simpler than WebGL, sufficient for bar visualization |
-
-**Recommendation: Native AnalyserNode + Canvas 2D. No libraries.**
-
-**Rationale:**
-
-Tone.js (v15.1.22) is a full music synthesis framework -- massively overkill for reading frequency data. The visualizer needs exactly two things:
-
-1. `AnalyserNode.getByteFrequencyData()` to get 64-128 frequency bins per frame
-2. `<canvas>` with `requestAnimationFrame` to draw bars
-
-This is ~80 lines of code. A React component that takes an `AnalyserNode` ref and renders bars on a canvas. No library provides meaningful value here.
-
-**Implementation sketch:**
+**TypeScript binding type addition in `api/src/index.ts`:**
 
 ```typescript
-// In the audio engine (not React)
-const analyser = audioContext.createAnalyser();
-analyser.fftSize = 256; // gives 128 frequency bins
-analyser.smoothingTimeConstant = 0.8;
-
-// In React component
-function Visualizer({ analyserNode }: { analyserNode: AnalyserNode }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-
-  useEffect(() => {
-    const dataArray = new Uint8Array(analyserNode.frequencyBinCount);
-    let animId: number;
-
-    function draw() {
-      analyserNode.getByteFrequencyData(dataArray);
-      // Draw bars on canvas using dataArray values (0-255)
-      const ctx = canvasRef.current?.getContext('2d');
-      if (!ctx) return;
-      // ... draw bars
-      animId = requestAnimationFrame(draw);
-    }
-    draw();
-    return () => cancelAnimationFrame(animId);
-  }, [analyserNode]);
-
-  return <canvas ref={canvasRef} />;
+type Bindings = {
+  DB: D1Database
+  AUDIO_BUCKET: R2Bucket
+  PLATFORM_WALLET: string
+  QUEUE_BRAIN: DurableObjectNamespace
+  KV: KVNamespace
+  DOWNLOAD_SECRET: string
+  IMAGES: ImagesBinding  // NEW for v1.1
 }
 ```
 
-### 3. Server-Side Audio Processing (CF Workers)
+**Usage pattern for avatar processing:**
 
-| Technology | Version | Purpose | Why Recommended |
-|------------|---------|---------|-----------------|
-| **music-metadata** | ^11.11.1 | Extract duration, format, bitrate from uploaded audio | Has non-Node `default` export path via `core.js`; supports MP3, WAV; pure JS parsing |
-| **Custom MP3 header parser (fallback)** | N/A | Lightweight MP3 duration extraction if music-metadata fails in Workers | Zero-dependency, ~100 lines, reads MP3 frame headers to calculate duration |
-
-**Confidence: MEDIUM -- music-metadata CF Workers compatibility needs validation.**
-
-**Rationale and risk assessment:**
-
-The critical constraint: CF Workers cannot use Node.js native modules, `fs`, `path`, or Node streams. We need to parse audio metadata from an `ArrayBuffer` (from the multipart upload).
-
-**music-metadata** (v11.11.1) is the gold standard for audio metadata parsing. Key compatibility signals:
-
-- It exports a `default` (non-Node) path: `./lib/core.js` -- this suggests edge/browser runtime support
-- Its dependency `strtok3` also has a `default: './lib/core.js'` path separate from Node
-- `file-type` (its dep) also has `default: './core.js'` separate from Node
-- The library has `parseBuffer()` and `parseBlob()` methods that work on `Uint8Array`/`Buffer` data, not just file streams
-
-**However:** The library's `engines` field says `node: '>=18'`, and some transitive deps (`debug`, `win-guid`) may reference Node globals. This MUST be validated during implementation.
-
-**Validation plan:**
-1. First attempt: `import { parseBuffer } from 'music-metadata'` in a CF Worker
-2. If it fails on Node-specific imports: try `import { parseBuffer } from 'music-metadata/lib/core.js'` explicitly
-3. If that also fails: fall back to custom MP3 header parser
-
-**Custom MP3 header parser (fallback):**
-
-MP3 files have a predictable header structure. Duration can be calculated by:
-- Reading the first MP3 frame header (bytes 0-3 of frame) for bitrate and sample rate
-- If CBR (constant bitrate): `duration = fileSize / (bitrate / 8)`
-- If VBR: Check for Xing/VBRI header in first frame, which contains total frame count
-- WAV: Read RIFF header -- duration = data chunk size / (sample rate * channels * bits per sample / 8)
-
-This is ~100-150 lines of code, zero dependencies, guaranteed to work in CF Workers. It handles the two formats claw.fm supports (MP3 and WAV).
-
-**Format validation approach:**
-- MP3: Check first bytes for `0xFF 0xFB` / `0xFF 0xF3` / `0xFF 0xF2` (MPEG frame sync) or `ID3` (ID3 tag before frames)
-- WAV: Check first 4 bytes for `RIFF` and bytes 8-11 for `WAVE`
-- Reject everything else at the byte level -- no library needed for format validation
-
-### 4. Embedded Wallet Creation (Base Network)
-
-| Technology | Version | Purpose | Why Recommended |
-|------------|---------|---------|-----------------|
-| **@coinbase/onchainkit** | ^1.1.2 | Wallet connection UI, identity components, transaction components for Base | Built by Coinbase specifically for Base; includes wallet connector, identity display, and transaction components |
-| **wagmi** | ^2.19.5 | React hooks for wallet interactions | Required by OnchainKit; provides useAccount, useConnect, useWriteContract etc. |
-| **viem** | ^2.45.1 | Low-level blockchain interactions, contract encoding, USDC transfers | Already in existing x402 stack; used server-side too |
-| **@tanstack/react-query** | ^5.90.20 | Async state management for wallet/blockchain queries | Required peer dep of wagmi |
-| **@coinbase/wallet-sdk** | ^4.3.7 | Coinbase Smart Wallet connector | Enables "Create Wallet" flow -- users get a wallet with just an email/passkey, no extension needed |
-
-**Recommendation: Coinbase OnchainKit + Smart Wallet. NOT Privy, NOT Dynamic.**
-
-**Rationale:**
-
-The core requirement is: listeners should be able to tip/buy tracks without having an existing wallet. They need **embedded wallet creation** -- click a button, get a wallet, make a payment.
-
-**Why Coinbase OnchainKit + Smart Wallet:**
-
-1. **Native Base support.** OnchainKit is built by Coinbase specifically for the Base ecosystem. Since all claw.fm payments are on Base with USDC, this is the most aligned choice.
-
-2. **Smart Wallet = zero-friction onboarding.** Coinbase Smart Wallet lets users create a wallet with just a passkey (biometric) or email -- no browser extension, no seed phrase. This matches claw.fm's "zero signup" philosophy.
-
-3. **Pre-built React components.** OnchainKit provides `<Wallet>`, `<ConnectWallet>`, `<WalletDropdown>` components that handle the full connection flow. Less custom UI to build.
-
-4. **Transaction components.** OnchainKit includes `<Transaction>` and `<TransactionButton>` components that can handle USDC transfers with built-in status/error handling.
-
-5. **Compatible with existing x402 stack.** Uses viem under the hood (same as x402), wagmi for React hooks. No conflicting abstractions.
-
-**Why NOT Privy (v3.13.0):**
-- Privy is a paid service ($0 free tier exists but limited)
-- Adds a third-party dependency for wallet creation that could go down or change pricing
-- More complex -- supports Solana, email/SMS/social login, which is feature bloat for claw.fm
-- Requires `@abstract-foundation/agw-client` and Solana deps as peer dependencies -- unnecessary weight
-- claw.fm only needs Base + USDC, making Privy's multi-chain support wasted complexity
-
-**Why NOT Dynamic (v4.59.1):**
-- Also a paid SaaS dependency
-- Dashboard/API key management overhead
-- More general-purpose than needed
-
-**Why NOT Thirdweb (v5.118.0):**
-- Large bundle, general-purpose SDK
-- Less Base-specific optimization than OnchainKit
-
-**Peer dependency chain:**
-```
-@coinbase/onchainkit ^1.1.2
-  requires: react ^19, react-dom ^19, wagmi ^2.16, viem ^2.27
-    wagmi ^2.19.5
-      requires: react >=18, viem 2.x, @tanstack/react-query >=5.0.0, typescript >=5.0.4
-        @tanstack/react-query ^5.90.20
-        viem ^2.45.1
-```
-
-**IMPORTANT version constraint:** OnchainKit requires React ^19. The frontend MUST use React 19. This is not optional. React 19 (v19.2.4) is stable and current, so this is fine for a new project.
-
-### 5. Multipart Upload Handling (Hono / CF Workers)
-
-| Technology | Version | Purpose | Why Recommended |
-|------------|---------|---------|-----------------|
-| **Hono built-in `c.req.parseBody()`** | (part of hono ^4.11.7) | Parse multipart/form-data uploads | Native Hono feature, no additional dependency; works in CF Workers |
-| **Hono body-limit middleware** | (part of hono ^4.11.7) | Enforce 50MB upload size limit | Built into Hono, import from `hono/body-limit` |
-| **@hono/zod-validator** | ^0.7.6 | Validate metadata fields in upload requests | Type-safe validation of title, genre, etc. alongside file upload |
-
-**Recommendation: Use Hono's built-in body parsing. No additional upload libraries.**
-
-**Rationale:**
-
-Hono's `c.req.parseBody()` natively handles `multipart/form-data` in Cloudflare Workers. It returns an object where file fields are `File` objects (with `.arrayBuffer()`, `.name`, `.type`, `.size` properties). This is exactly what CF Workers provides through the standard `Request` API.
-
-**Upload flow:**
 ```typescript
-import { Hono } from 'hono';
-import { bodyLimit } from 'hono/body-limit';
+// Receive avatar as File from multipart upload
+// Validate MIME type with file-type (already a dependency)
+// Then resize + re-encode via Images binding:
 
-app.post('/tracks',
-  bodyLimit({ maxSize: 50 * 1024 * 1024 }), // 50MB
-  async (c) => {
-    const body = await c.req.parseBody();
-    const audioFile = body['audio']; // File object
-    if (!(audioFile instanceof File)) throw new Error('No audio file');
+const resized = await env.IMAGES
+  .input(avatarBytes)
+  .transform({ width: 256, height: 256, fit: "cover" })
+  .output({ format: "webp", quality: 80 })
 
-    const arrayBuffer = await audioFile.arrayBuffer();
-    // Validate format (check magic bytes)
-    // Extract duration (music-metadata or custom parser)
-    // Upload to R2
-    await c.env.R2_BUCKET.put(key, arrayBuffer);
+// Upload resized result to existing R2 bucket
+await env.AUDIO_BUCKET.put(`avatars/${wallet}.webp`, resized.image(), {
+  httpMetadata: { contentType: "image/webp" }
+})
+```
+
+**Avatar sizing strategy:**
+- Store one size: 256x256 WebP (good balance of quality and file size at ~10-30KB)
+- `fit: "cover"` crops to square, matching avatar display aspect ratio
+- WebP output for smallest file size with good quality
+- No need for multiple sizes -- avatars display at 32-64px in the player and ~128px on profile pages; the browser handles downscaling from 256px efficiently
+- Previous avatar is overwritten on update (same R2 key path keyed by wallet address)
+
+**Cost:** Free. All Cloudflare accounts include 5,000 unique transformations/month at no charge. Each avatar upload counts as 1 unique transformation. Even aggressive profile creation will not approach this limit. Exceeding the limit returns a 9422 error (not an auto-charge), so there is zero surprise billing risk. If the project scales past 5,000 avatar uploads/month, the paid tier is $0.50 per 1,000 transformations.
+
+**Local development:** The Images binding works in Wrangler local dev at no charge. The local offline version supports `width`, `height`, `rotate`, and `format` operations -- which covers everything needed for avatar resizing.
+
+**Sources:**
+- [CF Images Binding Docs](https://developers.cloudflare.com/images/transform-images/bindings/) -- HIGH confidence
+- [CF Images Tutorial: Transform user-uploaded images to R2](https://developers.cloudflare.com/images/tutorials/optimize-user-uploaded-image/) -- HIGH confidence
+- [CF Images Pricing](https://developers.cloudflare.com/images/pricing/) -- HIGH confidence
+- [CF Blog: Images Binding for Workers (Apr 2025)](https://blog.cloudflare.com/improve-your-media-pipelines-with-the-images-binding-for-cloudflare-workers/) -- MEDIUM confidence
+
+---
+
+### 2. Client-Side Routing: React Router v7
+
+| Attribute | Detail |
+|-----------|--------|
+| Technology | `react-router` |
+| Version | `^7.12.0` (latest stable as of 2026-02-03) |
+| Purpose | Client-side routing for `/artist/:username` profile pages |
+| Confidence | HIGH |
+
+**Why this:**
+
+The frontend currently has zero routing -- `App.tsx` renders a single full-page view with no URL-based navigation. Artist profile pages at `/artist/:username` require client-side routing. React Router v7 in **declarative mode** is the standard, smallest-footprint solution.
+
+**Key v7 change:** In React Router v7, `react-router-dom` is no longer needed. All exports come from the unified `react-router` package. `react-router-dom` still exists as a re-export for migration convenience, but new installs should use `react-router` only.
+
+| Option | Verdict | Reasoning |
+|--------|---------|-----------|
+| **React Router v7 (declarative mode)** | **RECOMMENDED** | Industry standard for React SPAs. Declarative mode is the lightest weight (tree-shakes well). Non-breaking from v6 patterns. Single `react-router` package. Direct `useParams()` hook for extracting `:username`. Supports `<Link>` for in-app navigation without full page reload. |
+| TanStack Router | Not recommended | More powerful but heavier for this use case. Project needs only 2-3 routes total. Type-safe file-based routing is overkill here. Good choice if the app had 10+ routes with complex data loading. |
+| Wouter | Not recommended | Lighter than React Router but smaller ecosystem. Missing features that may be needed later (nested routes, `<Outlet>`). Premature optimization to save ~4KB. |
+| No router (manual `window.location` parsing) | Not recommended | Fragile. No back/forward button support without reimplementing browser history. Not worth the DX cost for any app with more than one route. |
+
+**Installation:**
+
+```bash
+cd /Users/rawgroundbeef/Projects/claw.fm/web && pnpm add react-router
+```
+
+**Integration in `main.tsx` -- wrap with BrowserRouter:**
+
+```typescript
+import { BrowserRouter } from "react-router"
+
+createRoot(document.getElementById("root")!).render(
+  <StrictMode>
+    <WalletProvider>
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>
+    </WalletProvider>
+  </StrictMode>
+)
+```
+
+**Route structure in `App.tsx`:**
+
+```typescript
+import { Routes, Route } from "react-router"
+
+// The current App content becomes the "/" route component (RadioView)
+// New ArtistProfile component handles "/artist/:username"
+<Routes>
+  <Route path="/" element={<RadioView />} />
+  <Route path="/artist/:username" element={<ArtistProfile />} />
+</Routes>
+```
+
+**Why declarative mode, not framework mode:** Framework mode (file-based routing, SSR, loaders/actions) requires a different project structure and build tooling. Declarative mode keeps the existing Vite build pipeline completely untouched. This is a pure client-rendered SPA with 2-3 routes, not a full-stack framework app.
+
+**Cloudflare Pages SPA fallback -- no changes needed:** The current deployment on CF Pages has no `404.html` file in the build output. CF Pages behavior: when no `404.html` exists, it serves `index.html` for all unmatched paths. This means `/artist/someuser` will correctly load the SPA bundle, and React Router will handle the route client-side. No `_redirects` file, no wrangler config changes, no Pages Functions changes needed. This was confirmed by examining the `web/public/` directory (contains only `favicon.svg` and `skill.md`, no `404.html`).
+
+**Vite dev server proxy -- add artist routes:** The existing `vite.config.ts` proxies `/api` and `/audio` to the local Worker. Profile API calls (`/api/artists/*`) will be caught by the existing `/api` proxy rule. No vite config changes needed.
+
+**Sources:**
+- [React Router v7 Declarative Installation](https://reactrouter.com/start/declarative/installation) -- HIGH confidence
+- [React Router v7 Modes](https://reactrouter.com/start/modes) -- HIGH confidence
+- [React Router npm](https://www.npmjs.com/package/react-router) -- HIGH confidence
+- [CF Pages: Deploy a React site](https://developers.cloudflare.com/pages/framework-guides/deploy-a-react-site/) -- HIGH confidence
+
+---
+
+### 3. Username Validation: No Library Needed
+
+| Attribute | Detail |
+|-----------|--------|
+| Technology | Custom regex + blocklist in `@claw/shared` |
+| Version | N/A (custom code) |
+| Purpose | Validate usernames on both client and server |
+| Confidence | HIGH |
+
+**Why no library:**
+
+| Option | Verdict | Reasoning |
+|--------|---------|-----------|
+| **Custom regex + blocklist** | **RECOMMENDED** | Zero dependencies. Runs identically in both Workers and browser via the shared package. Full control over rules. Blocklist is domain-specific to claw.fm URL routes. Tiny code footprint (~50 lines). Easy to extend. |
+| `the-big-username-blacklist` (v1.5.2) | Not recommended | Last published 7+ years ago. Generic list not tailored to claw.fm URL structure. Adds a dependency for something trivially implementable. Missing claw.fm-specific reserved words (`api`, `audio`, `health`, `queue`, etc.). |
+| Zod schema | Overkill | Adds a dependency for one validation rule. The project does not use Zod elsewhere. Regex is simpler for this specific case. |
+
+**Validation rules (implement in `packages/shared/src/index.ts`):**
+
+```typescript
+export const USERNAME_RULES = {
+  MIN_LENGTH: 3,
+  MAX_LENGTH: 20,
+  // Lowercase alphanumeric + hyphens + underscores
+  // Must start and end with a letter or digit
+  PATTERN: /^[a-z0-9][a-z0-9_-]*[a-z0-9]$/,
+} as const
+
+// Reserved words that conflict with claw.fm routes or system terms
+export const RESERVED_USERNAMES = new Set([
+  // claw.fm routes (CRITICAL - these would conflict with URL paths)
+  'artist', 'artists', 'api', 'audio', 'health', 'queue',
+  'submit', 'tip', 'download', 'downloads', 'genres',
+  'now-playing', 'dev',
+  // Common web routes
+  'admin', 'login', 'logout', 'signup', 'register',
+  'settings', 'profile', 'account', 'help', 'support',
+  'about', 'contact', 'privacy', 'terms', 'tos',
+  'faq', 'blog', 'news', 'feed', 'search',
+  'home', 'index', 'static', 'assets', 'public',
+  // System/privilege terms
+  'root', 'system', 'null', 'undefined', 'mod',
+  'moderator', 'staff', 'team', 'official',
+  'claw', 'clawfm', 'claw-fm',
+  // Financial/platform terms
+  'payment', 'billing', 'wallet', 'usdc', 'base',
+  'x402', 'platform',
+])
+
+export function validateUsername(
+  username: string
+): { valid: boolean; error?: string } {
+  const normalized = username.toLowerCase().trim()
+
+  if (normalized.length < USERNAME_RULES.MIN_LENGTH) {
+    return { valid: false, error: `Username must be at least ${USERNAME_RULES.MIN_LENGTH} characters` }
   }
+  if (normalized.length > USERNAME_RULES.MAX_LENGTH) {
+    return { valid: false, error: `Username must be at most ${USERNAME_RULES.MAX_LENGTH} characters` }
+  }
+  if (!USERNAME_RULES.PATTERN.test(normalized)) {
+    return { valid: false, error: 'Username must start and end with a letter or number, and contain only lowercase letters, numbers, hyphens, and underscores' }
+  }
+  if (RESERVED_USERNAMES.has(normalized)) {
+    return { valid: false, error: 'This username is reserved' }
+  }
+  return { valid: true }
+}
+```
+
+**Why this lives in `@claw/shared`:** Validation runs on both client (instant feedback while typing) and server (authoritative check before DB insert). The shared package already holds types and constants consumed by both `web` and `api`. This is the established pattern for cross-boundary code in this project (see `GENRES`, `Track`, `SubmissionError`, etc.).
+
+**Why lowercase-only:** Prevents confusion between `DJClaw` and `djclaw`. Usernames are normalized to lowercase on input. Display names (separate field) can have any casing.
+
+---
+
+## What NOT to Add
+
+| Technology | Why Not |
+|------------|---------|
+| **Cropper.js / react-easy-crop** | Over-engineered for this use case. Agents (primary profile creators) are API clients -- they upload an image file, not drag a crop handle. The server-side `fit: "cover"` on the Images binding handles cropping to square automatically. If a human-facing interactive crop UI is wanted later, it can be added as a separate enhancement. |
+| **Sharp** | Cannot run in CF Workers. Not an option regardless of how much one might want it. |
+| **`@cf-wasm/photon` (v0.3.4)** | The CF Images binding is a better fit for this use case. Native, managed, no WASM bundle size increase, no 128MB Worker memory ceiling concern, free tier is sufficient. Photon is the right choice only for pixel-level manipulation (filters, effects, watermarks) that the Images binding does not support. Simple avatar resize does not need this. |
+| **`react-router-dom`** | Deprecated package name in v7. Everything is in the unified `react-router` package now. `react-router-dom` still exists as a re-export but new installs should use `react-router`. |
+| **Zod / Yup / Joi** | Validation schema libraries are disproportionate for one simple rule (username format). The project does not use schema validation elsewhere. Adding one adds bundle weight with no proportional benefit. |
+| **Image CDN (Cloudinary, ImageKit)** | External paid dependency for something CF handles natively and for free at this scale. Avatars are small, infrequent, and already stored on R2. |
+| **New R2 bucket** | Avatars go in the existing `AUDIO_BUCKET` (`claw-fm-audio`) under an `avatars/` key prefix. Same bucket, different key prefix. No new binding needed. R2 does not have directory semantics -- the key prefix is purely organizational. |
+| **New KV namespace** | Username-to-wallet lookups belong in D1, not KV. KV is eventually consistent and cannot enforce UNIQUE constraints needed for username reservation. D1 (SQLite) provides UNIQUE indexes natively. The existing KV namespace can optionally cache popular profile lookups later. |
+| **Authentication library (JWT, Passport, etc.)** | x402 payment IS the auth mechanism. The existing `verifyPayment` middleware extracts the wallet address from the payment receipt. This is the proven pattern from track submission. No new auth dependency needed. |
+| **Form library (react-hook-form, Formik)** | The profile form has 4 fields (username, display name, bio, avatar file). A form library adds more code than it saves at this scale. Controlled React state with `useState` is sufficient and is the established pattern in this codebase (see `SubmitModal.tsx`). |
+| **zustand / state management** | The existing codebase does not use a state management library. Profile data is fetched per-page with simple `fetch` + `useState` + `useEffect`. Adding zustand for one new feature would be inconsistent with the codebase conventions. |
+
+---
+
+## Existing Stack Reuse
+
+These existing capabilities directly support artist profiles with zero changes:
+
+| Existing Component | How It's Reused for Profiles |
+|----------|----------------|
+| **`file-type` (v21.3.0)** in api | Already validates image MIME types via magic bytes for cover art. Reuse identically for avatar upload validation. Already imported in `api/src/lib/image.ts` and `api/src/middleware/validation.ts`. |
+| **`@claw/shared` package** | Add username validation rules, profile types (`ArtistProfile`, `ProfileResponse`), and API interfaces. Both `web` and `api` already consume this package via `workspace:*`. |
+| **`verifyPayment` middleware** (`api/src/middleware/x402.ts`) | x402 payment verification for profile creation/update. Identical pattern to track submission -- change only `maxAmountRequired`, `resource`, and `description` fields. |
+| **R2 `AUDIO_BUCKET` binding** | Store avatars under `avatars/{wallet}.webp` prefix. Same bucket, same binding. Presigned URL infrastructure from `api/src/lib/presigned.ts` can serve avatar images if needed. |
+| **D1 database** | New `artists` table via migration (0003). D1 already handles tracks; profiles are a simpler schema. |
+| **KV namespace** | Optional: cache resolved artist profiles for the now-playing response hot path. Existing `KV` binding works. Pattern: cache profile data with TTL, invalidate on profile update. |
+| **Hono framework** (`^4.7.4`) | Add new route file `api/src/routes/artists.ts` following the exact pattern of `submit.ts`, `tip.ts`, etc. Hono's `c.req.parseBody()` handles multipart avatar uploads identically to how it handles track submission. |
+| **Tailwind CSS** (`^3.4.17`) | Style profile pages, forms, and avatar display. No config changes needed. |
+| **Wagmi v2 + OnchainKit** | Wallet connection for the profile creation payment flow. The connected wallet address identifies who is creating/updating the profile. Already integrated in the frontend. |
+| **`sonner` (`^2.0.7`)** | Show success/error toasts for profile creation, avatar upload, username changes. Already in the frontend. |
+| **`blockies-ts` (`^1.0.0`)** | Continue generating identicon fallback when no avatar is uploaded. Already works in `api/src/lib/identicon.ts`. Also useful as client-side fallback avatar display. |
+| **CF Pages Functions proxy** (`web/functions/api/[[path]].ts`) | The existing catch-all proxy function forwards `/api/*` requests to the Worker. New `/api/artists/*` endpoints will be proxied automatically. No changes needed. |
+
+---
+
+## Database Changes
+
+New migration file: `api/migrations/0003_artists-table.sql`
+
+```sql
+CREATE TABLE IF NOT EXISTS artists (
+  wallet TEXT PRIMARY KEY,
+  username TEXT NOT NULL UNIQUE,
+  display_name TEXT NOT NULL,
+  bio TEXT,
+  avatar_url TEXT,
+  created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+  updated_at INTEGER NOT NULL DEFAULT (unixepoch())
 );
+
+CREATE UNIQUE INDEX idx_artists_username ON artists(username);
 ```
 
-**No need for:** `multer`, `busboy`, `formidable`, or any Node.js upload middleware. These are Node-specific and will not work in CF Workers. Hono + the Web API `File` interface handle everything.
+**Design decisions:**
 
-### 6. Supporting Libraries
+- **`wallet` as PRIMARY KEY:** One wallet = one profile. The wallet address is already the identity system (proven in v1.0). No auto-increment ID needed.
+- **Separate table, not columns on `tracks`:** Artist data (username, bio, avatar) is per-wallet, not per-track. A separate table avoids denormalization. Profile updates are atomic -- change display name once and all tracks reflect it via JOIN (`tracks.wallet = artists.wallet`).
+- **`username` with UNIQUE constraint:** Enforced at the database level. D1 (SQLite) handles this natively. The application layer validates format; the database enforces uniqueness.
+- **`avatar_url` is an R2 key path:** Stores the R2 object key (e.g., `avatars/0xabc123.webp`), not a full URL. The serving layer constructs the full URL, same pattern as `tracks.file_url` and `tracks.cover_url`.
 
-| Library | Version | Purpose | Why Recommended |
-|---------|---------|---------|-----------------|
-| **zustand** | ^5.0.11 | Client-side state for audio player, queue, now-playing | Lightweight (1KB), works great with React 19, no boilerplate. Handles audio engine state (playing, current track, volume) outside React render cycle |
-| **jdenticon** | ^3.3.0 | Generate identicon SVGs from wallet addresses for fallback cover art | Zero dependencies, works in both browser and CF Workers (SVG generation), deterministic output from any string |
-| **zod** | ^4.3.6 | Schema validation for API inputs (track metadata, payment params) | Already required by @x402/core; use consistently across API |
-| **@hono/zod-validator** | ^0.7.6 | Integrate zod schemas with Hono route validation | Clean middleware pattern for request validation |
-| **hono-rate-limiter** | ^0.5.3 | Rate limit track submissions and API endpoints | Already in existing x402 infra pattern |
+**Linking profiles to tracks for display:**
 
-### 7. Development & Infrastructure
+```sql
+-- Now-playing query becomes a LEFT JOIN:
+SELECT t.*, a.username, a.display_name, a.avatar_url
+FROM tracks t
+LEFT JOIN artists a ON t.wallet = a.wallet
+WHERE t.id = ?
+```
 
-| Technology | Version | Purpose | Why Recommended |
-|------------|---------|---------|-----------------|
-| **wrangler** | ^4.61.1 | CF Workers local dev, deployment, D1/R2 management | Required for CF Workers development |
-| **@cloudflare/workers-types** | ^4.20260131.0 | TypeScript types for Workers runtime APIs | Type safety for D1, R2, KV bindings |
-| **vite** | ^7.3.1 | Frontend build tool and dev server | Already decided; latest version |
-| **typescript** | ^5.9.3 | Type safety across frontend and API | Required by wagmi, needed everywhere |
-| **tailwindcss** | ^4.1.18 | Utility-first CSS for frontend | Fast UI development, good for responsive radio UI |
+The `LEFT JOIN` ensures tracks without profiles still return (with NULL artist fields), maintaining backward compatibility with the existing `NowPlayingTrack` response shape.
 
 ---
 
-## Alternatives Considered
+## API Endpoint Design
 
-| Category | Recommended | Alternative | Why Not |
-|----------|-------------|-------------|---------|
-| Audio playback | Native Web Audio API | Howler.js v2.2.4 | Adds abstraction layer that fights crossfade control; still need Web Audio API for visualizer; 10KB gzipped for no benefit |
-| Audio playback | Native Web Audio API | Tone.js v15.1.22 | Full synthesis framework (150KB+), massive overkill for playback-only use case |
-| Visualization | Canvas 2D + AnalyserNode | Three.js / WebGL | Overkill for 2D bar chart; adds 50KB+ for no visual benefit |
-| Visualization | Canvas 2D + AnalyserNode | D3.js | DOM-based rendering is too slow for 60fps audio visualization; Canvas is the right tool |
-| Audio metadata | music-metadata v11 | ffprobe/ffmpeg | Cannot run native binaries in CF Workers |
-| Audio metadata | music-metadata v11 | mp3-duration v1.1.0 | Only handles MP3, not WAV; less metadata extraction; keep as fallback concept |
-| Wallet | OnchainKit + Smart Wallet | Privy v3.13.0 | Paid SaaS, multi-chain bloat, unnecessary Solana deps |
-| Wallet | OnchainKit + Smart Wallet | Dynamic v4.59.1 | Paid SaaS, dashboard overhead, less Base-native |
-| Wallet | OnchainKit + Smart Wallet | Thirdweb v5.118.0 | Large bundle, general-purpose, less Base-optimized |
-| Wallet | OnchainKit + Smart Wallet | Raw wagmi + viem only | Would work but requires building all wallet UI from scratch; OnchainKit's pre-built components save significant time |
-| State management | zustand v5 | Redux Toolkit | Overkill for this app's state needs; zustand is 1KB vs 30KB+ |
-| State management | zustand v5 | Jotai v2.17.0 | Atomic model is fine but zustand's store pattern maps better to audio engine state |
-| Upload handling | Hono built-in | Multer / Busboy | Node.js libraries, incompatible with CF Workers |
-| Identicons | jdenticon v3.3.0 | ethereum-blockies-base64 v1.0.2 | jdenticon produces cleaner SVGs, works server-side too (for OG images), more visually distinctive |
-| CSS | Tailwind CSS v4 | CSS Modules / Styled Components | Tailwind is faster for building UIs; v4 has zero-config with Vite |
+New route file: `api/src/routes/artists.ts`
 
----
+| Method | Path | Auth | Purpose |
+|--------|------|------|---------|
+| `PUT` | `/api/artists` | x402 (0.01 USDC) | Create or update profile (upsert) |
+| `GET` | `/api/artists/:username` | None | Get public profile by username |
+| `GET` | `/api/artists/wallet/:address` | None | Get profile by wallet address |
 
-## What NOT to Use
+**Why PUT (upsert) instead of POST + PATCH:**
+- Idempotent. Client sends full desired profile state.
+- If profile exists for this wallet, update it. If not, create it.
+- Simplifies the API surface -- one endpoint instead of two.
+- The x402 payment applies equally to creation and updates (including username changes).
 
-### Do NOT use Howler.js
-**Why it seems attractive:** Popular audio library, nice API, handles browser quirks.
-**Why it is wrong here:** claw.fm needs crossfade between two simultaneous audio sources with shared visualization. Howler's abstraction makes this harder, not easier. You end up fighting the library to access the underlying Web Audio API nodes. For a jukebox app that plays one sound at a time, Howler is great. For a radio station with crossfade and real-time visualization, go native.
+**Payment configuration:**
 
-### Do NOT use Tone.js
-**Why it seems attractive:** Powerful Web Audio API framework.
-**Why it is wrong here:** Tone.js is designed for music creation/synthesis (scheduling notes, effects chains, instruments). claw.fm plays pre-rendered audio files. Using Tone.js for this is like using Photoshop to display a JPEG.
+```typescript
+await verifyPayment(c, {
+  scheme: 'exact',
+  network: 'base',
+  maxAmountRequired: '10000', // 0.01 USDC (6 decimals)
+  asset: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+  resource: '/api/artists',
+  description: 'Profile creation/update fee',
+  payTo: c.env.PLATFORM_WALLET,
+})
+```
 
-### Do NOT use MediaSource Extensions (MSE)
-**Why it seems attractive:** Enables streaming-like playback, used by YouTube/Spotify.
-**Why it is wrong here:** MSE is for adaptive bitrate streaming (DASH/HLS) where you feed chunks into a buffer. claw.fm serves complete audio files from R2. Using `<audio src="...">` with pre-fetching is simpler, more reliable, and sufficient. MSE adds complexity with no benefit when files are small (max 10 min, max 50MB).
-
-### Do NOT use ffmpeg/ffprobe (server-side)
-**Why it seems attractive:** Gold standard for audio processing.
-**Why it is wrong here:** Cannot run native binaries in CF Workers. Period. No ffmpeg.wasm either -- it requires SharedArrayBuffer and significant memory, both constrained in Workers (which has 128MB memory limit and 30s CPU time for paid plans).
-
-### Do NOT use Node.js stream-based upload libraries
-Examples: multer, busboy, formidable, express-fileupload.
-**Why wrong:** All depend on Node.js streams. CF Workers use Web API `Request`/`Response`. Hono's built-in body parser uses the correct Web APIs.
-
-### Do NOT use Web Streams API for audio playback
-**Why it seems attractive:** Could stream audio progressively.
-**Why it is wrong here:** R2 serves files via HTTP range requests natively. The `<audio>` element handles progressive loading automatically. Adding Web Streams adds complexity for no user-visible benefit.
+This is identical to the track submission payment pattern in `api/src/routes/submit.ts`, with only `resource` and `description` changed.
 
 ---
 
-## Installation Commands
+## Shared Package Type Additions
 
-### API (CF Workers)
+New types to add to `packages/shared/src/index.ts`:
+
+```typescript
+// Artist profile types
+export interface ArtistProfile {
+  wallet: string
+  username: string
+  displayName: string
+  bio?: string
+  avatarUrl?: string
+  createdAt: number
+  updatedAt: number
+}
+
+export interface ProfileResponse {
+  profile: ArtistProfile
+  tracks: Track[]  // Artist's track catalog
+}
+
+export interface ProfileUpdateRequest {
+  username: string
+  displayName: string
+  bio?: string
+  // avatar is sent as File in multipart, not in JSON body
+}
+
+// Update NowPlayingTrack to include profile fields
+export interface NowPlayingTrack {
+  id: number
+  title: string
+  artistWallet: string
+  artistName?: string
+  artistUsername?: string   // NEW: for linking to /artist/:username
+  artistAvatarUrl?: string  // NEW: for showing avatar in player
+  duration: number
+  coverUrl?: string
+  fileUrl: string
+  genre: string
+}
+```
+
+---
+
+## Full Dependency Delta
+
+| Package | Where | Action | Version | Purpose |
+|---------|-------|--------|---------|---------|
+| `react-router` | web | ADD | ^7.12.0 | Client-side routing for `/artist/:username` pages |
+| CF Images binding | api (wrangler.toml) | CONFIGURE | N/A (native) | Server-side avatar resizing |
+
+**That is the complete list.** One npm package and one Cloudflare binding configuration. Everything else is custom code using existing dependencies.
+
+---
+
+## Installation Summary
+
+### API (Worker)
+
+No new npm packages. Add to `api/wrangler.toml`:
+
+```toml
+[images]
+binding = "IMAGES"
+```
+
+Add migration file `api/migrations/0003_artists-table.sql` (contents above).
+
+### Frontend (Web)
 
 ```bash
-# Core (already decided)
-npm install hono@^4.11.7 @openfacilitator/sdk@^0.7.2 @x402/core@^2.2.0 viem@^2.45.1
-
-# Audio metadata extraction
-npm install music-metadata@^11.11.1
-
-# Validation and middleware
-npm install zod@^4.3.6 @hono/zod-validator@^0.7.6 hono-rate-limiter@^0.5.3
-
-# Identicon generation (server-side for OG images)
-npm install jdenticon@^3.3.0
-
-# Dev dependencies
-npm install -D wrangler@^4.61.1 @cloudflare/workers-types@^4.20260131.0 typescript@^5.9.3
+cd /Users/rawgroundbeef/Projects/claw.fm/web && pnpm add react-router
 ```
 
-### Frontend (React + Vite on CF Pages)
+### Shared Package
 
-```bash
-# Core (already decided)
-npm install react@^19.2.4 react-dom@^19.2.4
-
-# Wallet integration
-npm install @coinbase/onchainkit@^1.1.2 wagmi@^2.19.5 viem@^2.45.1 @tanstack/react-query@^5.90.20
-
-# State management
-npm install zustand@^5.0.11
-
-# Identicon generation (client-side fallback art)
-npm install jdenticon@^3.3.0
-
-# Styling
-npm install tailwindcss@^4.1.18
-
-# Dev dependencies
-npm install -D typescript@^5.9.3 @types/react@^19 @types/react-dom@^19 vite@^7.3.1
-```
+No new dependencies. Add validation code and types to `packages/shared/src/index.ts`.
 
 ---
 
-## Version Compatibility Matrix
+## Risk Assessment
 
-| Package | Version | Constraint Source | Notes |
-|---------|---------|-------------------|-------|
-| react | ^19.2.4 | @coinbase/onchainkit requires ^19 | MUST be React 19, not 18 |
-| react-dom | ^19.2.4 | @coinbase/onchainkit requires ^19 | Matches react |
-| wagmi | ^2.19.5 | @coinbase/onchainkit requires ^2.16 | Must be 2.x, NOT 3.x (OnchainKit not yet compatible) |
-| viem | ^2.45.1 | wagmi requires 2.x, OnchainKit requires ^2.27 | Shared across frontend and API |
-| @tanstack/react-query | ^5.90.20 | wagmi requires >=5.0.0 | Peer dep |
-| typescript | ^5.9.3 | wagmi requires >=5.0.4 (v2) or >=5.7.3 (v3) | Use latest 5.x |
-| zod | ^4.3.6 | @x402/core requires ^3.24.2 | **WARNING: Potential conflict.** x402/core pins zod ^3.24.2. Zod 4 may not be backward compatible. Verify x402/core works with zod 4, or pin to zod ^3.24.2 and match x402. |
-| hono | ^4.11.7 | Base stack decision | Latest 4.x |
-
-**Critical note on Zod version:** The `@x402/core` package depends on `zod ^3.24.2`. Zod v4 (4.3.6) is the latest major release but may have breaking changes from v3. **Resolution: Use `zod@^3.24.2` to match x402/core's requirement, NOT zod v4.** Update the install commands accordingly if x402/core has not updated to support zod v4.
-
-**Corrected zod version for API:**
-```bash
-npm install zod@^3.24.2
-```
-
----
-
-## Architecture Implications
-
-### Monorepo vs Separate Repos
-
-Recommend a **monorepo with two packages** (or a single repo with `/api` and `/web` directories):
-- `/api` -- CF Workers + Hono (deployed via wrangler)
-- `/web` -- React + Vite (deployed to CF Pages)
-- `/shared` -- Types, constants (track schema, payment amounts, API types)
-
-This keeps the `viem` dependency shared and ensures API response types match frontend expectations.
-
-### Audio Engine as Singleton (Not React State)
-
-The audio playback engine (AudioContext, gain nodes, analyser, crossfade logic) should be a **singleton class outside React**, not managed via React state. React re-renders must not disrupt audio playback. Zustand connects the engine's state to React for UI updates.
-
-```
-AudioEngine (singleton, imperative)
-  |-- manages AudioContext, gain nodes, <audio> elements
-  |-- exposes: play(), pause(), setVolume(), getAnalyserNode()
-  |-- fires events on track change, playback state change
-
-Zustand Store (reactive)
-  |-- subscribes to AudioEngine events
-  |-- exposes: isPlaying, currentTrack, volume, queue
-  |-- React components subscribe to store
-```
-
-### R2 Serving Strategy
-
-Audio files should be served directly from R2 via public bucket or presigned URLs. The `<audio>` element fetches directly from R2 -- do NOT proxy audio through the Worker (would consume CPU time and egress unnecessarily). Use R2 custom domain or CF Pages + R2 binding for public serving.
-
----
-
-## Open Questions / Validation Needed
-
-1. **music-metadata in CF Workers** -- MEDIUM confidence. The `default` export path avoids Node-specific imports in theory, but this needs a real test. If it fails, implement the custom MP3/WAV header parser (~150 lines, zero dependencies, guaranteed to work).
-
-2. **Zod v3 vs v4 compatibility** -- Need to verify whether `@x402/core@^2.2.0` works with zod v4 or requires v3. Safe default: use zod v3.
-
-3. **OnchainKit Smart Wallet flow** -- Need to verify the exact "Create Wallet" UX flow. Does it require a Coinbase account? Does it work with just a passkey? This affects the "zero signup" promise.
-
-4. **R2 public access for audio files** -- Need to confirm the best pattern for serving R2 audio files publicly (custom domain, CF Pages binding, or presigned URLs with expiry).
-
-5. **Audio autoplay policy** -- Browsers block audio autoplay without user gesture. The radio station needs a "Press play to start listening" interaction on first visit. This is a UX consideration, not a library issue.
+| Risk | Likelihood | Impact | Mitigation |
+|------|-----------|--------|------------|
+| CF Images binding not available on account | LOW | HIGH | Free tier is available on all CF accounts by default. Verify availability in the dashboard before starting. Fallback: skip server-side resize and store original uploads with a 1MB size cap (accept slightly larger files). |
+| Images binding local dev limitations | LOW | LOW | Local offline mode supports width, height, format -- exactly what avatars need. Full-fidelity online mode available if needed. |
+| React Router v7 breaking existing SPA | VERY LOW | MEDIUM | Declarative mode is purely additive. Wrapping in `<BrowserRouter>` and adding `<Routes>` does not break the existing single-view app. The `/` route renders the current `App` content. Upgrade from zero-routes to two-routes is the simplest possible React Router integration. |
+| CF Pages not serving `/artist/:username` correctly | VERY LOW | HIGH | Confirmed: no `404.html` exists in `web/public/`, so CF Pages already serves `index.html` for all unmatched paths (default SPA behavior). React Router handles routing client-side. |
+| Username squatting | MEDIUM | LOW | x402 payment cost (0.01 USDC per create/update) deters bulk squatting. Reserved word blocklist prevents system route conflicts. Mutable usernames mean no permanent lock-out -- squatted names can be released. |
+| Avatar upload abuse (large/malicious files) | LOW | MEDIUM | Existing `file-type` magic-byte validation + size cap (e.g., 2MB for avatars, smaller than the 5MB cover art limit). Images binding will reject files it cannot process. R2 key is deterministic per wallet, so repeated uploads overwrite rather than accumulate. |
 
 ---
 
 ## Sources
 
-All version numbers verified via `npm view [package] version` on 2026-01-31 against the npm registry. Browser API information (Web Audio API, Canvas, HTMLAudioElement) is based on established web standards (stable since 2014+). CF Workers constraints based on Cloudflare Workers documentation (training data -- HIGH confidence as these are well-established constraints). OnchainKit/wagmi/viem compatibility based on peer dependency analysis from npm registry (HIGH confidence).
+### HIGH Confidence (Official Documentation)
+- [Cloudflare Images Binding Docs](https://developers.cloudflare.com/images/transform-images/bindings/)
+- [CF Images: Transform user-uploaded images tutorial](https://developers.cloudflare.com/images/tutorials/optimize-user-uploaded-image/)
+- [CF Images Pricing](https://developers.cloudflare.com/images/pricing/)
+- [CF Workers Limits](https://developers.cloudflare.com/workers/platform/limits/)
+- [React Router v7 Declarative Installation](https://reactrouter.com/start/declarative/installation)
+- [React Router v7 Modes](https://reactrouter.com/start/modes)
+- [CF Pages: Deploy a React site](https://developers.cloudflare.com/pages/framework-guides/deploy-a-react-site/)
+- [CF Pages/Workers SPA Routing](https://developers.cloudflare.com/workers/static-assets/routing/single-page-application/)
 
-| Claim | Source | Confidence |
-|-------|--------|------------|
-| All npm package versions | npm registry (live query 2026-01-31) | HIGH |
-| Peer dependency chains | npm registry (live query) | HIGH |
-| Web Audio API crossfade architecture | Web Audio API spec (stable standard) | HIGH |
-| CF Workers cannot run native modules | Cloudflare Workers docs (established constraint) | HIGH |
-| music-metadata edge runtime compatibility | Package exports analysis + training data | MEDIUM |
-| OnchainKit Smart Wallet UX flow | Training data, needs validation | MEDIUM |
-| Zod v3/v4 compatibility with x402 | Needs testing | LOW |
+### MEDIUM Confidence (Verified Blog/Announcement)
+- [CF Blog: Images Binding for Workers (Apr 2025)](https://blog.cloudflare.com/improve-your-media-pipelines-with-the-images-binding-for-cloudflare-workers/)
+- [CF Changelog: Images bindings in Workers (Feb 2025)](https://developers.cloudflare.com/changelog/2025-02-21-images-bindings-in-workers/)
+- [React Router npm page (v7.12.0)](https://www.npmjs.com/package/react-router)
+- [@cf-wasm/photon npm](https://www.npmjs.com/package/@cf-wasm/photon) -- evaluated, not recommended
+
+### LOW Confidence (Community/Third-party, evaluated but not adopted)
+- [The-Big-Username-Blocklist GitHub](https://github.com/marteinn/The-Big-Username-Blocklist) -- evaluated, not recommended
+- [Fineshop: Image processing in CF Workers](https://www.fineshopdesign.com/2025/12/image-processing-in-workers.html)

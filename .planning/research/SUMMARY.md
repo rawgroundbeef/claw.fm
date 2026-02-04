@@ -1,205 +1,186 @@
 # Project Research Summary
 
-**Project:** claw.fm -- 24/7 AI-generated music web radio station
-**Domain:** Web radio + crypto micropayments + AI-agent content platform
-**Researched:** 2026-01-31
-**Confidence:** MEDIUM-HIGH
+**Project:** claw.fm v1.1 Artist Profiles
+**Domain:** Artist identity system for AI-agent 24/7 music radio
+**Researched:** 2026-02-03
+**Confidence:** HIGH
 
 ## Executive Summary
 
-claw.fm is a 24/7 web radio station where AI agents create music tracks with CLI tools, submit them via an x402-gated API (paying 0.01 USDC), and earn tips and sales from human listeners. The product sits at the intersection of web radio, crypto-native music platforms, and AI-agent tooling -- a genuinely novel combination with no direct precedent. Research across stack, features, architecture, and pitfalls reveals a system that is architecturally straightforward (Cloudflare Workers + client-side Web Audio playback) but with several critical implementation traps that will cause rewrites if not addressed from day one.
+Artist profiles are a clean addition to the existing claw.fm architecture. The wallet address already serves as the identity anchor (`tracks.wallet`), R2 already stores user-uploaded media with prefix-based organization, and the x402 payment middleware already provides authentication-via-payment -- the same mechanism that gates track submission will gate profile creation. The total new dependency footprint is minimal: one npm package for client-side routing and one Cloudflare binding configuration for avatar image processing. No new services, no new auth systems, no new databases.
 
-The recommended approach is a serverless architecture using CF Workers (Hono) for the API, D1 for metadata, R2 for audio storage, KV for fast now-playing cache, and a Cron Trigger for queue advancement. The frontend uses React 19 + Vite on CF Pages with native Web Audio API for crossfade playback and frequency visualization -- no audio libraries needed. Wallet integration uses Coinbase OnchainKit + Smart Wallet for zero-friction listener tipping on Base. The key architectural insight is that "radio" does not require server-side streaming: each browser fetches the full audio file from R2 and syncs playback position using server-provided timestamps. This makes the entire system stateless at the server level, with the Cron Trigger as the only scheduled process.
+The recommended approach is a three-phase build: (1) database schema + API endpoints + shared types, (2) data flow enrichment connecting profiles to the now-playing/queue pipeline, and (3) frontend routing + profile page UI. This ordering respects dependencies -- everything downstream needs the API first -- and allows agents to start creating profiles via API before the profile pages even exist in the frontend. The architecture is additive: every existing endpoint and UI component continues to work unchanged for artists without profiles, with profile data appearing as progressive enrichment via LEFT JOINs.
 
-The top risks are: (1) browser autoplay policies silently breaking the "open and listen" experience -- must design a deliberate "press play" interaction; (2) CF Workers memory limits crashing on large audio uploads -- must use streaming uploads to R2, not buffering; (3) Web Audio API memory leaks from improper node management during crossfade -- must use a double-buffer pattern with exactly two audio elements from the start; and (4) x402 payment verification must be entirely server-side with transaction replay prevention. All four of these are Phase 1 concerns that, if deferred, will require rewrites.
+The three critical risks are: the router integration killing audio playback during navigation (mitigate by lifting audio state above the router), the dual-write problem where x402 payment settles but the D1 write fails (mitigate by validating everything before settling), and avatar upload security (mitigate by strict JPEG/PNG/WebP-only validation with the existing `file-type` magic-byte checking). All three have clear, well-documented prevention strategies that align with patterns already proven in the v1.0 codebase.
 
 ## Key Findings
 
-### Recommended Stack
+### Recommended Stack Additions
 
-The base stack is decided (CF Workers + Hono + D1 + R2 + React/Vite). Research focused on additional libraries. The overwhelming finding: **use fewer libraries, not more.** Native Web Audio API beats Howler.js and Tone.js for crossfade + visualization. Hono's built-in `c.req.parseBody()` beats Multer/Busboy for uploads. The main additions needed are wallet/payment libraries and lightweight utilities.
+The existing stack (CF Workers + Hono, D1, R2, KV, Durable Objects, React 19 + Vite, Wagmi v2, OnchainKit, Tailwind) is fully reused. Two additions are needed:
 
-**Core additional technologies:**
-- **Native Web Audio API** (AudioContext, GainNode, AnalyserNode): audio playback, crossfade, visualization -- zero dependencies, full control over the audio graph
-- **@coinbase/onchainkit ^1.1.2 + wagmi ^2.19.5 + viem ^2.45.1**: wallet connection, embedded wallet creation, USDC payments on Base -- the most aligned stack for Base-native payments
-- **zustand ^5.0.11**: client-side state bridging the imperative AudioEngine singleton to React's reactive model -- 1KB, no boilerplate
-- **zod ^3.24.2** (NOT v4 -- must match @x402/core dependency): API input validation
-- **music-metadata ^11.11.1** (needs Workers validation) or custom MP3/WAV header parser as fallback: server-side audio duration extraction
+**Core technologies:**
+- **`react-router` (^7.12.0):** Client-side routing for `/artist/:username` profile pages. The app currently has zero routes; this adds the minimal infrastructure for two routes (`/` and `/artist/:username`). Declarative mode keeps the Vite build pipeline untouched.
+- **Cloudflare Images Binding:** Server-side avatar resizing to 256x256 WebP before R2 storage. Native to Workers, no WASM bundle, free tier of 5,000 transformations/month (sufficient at this scale). Strips EXIF metadata automatically.
 
-**Critical version constraints:**
-- React must be ^19 (OnchainKit peer dep)
-- Zod must be ^3.24.2 (x402/core compatibility -- zod v4 may break)
-- wagmi must be ^2.x (OnchainKit not compatible with v3)
+**Researcher disagreement resolved -- Client-side router:** STACK.md recommends React Router v7; ARCHITECTURE.md recommends wouter (2KB vs 19KB). **Decision: Use React Router v7.** While wouter is lighter, React Router is the ecosystem standard, has broader community knowledge, and provides a safer upgrade path if the app grows beyond 2-3 routes. The 17KB difference is negligible against the existing 1MB+ bundle. The declarative mode (not framework mode) keeps it lightweight.
+
+**Researcher disagreement resolved -- Image resizing:** STACK.md recommends CF Images Binding for upload-time resize; ARCHITECTURE.md recommends no resizing (CSS-only). **Decision: Use CF Images Binding.** The cost is zero (free tier), it strips EXIF automatically (addressing PITFALLS CP-4b), it normalizes all avatars to a consistent 256x256 WebP (addressing PITFALLS MP-6 avatar sizing inconsistency), and it avoids serving oversized uploads to mobile clients. The binding is GA, works in local dev, and requires only a 2-line wrangler.toml addition. There is no downside.
+
+**What NOT to add:** No form libraries, no state management (zustand), no image cropping UI, no separate R2 bucket, no JWT/session auth, no schema validation libraries (Zod), no new KV namespace. See STACK.md "What NOT to Add" for full rationale.
 
 ### Expected Features
 
-Research confirms claw.fm's "radio" framing dramatically reduces the required feature set. Radio is passive. Most interactive music platform features are anti-features here.
-
 **Must have (table stakes):**
-- Instant audio playback after a single user gesture (play button)
-- Now-playing display (track title + agent name/wallet + identicon)
-- Play/pause and volume controls
-- Visual feedback (frequency visualizer)
-- Gapless or crossfade track transitions (dead air kills retention)
-- Prominent tip/buy CTAs (the business model depends on visibility)
-- Mobile-responsive player with Media Session API
-- Error recovery and auto-reconnection (mobile browsers aggressively suspend tabs)
-- Loading/buffering states (users must always know what's happening)
+- T1: Display name shown in player UI instead of truncated wallet address
+- T2: Artist name in player links to `/artist/:username` profile page
+- T3: Profile page displays artist's track catalog (newest first)
+- T4: Username system with uniqueness, validation, and URL-safe format
+- T5: Display name separate from username (username is URL-safe; display name is expressive)
+- T6: Avatar image upload to R2 with identicon fallback
+- T7: Bio/description field (~280 chars)
+- T8: Profile creation via API with x402 payment (agent-friendly, programmatic)
+- T9: Profile update via API with x402 payment
+- T10: Graceful fallback for tracks without profiles (show truncated wallet)
 
 **Should have (differentiators):**
-- Agent-as-artist identity (wallet IS identity, novel concept)
-- Instant crypto tipping with embedded wallet creation (zero-friction)
-- Agent onboarding prompt (copy-paste to your AI agent)
-- x402 submission paywall (economic spam prevention, elegant)
-- Decay-based rotation (fresh content surfaces naturally)
-- Track purchase/download
-- Transparent 95/5 economics
+- D1: x402-gated profile creation as anti-squatting mechanism (payment = auth = rate limiter)
+- D2: Mutable usernames with paid change (more forgiving than permanent handles)
+- D3: Agent-as-artist transparency (wallet address visible on profile, AI-native positioning)
+- D4: Programmatic-only profile management (no web forms, no OAuth)
+- D5: Wallet as permanent identifier (usernames change, wallet is immutable anchor)
+- D6: Retroactive attribution (creating a profile updates display for ALL previous tracks)
 
-**Defer to v2+:**
-- Multiple channels/genres (splits small audience)
-- Listener count display (anti-proof when count is 3)
-- Agent dashboard (API stats are sufficient)
-- Social features (moderation burden)
-- Audio fingerprinting (solve when it becomes a real problem)
-- Skip/next button (breaks radio metaphor)
-- User accounts (wallet IS identity)
+**Anti-features (do NOT build):**
+- Follower/following system, verification badges, profile analytics dashboard, social links, cover photo/banner, profile comments, multiple wallets per profile, profile deletion, image cropping tool, browse/search all artists page
+
+**Defer to v1.2+:**
+- Tip/Buy buttons on profile page track list
+- Old username redirect (301 from renamed usernames)
+- Open Graph / SEO meta tags for profile sharing
+- Artist stats API endpoint
+- Browse/search all artists page
 
 ### Architecture Approach
 
-The architecture is a stateless CF Workers API with time-based shared state. All listeners hear the same track because the server stores "Track X started at timestamp T" and each client calculates its seek position from `Date.now() - T`. Queue advancement is handled by a Cron Trigger every 30 seconds, with KV as a globally-distributed fast-read cache for now-playing state. This avoids Durable Objects entirely for MVP, which saves significant complexity and cost while providing acceptable latency (the frontend handles transitions client-side using timestamps, making the 30-second cron interval invisible to listeners).
+Profiles integrate into the existing architecture through eight well-defined integration points: D1 schema (new `artists` table with wallet as PK), R2 storage (same bucket, `avatars/` prefix), API routes (two new Hono route files following existing patterns), frontend routing (React Router wrapping existing App with persistent player bar), now-playing/queue API enrichment (LEFT JOIN artists table), cache invalidation (reuse existing `invalidateNowPlaying` helper), migration strategy (additive-only, zero downtime), and x402 gating (identical pattern to track submission).
 
 **Major components:**
-1. **Hono API (CF Worker)** -- track submission (x402-gated), now-playing endpoint, tip/purchase payment processing, queue management
-2. **Audio Engine (browser singleton)** -- dual-GainNode crossfade, AnalyserNode for visualizer, HTMLAudioElement double-buffer pattern; lives outside React, connected via zustand
-3. **Queue Manager (Cron + D1 + KV)** -- decay-weighted random track selection via SQL, cron advances queue, KV caches now-playing globally
-4. **R2 Public Bucket** -- audio file delivery via custom domain with CDN caching, CORS configured for Web Audio API
-5. **Payment Layer (x402/OpenFacilitator)** -- submission fees, tips, and purchases; MVP uses single-payment-to-platform with tracked artist payouts
+1. **`artists` D1 table** (migration 0003) -- wallet as PK, username with UNIQUE COLLATE NOCASE, no foreign keys to tracks table
+2. **`PUT /api/profile` route** (x402-gated) -- upsert profile + avatar upload + KV invalidation
+3. **`GET /api/artist/:username` route** (public) -- profile data + track catalog
+4. **Now-playing/queue LEFT JOIN** -- enriches existing responses with `artistUsername` and `artistAvatarUrl`
+5. **Frontend router + ArtistProfile page** -- React Router with audio state lifted above routes
 
-**Key architectural decisions:**
-- Polling + KV + Cron over Durable Objects (simpler, globally distributed, sufficient for radio)
-- Client-side playback sync via timestamps over server-side streaming (stateless, scalable)
-- Single payment to platform over dual-payment split (simpler for MVP, trustless split later)
-- Audio Engine as imperative singleton outside React (re-renders must not disrupt playback)
-- Monorepo with `/api`, `/web`, `/packages/shared` structure
+**Researcher disagreement resolved -- Denormalization strategy:** ARCHITECTURE.md recommends write-through denormalization (UPDATE all `tracks.artist_name` on profile change). PITFALLS.md (MP-2) warns against this and recommends JOIN-only. **Decision: Hybrid approach.** Use LEFT JOIN with COALESCE for all display queries (`COALESCE(a.display_name, t.artist_name, t.wallet)`). Continue writing `artist_name` to tracks at submission time as a snapshot. Do NOT batch-update tracks on profile rename. This eliminates the partial-update risk while keeping the snapshot for historical reference. The JOIN is on a PK lookup and runs only on cache misses (~10-20 times/hour), so performance is not a concern.
 
-### Critical Pitfalls
+**Researcher disagreement resolved -- SPA fallback:** STACK.md and ARCHITECTURE.md both confirm that CF Pages already serves `index.html` for unmatched paths when no `404.html` exists (which is the case). PITFALLS.md recommends adding a `_redirects` file. **Decision: No `_redirects` file needed.** The default behavior is correct and verified. Add a catch-all `<Route path="*">` in React Router for a friendly 404 component instead.
 
-The top 5 pitfalls that will cause rewrites or broken experiences if not addressed proactively:
+### Critical Pitfalls (Top 5, Ranked by Impact)
 
-1. **Browser autoplay policy (CP-1)** -- AudioContext must be created lazily inside a user gesture handler, not on page load. Safari is the strictest. Design a deliberate "press play" splash. Handle `NotAllowedError` from `audio.play()`. This affects every listener on first visit.
+1. **CP-5: Router kills audio playback** -- Adding routing unmounts audio components, stopping the radio (the core product). **Prevention:** Lift AudioContext and crossfade state ABOVE the router. Player bar renders in a Layout component outside `<Routes>`. Test explicitly: navigate to profile, music continues. Navigate back, music still playing. This is the #1 acceptance test for the milestone.
 
-2. **CF Workers memory limits on uploads (CP-2)** -- Workers buffer the full request body into memory (~128MB limit). A 50MB audio file plus processing can OOM. Must stream uploads directly to R2 using `request.body` ReadableStream. Validate only file headers (first few KB), not the full file in-memory. This must be designed as streaming from day one -- retrofitting is a rewrite.
+2. **CP-1: Payment succeeds but profile write fails** -- x402 `settle()` is irreversible; if D1 write fails after, the agent paid for nothing. **Prevention:** Validate everything (username availability, format, avatar) BEFORE calling `settle()`. Use D1 `batch()` for atomic multi-statement writes. Log payment hash immediately for reconciliation.
 
-3. **Web Audio API memory leaks during crossfade (CP-5)** -- Creating new audio nodes per track without disconnecting old ones causes monotonic memory growth. After 10-20 transitions, tabs crash. Must use exactly two `<audio>` elements (double-buffer) and reuse `MediaElementSourceNode` instances by changing `src`, not recreating nodes. Use `AudioContext.currentTime` for crossfade scheduling, not `setTimeout` (throttled in background tabs).
+3. **CP-3: SVG XSS via avatar uploads** -- SVG files contain executable JavaScript. **Prevention:** Strict JPEG/PNG/WebP-only allowlist (already enforced in existing `image.ts`). Validate magic bytes, not file extensions. Set `X-Content-Type-Options: nosniff` on R2-served content.
 
-4. **Audio format validation ("audio bombs") (CP-7)** -- A malformed file claiming to be 3-minute MP3 but decoding to hours of audio blocks the entire shared queue. Must parse audio headers server-side (MP3 frame headers for bitrate/duration, WAV RIFF headers), enforce hard limits (max 10 min, max 2 channels, 22050-48000Hz sample rate), and double-validate on client.
+4. **CP-2: Username race condition** -- Two agents claim the same username simultaneously. **Prevention:** Never check-then-insert. Use `INSERT ... ON CONFLICT(username) DO NOTHING` and check `meta.changes === 0`. Handle UNIQUE constraint errors defensively as 409 Conflict.
 
-5. **x402 payment verification bypass (CP-4)** -- Payment verification must be entirely server-side. Transaction hashes must be stored in D1 and checked for replay across all endpoints. Amount, recipient, and token must all be verified. Identity comes from the payment's `from` address, not client-supplied headers.
+5. **CP-4: Image bombs exhaust Worker memory** -- A small file can decompress to enormous pixel dimensions. **Prevention:** CF Images Binding handles this natively (it processes images in Cloudflare's infrastructure, not in Worker memory). Additionally, enforce a 2MB file size limit on upload.
+
+### Additional Pitfall Notes
+
+- **Username validation:** Use ASCII-only (`/^[a-z0-9][a-z0-9_-]*[a-z0-9]$/`), 3-20 chars, with a comprehensive reserved word blocklist covering existing routes and system terms. Apply NFKC normalization before validation to prevent Unicode bypass.
+- **Username squatting:** PITFALLS.md suggests requiring at least one track before profile creation. This is a good anti-squatting measure but adds friction for legitimate agents. **Recommendation:** Defer to v1.2 if squatting becomes a real problem. The 0.01 USDC cost provides baseline deterrence for v1.1.
+- **Profile update partial fields:** Use COALESCE-based UPDATE to avoid clearing optional fields (bio, avatar) when they are absent from the request body.
+- **Identicon vs avatar:** Track cover art (`cover_url`) and artist avatar (`avatar_url`) are separate concepts. UI must distinguish them -- avatar appears in player attribution, cover art appears as album art.
 
 ## Implications for Roadmap
 
-Based on combined research, the system has a clear critical path with two parallel workstreams that converge. Six phases are suggested.
+Based on combined research, the milestone divides naturally into three phases with clear dependency ordering.
 
-### Phase 1: Foundation and Infrastructure
-**Rationale:** Everything depends on the D1 schema, R2 bucket, and project scaffolding. The monorepo structure, shared types, and CF Worker config must exist before any feature work.
-**Delivers:** Deployable (empty) API and frontend, D1 schema, R2 bucket with public domain and CORS, shared types package, wrangler.toml with all bindings.
-**Addresses:** Infrastructure foundation for all subsequent phases.
-**Avoids:** CP-2 (design upload pipeline as streaming from the start), integration gotchas around CF Pages vs Workers routing.
+### Phase 1: Schema + Shared Types + API Endpoints
+**Rationale:** Everything downstream depends on the database and API existing first. Agents can start creating profiles via API before any frontend work begins.
+**Delivers:** Working `artists` table, profile CRUD API (x402-gated), avatar upload to R2 with CF Images Binding resize, username validation, shared types for `ArtistProfile` and updated `NowPlayingTrack`.
+**Features addressed:** T4 (username system), T5 (display name), T6 (avatar upload), T7 (bio), T8 (profile creation API), T9 (profile update API), D1 (x402 anti-squatting), D2 (mutable usernames), D4 (programmatic management)
+**Pitfalls to avoid:** CP-1 (validate before settle), CP-2 (INSERT ON CONFLICT), CP-3 (SVG rejection), CP-4 (image bomb protection via Images Binding), CP-6 (reserved word blocklist), MP-1 (ASCII-only usernames), MP-4 (no foreign keys)
+**Complexity:** Medium. Most patterns are direct reuse from v1.0 (x402 middleware, R2 upload, D1 migrations, Hono routes).
 
-### Phase 2: Submission Pipeline
-**Rationale:** No tracks means no station. The supply side must work first. This phase produces the data that all other phases consume.
-**Delivers:** Working `POST /api/submit` endpoint that accepts multipart audio uploads, validates format/duration/size, stores to R2, writes metadata to D1, and gates submission behind x402 payment (0.01 USDC).
-**Addresses:** T8 (empty state becomes possible to exit), D4 (x402 paywall), D3 (agent onboarding prompt makes sense once submission works).
-**Avoids:** CP-2 (streaming upload to R2), CP-4 (server-side payment verification from day one), CP-7 (audio header validation), security pitfalls (tx hash replay, content-type enforcement, input sanitization).
-**Uses:** Hono `c.req.parseBody()`, x402 middleware (port from x402-storage-api), music-metadata or custom header parser, zod validation.
+### Phase 2: Data Flow Enrichment
+**Rationale:** Connects profiles to the existing now-playing/queue pipeline. The highest-visibility change -- every listener sees artist display names instead of wallet addresses, even before profile pages exist.
+**Delivers:** LEFT JOIN enrichment on now-playing and queue endpoints, KV cache invalidation on profile updates, `artist_name` snapshot on track submission, retroactive attribution via COALESCE.
+**Features addressed:** T1 (display name in player), T10 (graceful fallback), D5 (wallet as permanent ID), D6 (retroactive attribution)
+**Pitfalls to avoid:** MP-2 (JOIN instead of denormalization for display), MP-3 (JOIN is on PK, cached by KV -- negligible performance impact)
+**Complexity:** Low. Four SQL queries need LEFT JOIN additions. One KV.delete call added to profile route.
 
-### Phase 3: Queue and Now-Playing
-**Rationale:** With tracks in D1/R2, the queue system can select and schedule them. This is the "brain" of the radio station.
-**Delivers:** Cron Trigger advancing queue every 30s, decay-weighted random track selection, KV-cached now-playing state, `GET /api/now-playing` and `GET /api/queue` endpoints, first-track-submitted auto-start logic, empty queue handling.
-**Addresses:** D5 (decay rotation), T9 (track transitions at the data level -- client handles audio transitions).
-**Avoids:** CP-3 (race conditions -- cron is the only writer, KV is the read cache; no concurrent mutations), anti-pattern of storing queue as an ordered list.
-**Implements:** KV-Cached Queue State pattern, decay-weighted selection query.
-
-### Phase 4: Frontend Player
-**Rationale:** With the API serving now-playing data and R2 serving audio files, the frontend can render the full listening experience. This is the most complex client-side phase.
-**Delivers:** React app with audio engine (crossfade, double-buffer), frequency visualizer, now-playing display, playback sync (seek to correct position), play/pause, volume control, loading/buffering/error states, empty queue UI, mobile-responsive layout.
-**Addresses:** T1 (instant playback), T2 (now-playing), T3 (play/pause), T4 (volume), T5 (visualizer), T6 (mobile responsive), T9 (crossfade transitions), T10 (error recovery), D1 (agent identity display), D6 (visualizer), D9 (shared real-time state).
-**Avoids:** CP-1 (autoplay -- lazy AudioContext creation), CP-5 (memory leaks -- double-buffer from start), performance traps (30fps cap on visualizer, pause when tab hidden, preload next track at 30s remaining).
-**Uses:** Native Web Audio API, zustand, Canvas 2D, React 19.
-
-### Phase 5: Payments and Wallet
-**Rationale:** With the listening experience working, add the monetization layer. This requires wallet integration and x402 payment flows for tips and purchases.
-**Delivers:** Embedded wallet creation (OnchainKit + Smart Wallet), tip buttons (fixed presets: $0.25, $0.50, $1.00, $5.00), buy/download button (fixed price), payment recording in D1, artist payout tracking, signed R2 URLs for purchased downloads.
-**Addresses:** T7 (visible tip action), D2 (instant crypto tipping), D7 (track purchase), D8 (transparent economics).
-**Avoids:** UX pitfall of wallet creation interrupting listening (modal over playing audio), security mistake of predictable R2 URLs bypassing purchases.
-**Uses:** @coinbase/onchainkit, wagmi, viem, @tanstack/react-query.
-
-### Phase 6: Polish and Hardening
-**Rationale:** With the full loop working (submit, play, tip, buy), harden for real-world use.
-**Delivers:** Agent onboarding section with copy-paste prompt, fallback identicon cover art (jdenticon), rate limiting tuning (per-wallet submission limits), Media Session API (lock screen controls), OG meta tags, keyboard shortcuts, admin skip endpoint for stuck tracks, error tracking.
-**Addresses:** D3 (agent onboarding), remaining UX polish, security hardening, recovery strategies.
-**Avoids:** Rogue agent flooding, queue monopolization.
+### Phase 3: Frontend Routing + Profile Pages
+**Rationale:** Consumes everything built in Phases 1-2. The profile page is the destination for artist name clicks. Audio continuity across navigation is the critical architectural challenge.
+**Delivers:** React Router integration with persistent player bar, `ArtistProfile` page component (`/artist/:username`), clickable artist names in player UI, avatar display with identicon fallback, 404 handling for non-existent profiles.
+**Features addressed:** T2 (artist name links to profile), T3 (profile page with track catalog), D3 (agent transparency -- wallet visible on profile)
+**Pitfalls to avoid:** CP-5 (audio above router -- the #1 regression risk), MP-5 (SPA deep link routing -- verified to work by default)
+**Complexity:** Medium. Refactoring App.tsx into Layout + RadioView + ArtistProfile requires careful state lifting.
 
 ### Phase Ordering Rationale
 
-- **Phases 1-3 are strictly sequential** (infrastructure, then data, then queue logic). Each depends on the prior phase's output.
-- **Phase 4 depends on Phase 3** (needs now-playing API to drive the player). However, audio engine development (crossfade, visualizer) can start with mock data in parallel with Phase 3.
-- **Phase 5 can partially overlap with Phase 4** -- API payment routes can be built while frontend player is in progress.
-- **Phase 6 is independent polish** that can be sprinkled throughout or done as a final pass.
-- **The critical path is: Phase 1 -> Phase 2 -> Phase 3 -> Phase 4.** This is the shortest path to a listenable station.
+- **Phase 1 before Phase 2:** The API must exist before queries can JOIN against the artists table. Shared types must be defined before either API or frontend can consume them.
+- **Phase 2 before Phase 3:** Enriched API responses (with `artistUsername` and `artistAvatarUrl`) must exist before the frontend can render profile links and avatars. The frontend should consume finished API contracts, not build against placeholders.
+- **Avatar upload in Phase 1, not Phase 3:** FEATURES.md suggests deferring avatar resize. But since CF Images Binding is free, zero-config, and solves EXIF stripping + image bombs in one shot, it belongs in Phase 1 alongside the upload endpoint. No reason to ship a degraded version first.
+- **Phases 1 and 3 could partially overlap:** The ArtistProfile page component (Phase 3) can start development once the shared types (Phase 1) are defined, even before the API is fully tested. But the router refactor (extracting RadioView from App.tsx) should wait until Phase 2 is verified working.
 
 ### Research Flags
 
-**Phases needing deeper research during planning:**
-- **Phase 2 (Submission Pipeline):** music-metadata CF Workers compatibility is MEDIUM confidence. Must validate `parseBuffer` import works in Workers runtime. Have the custom MP3/WAV header parser ready as fallback. Streaming upload to R2 from multipart body needs testing.
-- **Phase 5 (Payments/Wallet):** OnchainKit Smart Wallet "create wallet" UX flow needs validation. Does it require a Coinbase account? Does it work with just a passkey? Mobile Safari compatibility with embedded wallet flows is uncertain. The two-payment split for trustless artist payouts is untested in the x402 ecosystem.
+**Phases likely needing deeper research during planning:**
+- **Phase 1 (avatar upload):** Verify CF Images Binding availability on the project's Cloudflare account. Test the binding in local Wrangler dev to confirm width/height/format operations work offline. Confirm the `ImagesBinding` TypeScript type is available in `@cloudflare/workers-types`.
+- **Phase 3 (router integration):** The App.tsx refactor into Layout + Routes is the riskiest frontend change. Consider a spike/prototype to validate audio continuity before committing to the full implementation.
 
-**Phases with standard, well-documented patterns (skip research):**
-- **Phase 1 (Foundation):** Standard CF Workers + Hono scaffolding, D1 schema, R2 bucket config. Well-documented in Cloudflare docs.
-- **Phase 3 (Queue):** KV caching + Cron Triggers are standard CF patterns. Decay-weighted random selection is a well-known scheduling algorithm.
-- **Phase 4 (Frontend Player):** Web Audio API crossfade and AnalyserNode visualization are well-established patterns with extensive MDN documentation.
+**Phases with standard patterns (skip research-phase):**
+- **Phase 1 (D1 migration + Hono routes):** Directly reuses established patterns from v1.0 migrations and route files. No novel architecture.
+- **Phase 2 (LEFT JOIN enrichment):** Textbook SQL JOIN on primary keys with KV cache invalidation. Existing helpers (`invalidateNowPlaying`) cover the cache layer.
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | MEDIUM-HIGH | npm versions verified via registry. music-metadata Workers compatibility unverified. Zod v3/v4 conflict needs testing. |
-| Features | HIGH | Radio UX patterns are well-established. Anti-feature decisions are clear and well-reasoned. AI-agent-as-artist is novel (LOW confidence on agent-specific patterns). |
-| Architecture | HIGH | Patterns derived from existing x402-storage-api codebase (direct code reference) + well-established CF Workers primitives. Polling+KV+Cron approach is proven. |
-| Pitfalls | MEDIUM-HIGH | Browser API pitfalls are HIGH confidence. CF Workers memory limits and Durable Object specifics are MEDIUM (training data, not live-verified). |
+| Stack | HIGH | Only 1 new npm dependency + 1 CF binding. All evaluated against official docs. React Router v7 and CF Images Binding are both GA and well-documented. |
+| Features | HIGH | Profile page patterns are mature across Spotify, SoundCloud, Audius, Bandcamp. Agent-specific adaptations (API-only, x402 auth) are logically sound though novel. |
+| Architecture | HIGH | All 8 integration points verified against the actual codebase (59 source files). Every pattern reuses existing v1.0 conventions. |
+| Pitfalls | HIGH | Critical pitfalls (dual-write, race conditions, XSS, audio disruption) are well-documented vulnerability classes with clear prevention. Verified against actual code paths. |
 
-**Overall confidence:** MEDIUM-HIGH
+**Overall confidence:** HIGH
 
 ### Gaps to Address
 
-- **music-metadata in CF Workers:** MEDIUM confidence. The `default` export path avoids Node-specific imports in theory but needs a real test. Mitigation: have the custom MP3/WAV header parser (~150 lines, zero deps) ready as immediate fallback.
-- **Zod v3 vs v4:** @x402/core pins zod ^3.24.2. Zod v4 may have breaking changes. Resolution: use zod ^3.24.2 for the API to match x402/core. Verify before considering upgrade.
-- **OnchainKit Smart Wallet UX:** Does "Create Wallet" require a Coinbase account or work with just a passkey? This directly affects the "zero signup" promise. Must test with real users early in Phase 5.
-- **R2 CORS for Web Audio API:** The `crossOrigin="anonymous"` attribute on `<audio>` elements requires specific CORS headers from R2. The exact R2 CORS configuration needs testing to confirm AnalyserNode receives data (not silence from a tainted AudioContext).
-- **CF Workers memory limits (current):** Training data says ~128MB. Verify against current Cloudflare documentation, especially for paid plans.
-- **WAV file serving:** Uncompressed WAV files are huge (~30MB for 3 minutes). No transcoding pipeline exists in CF Workers. Consider: accept WAV uploads but flag for async transcoding, or require MP3 only for MVP.
+- **CF Images Binding account availability:** Verify the binding is enabled on the project's Cloudflare account before Phase 1 begins. If unavailable, fall back to storing originals with 2MB size cap (CSS-only sizing).
+- **x402 squatting economics:** 0.01 USDC may be too low to deter a determined squatter with 100 wallets ($1 total). Monitor registration patterns post-launch. Have the "require one track before profile" rule ready to deploy if squatting occurs, but do not ship it in v1.1.
+- **Username max length:** Researchers disagree (STACK.md says 20, FEATURES.md says 30, ARCHITECTURE.md says 30). **Decision: 20.** Shorter max keeps URLs clean and prevents edge cases in tight UI layouts (player bar, mobile). 20 characters is generous for agent handles.
+- **Profile update semantics:** The endpoint is PUT (full replacement) but should support partial updates to avoid clearing optional fields. Implement with COALESCE in SQL or explicit field-presence checks. Define this clearly in the API contract.
+- **`COLLATE NOCASE` on username:** ARCHITECTURE.md uses it; STACK.md does not. **Decision: Use it.** SQLite's COLLATE NOCASE on the UNIQUE index prevents "CoolBot" and "coolbot" from coexisting at the database level, even though the application normalizes to lowercase. Defense in depth.
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- x402-storage-api codebase (`/Users/rawgroundbeef/Projects/x402-storage-api/`) -- x402 middleware patterns, Hono structure, D1/R2 patterns, facilitator wrapper
-- x402.storage web codebase (`/Users/rawgroundbeef/Projects/x402.storage/packages/web/`) -- embedded wallet pattern, funding flow
-- npm registry (live queries 2026-01-31) -- all package versions and peer dependency chains verified
-- Web Audio API (W3C spec, MDN) -- AudioContext, AnalyserNode, GainNode, MediaElementSourceNode; stable standards since 2014+
-- Cloudflare Workers core primitives (KV, D1, R2, Cron) -- well-documented, established platform
+- [Cloudflare Images Binding Docs](https://developers.cloudflare.com/images/transform-images/bindings/) -- avatar resizing API, pricing, local dev support
+- [CF Images Pricing](https://developers.cloudflare.com/images/pricing/) -- free tier confirmation (5,000/month)
+- [CF Images: Transform user-uploaded images tutorial](https://developers.cloudflare.com/images/tutorials/optimize-user-uploaded-image/) -- R2 integration pattern
+- [React Router v7 Declarative Installation](https://reactrouter.com/start/declarative/installation) -- setup, BrowserRouter, Routes
+- [React Router v7 Modes](https://reactrouter.com/start/modes) -- declarative vs framework mode distinction
+- [Cloudflare D1 Migrations](https://developers.cloudflare.com/d1/reference/migrations/) -- migration file conventions
+- [Cloudflare D1 Foreign Keys](https://developers.cloudflare.com/d1/sql-api/foreign-keys/) -- always-enforced FK behavior
+- [Cloudflare Pages SPA Routing](https://developers.cloudflare.com/workers/static-assets/routing/single-page-application/) -- fallback behavior
+- [Cloudflare KV: How KV Works](https://developers.cloudflare.com/kv/concepts/how-kv-works/) -- TTL, eventual consistency
+- claw.fm codebase (all 59 source files) -- verified all integration points, existing patterns, and current behavior
 
 ### Secondary (MEDIUM confidence)
-- Cloudflare Workers limits (memory, request size, CPU time) -- training data, verify against current docs
-- x402 protocol flow (HTTP 402 + payment proof pattern) -- training data + x402 repos
-- Crypto music platform patterns (Sound.xyz, Audius, Catalog) -- training data, platforms may have evolved
-- OnchainKit/Smart Wallet UX flow -- training data, needs real-device validation
-- music-metadata CF Workers compatibility -- export path analysis, untested in runtime
+- [Audius AI Music Attribution](https://blog.audius.co/article/introducing-ai-music-attribution-on-audius) -- the only existing AI-as-artist precedent
+- [Audius API: AI Attributed Tracks](https://docs.audius.org/developers/api/get-ai-attributed-tracks-by-user-handle/) -- agent identity API patterns
+- [CF Blog: Images Binding for Workers](https://blog.cloudflare.com/improve-your-media-pipelines-with-the-images-binding-for-cloudflare-workers/) -- binding capabilities and use cases
+- [Redesigning Workers KV](https://blog.cloudflare.com/rearchitecting-workers-kv-for-redundancy/) -- RYOW consistency improvements
+- [Securitum: SVG XSS Research](https://research.securitum.com/do-you-allow-to-load-svg-files-you-have-xss/) -- avatar security validation
+- [Unicode NFKC Normalization (UAX #15)](https://unicode.org/reports/tr15/) -- username normalization
 
 ### Tertiary (LOW confidence)
-- AI-agent-as-artist patterns -- genuinely novel territory, no precedents exist; recommendations are reasoned hypotheses
-- Zod v3/v4 interoperability with @x402/core -- needs direct testing
-- R2 CORS behavior with Web Audio API crossOrigin attribute -- needs testing
+- [The-Big-Username-Blocklist](https://github.com/marteinn/The-Big-Username-Blocklist) -- evaluated but not adopted (7+ years stale, not tailored to claw.fm routes)
 
 ---
-*Research completed: 2026-01-31*
+*Research completed: 2026-02-03*
 *Ready for roadmap: yes*

@@ -1,983 +1,850 @@
-# Architecture Patterns
+# Architecture Patterns: Artist Profiles Integration (v1.1)
 
-**Domain:** 24/7 AI-generated music web radio station on Cloudflare Workers
-**Researched:** 2026-01-31
-**Overall confidence:** HIGH (CF Workers patterns well-understood from x402-storage-api reference; Web Audio API based on training knowledge verified against MDN API surface)
+**Domain:** Adding artist profiles to existing 24/7 AI music radio station (claw.fm)
+**Researched:** 2026-02-03
+**Overall confidence:** HIGH (based on direct codebase analysis of all 59 source files + official Cloudflare documentation)
 
-## System Overview
+## Executive Summary
 
-```
-                          LISTENERS (Browser)
-                               |
-                    +----------+-----------+
-                    |  React + Vite (Pages) |
-                    |                       |
-                    |  +--[Audio Engine]--+ |
-                    |  | HTMLAudioElement | |    +------------------+
-                    |  | Web Audio API    | |    |  R2 (Audio Files)|
-                    |  | AnalyserNode    | |<---| /tracks/{id}.mp3 |
-                    |  | Crossfade Ctrl  | |    | /art/{id}.png    |
-                    |  +-----------------+ |    +------------------+
-                    |                       |            ^
-                    |  +--[Wallet]-------+ |            |
-                    |  | viem (embedded) | |            |
-                    |  | localStorage PK | |            |
-                    |  +-----------------+ |            |
-                    +----------+-----------+            |
-                               |                        |
-                    REST (poll /api/now-playing)         |
-                    POST /api/tip, /api/purchase         |
-                               |                        |
-                    +----------+-----------+            |
-                    | CF Worker (Hono API)  |           |
-                    |                       |           |
-                    |  +--[Routes]-------+ |           |
-                    |  | /api/submit     |--+--------->+
-                    |  | /api/now-playing | |
-                    |  | /api/queue      | |
-                    |  | /api/tracks/:id | |
-                    |  | /api/tip        | |
-                    |  | /api/purchase   | |
-                    |  +-----------------+ |
-                    |                       |
-                    |  +--[Middleware]----+ |    +------------------+
-                    |  | x402 verify     | |    | OpenFacilitator  |
-                    |  | x402 settle     |---->| (payment infra)  |
-                    |  | rate limit      | |    +------------------+
-                    |  +-----------------+ |
-                    |                       |
-                    |  +--[Services]-----+ |    +------------------+
-                    |  | Queue Manager   |----->| D1 (Metadata DB) |
-                    |  | Track Manager   | |    | tracks, queue,   |
-                    |  | Payment Manager | |    | payments, tips   |
-                    |  +-----------------+ |    +------------------+
-                    |                       |
-                    |  +--[Cron Trigger]-+ |    +------------------+
-                    |  | Advance queue   | |    | KV (Fast Cache)  |
-                    |  | every 30s       |----->| now_playing JSON |
-                    |  +-----------------+ |    | queue_position   |
-                    +-----------------------+    +------------------+
+Artist profiles integrate cleanly into the existing claw.fm architecture. The codebase already uses wallet addresses as identity (`tracks.wallet`), already has an `artist_name` column on the tracks table (denormalized), and already has R2 storage with prefix-based organization (`tracks/`, `covers/`). The main architectural challenges are: (1) introducing client-side routing to a single-page app that currently has none, (2) enriching the now-playing KV cache with profile data without introducing staleness, and (3) managing the denormalized `artist_name` on tracks when a profile's display name changes. None of these are high-risk -- they follow established patterns in the existing codebase.
 
-  AI AGENTS
-      |
-      +-- POST /api/submit (multipart: audio + title + optional image)
-          Header: PAYMENT-SIGNATURE (0.01 USDC via x402)
-          Wallet that pays = artist identity
-```
+---
 
-## Component Responsibilities
+## Current Architecture (As-Is)
 
-| Component | Responsibility | Technology | Communicates With |
-|-----------|---------------|------------|-------------------|
-| **React Frontend** | Audio playback, visualizer, now-playing UI, wallet management, tip/buy flows | React + Vite on CF Pages | API (REST), R2 (audio fetch), viem (payments) |
-| **Audio Engine** | Crossfade between tracks, frequency analysis, playback timing | Web Audio API (AudioContext, AnalyserNode, GainNode) | HTMLAudioElement, Frontend UI |
-| **Hono API** | Track submission, queue management, now-playing state, payment processing | CF Workers + Hono | D1, R2, KV, OpenFacilitator |
-| **x402 Middleware** | Payment verification and settlement for submissions, tips, purchases | @openfacilitator/sdk, @x402/core | OpenFacilitator service |
-| **Queue Manager** | Decay-weighted rotation, track ordering, position advancement | Service layer in Worker | D1 (source of truth), KV (cache) |
-| **D1 Database** | Tracks metadata, queue state, payment records, artist wallets | Cloudflare D1 (SQLite) | Worker services |
-| **R2 Storage** | Audio file storage, cover art storage | Cloudflare R2 | Worker routes (write), Frontend (read via public URL) |
-| **KV Cache** | Fast now-playing lookups, queue position cache | Cloudflare KV | Worker cron + routes (write), Worker routes (read) |
-| **Cron Trigger** | Advance queue position on schedule, refresh KV cache | CF Workers Cron | D1, KV |
-| **OpenFacilitator** | Payment verification and settlement on Base (USDC) | External service | Worker middleware |
-
-## Recommended Project Structure
-
-### API (Cloudflare Worker)
+### Component Map
 
 ```
-api/
-├── src/
-│   ├── index.ts                 # Hono app entry, route mounting, error handler
-│   ├── middleware/
-│   │   ├── x402.ts              # x402 payment verification (adapted from x402-storage-api)
-│   │   └── rate-limit.ts        # IP + wallet rate limiting
-│   ├── routes/
-│   │   ├── submit.ts            # POST /api/submit - track submission (x402-gated)
-│   │   ├── tracks.ts            # GET /api/tracks/:id - track metadata
-│   │   ├── queue.ts             # GET /api/queue - upcoming tracks
-│   │   ├── now-playing.ts       # GET /api/now-playing - current track + timing
-│   │   ├── tip.ts               # POST /api/tip - listener tips artist
-│   │   └── purchase.ts          # POST /api/purchase - listener buys track
-│   ├── services/
-│   │   ├── queue.ts             # Queue logic: decay rotation, position management
-│   │   ├── tracks.ts            # Track CRUD, R2 upload, metadata management
-│   │   ├── payments.ts          # Payment splitting (95/5), tip/purchase flows
-│   │   └── facilitator.ts       # OpenFacilitator SDK wrapper (from x402-storage-api)
-│   ├── cron/
-│   │   └── advance-queue.ts     # Cron handler: advance now-playing, update KV
-│   ├── types/
-│   │   ├── env.ts               # CF Worker bindings (D1, R2, KV, vars)
-│   │   └── x402.ts              # x402 protocol types
-│   └── utils/
-│       ├── errors.ts            # Custom error classes
-│       ├── audio.ts             # Audio validation (duration, format, size)
-│       └── identicon.ts         # Wallet-based fallback cover art generation
-├── migrations/
-│   └── 0001_initial.sql         # D1 schema
-├── wrangler.toml                # CF Worker config with D1, R2, KV, Cron bindings
-├── package.json
-└── tsconfig.json
+                    Cloudflare Pages (web/)
+                    +---------------------------+
+                    | React 19 + Vite SPA       |
+                    | No client-side router     |
+                    | App.tsx = single view      |
+                    | Polls /api/now-playing     |
+                    +---------------------------+
+                              |
+                    Cloudflare Workers (api/)
+                    +---------------------------+
+                    | Hono framework             |
+                    | Routes: submit, now-playing,|
+                    |   queue, tip, downloads,   |
+                    |   audio, genres            |
+                    | Middleware: x402, validation|
+                    +---------------------------+
+                        |       |       |
+                    +---+   +---+   +---+
+                    |       |       |
+                  D1      R2      KV
+                (SQLite) (Storage) (Cache)
+                    |
+              Durable Object
+              (QueueBrain)
+              - SQLite state
+              - Alarm scheduling
+              - Track selection
 ```
 
-### Frontend (Cloudflare Pages)
+### Current Data Flow (Now-Playing)
 
-```
-web/
-├── src/
-│   ├── main.tsx                 # React entry point
-│   ├── App.tsx                  # Root component, layout
-│   ├── components/
-│   │   ├── Player.tsx           # Main player: now-playing display + controls
-│   │   ├── Visualizer.tsx       # Frequency bars from AnalyserNode
-│   │   ├── NowPlaying.tsx       # Track info: title, artist wallet, cover art
-│   │   ├── Queue.tsx            # Upcoming tracks list
-│   │   ├── TipButton.tsx        # Tip preset buttons
-│   │   ├── BuyButton.tsx        # Purchase/download button
-│   │   ├── AgentOnboarding.tsx  # "Get your agent on air" section with prompt
-│   │   └── WalletBadge.tsx      # Listener wallet status + balance
-│   ├── hooks/
-│   │   ├── useAudioEngine.ts    # Audio playback, crossfade, analyser
-│   │   ├── useNowPlaying.ts     # Poll /api/now-playing
-│   │   ├── useWallet.ts         # Embedded wallet (localStorage PK via viem)
-│   │   ├── useTip.ts            # Tip payment flow
-│   │   └── usePurchase.ts       # Purchase payment flow
-│   ├── lib/
-│   │   ├── audio-engine.ts      # AudioContext setup, crossfade logic, analyser
-│   │   ├── api.ts               # API client (typed fetch wrappers)
-│   │   ├── wallet.ts            # viem wallet creation, localStorage
-│   │   └── x402-client.ts       # x402 payment header construction
-│   ├── types/
-│   │   └── index.ts             # Shared types (Track, NowPlaying, etc.)
-│   └── index.css                # Global styles
-├── index.html
-├── vite.config.ts
-├── package.json
-└── tsconfig.json
-```
+1. Frontend polls `GET /api/now-playing` every 2-5s
+2. Route checks KV cache (key: `now-playing`, TTL: ~60s)
+3. Cache miss: queries QueueBrain DO for current state
+4. Fetches track metadata from D1 (`SELECT ... FROM tracks WHERE id = ?`)
+5. Builds `NowPlayingTrack` with `artistName` from `tracks.artist_name`
+6. Caches response in KV, returns to frontend
+7. Frontend displays `artistName` or falls back to truncated wallet
 
-### Monorepo Root
+### Current R2 Organization
 
-```
-claw.fm/
-├── api/                         # CF Worker (Hono API)
-├── web/                         # CF Pages (React + Vite)
-├── packages/
-│   └── shared/                  # Shared types between api and web
-│       ├── src/
-│       │   └── types.ts         # Track, NowPlaying, QueueEntry, etc.
-│       ├── package.json
-│       └── tsconfig.json
-├── package.json                 # Workspace root
-├── pnpm-workspace.yaml          # pnpm workspace config
-├── .planning/                   # GSD planning files
-└── wrangler.toml                # Symlink or reference to api/wrangler.toml
-```
+| Prefix | Content | Written By |
+|--------|---------|-----------|
+| `tracks/` | MP3 audio files | `submit.ts` route |
+| `covers/` | Cover art images (JPEG/PNG/WebP) | `image.ts` lib |
+| (data URLs) | Identicon fallback | `identicon.ts` (not stored in R2) |
 
-## Architectural Patterns
+### Current Bindings (wrangler.toml)
 
-### Pattern 1: KV-Cached Queue State (The Core Pattern)
+| Binding | Type | Name |
+|---------|------|------|
+| `DB` | D1 | `claw-fm` |
+| `AUDIO_BUCKET` | R2 | `claw-fm-audio` |
+| `QUEUE_BRAIN` | Durable Object | `QueueBrain` |
+| `KV` | KV Namespace | (id: 92ba53fc...) |
+| `PLATFORM_WALLET` | Var | `0x276c5D...` |
+| `DOWNLOAD_SECRET` | Secret | (set via wrangler secret) |
 
-**What:** The fundamental challenge is that CF Workers are stateless -- there is no persistent process to track "what is playing right now." The solution uses D1 as source of truth for queue state, KV as fast read cache, and a Cron Trigger to advance the queue.
+---
 
-**Why this approach:** Durable Objects are the "correct" Cloudflare primitive for stateful coordination, but they add significant complexity (billing per-request + per-wall-clock-time, separate deployment, hibernation semantics). For a radio station where "now playing" changes every 2-5 minutes, a cron-based approach with KV caching is far simpler and sufficient. Durable Objects become relevant only if you need sub-second WebSocket push to many connected clients simultaneously.
+## Target Architecture (To-Be)
 
-**When:** Use this for any "shared global state" in a CF Workers app where state changes infrequently (every 30+ seconds) and eventual consistency of ~1 second is acceptable.
+### New Components
 
-**How it works:**
+| Component | Type | Location | Purpose |
+|-----------|------|----------|---------|
+| `artists` table | D1 table | Migration 0003 | Store artist profile data |
+| `profile.ts` | API route | `api/src/routes/profile.ts` | PUT /api/profile (x402-gated create/update) |
+| `artist.ts` | API route | `api/src/routes/artist.ts` | GET /api/artist/:username, GET /api/artist/by-wallet/:wallet |
+| `avatar.ts` | Lib | `api/src/lib/avatar.ts` | Avatar upload, validation, R2 storage |
+| `ArtistProfile` page | React component | `web/src/pages/ArtistProfile.tsx` | Profile page UI |
+| Router setup | React | `web/src/App.tsx` (modified) | Client-side routing with wouter |
 
-```
-                  CRON (every 30s)                LISTENER REQUEST
-                       |                                |
-          +------------+------------+      +------------+------------+
-          |                         |      |                         |
-          v                         |      v                         |
-    Read D1: current track          |   Read KV: "now_playing"      |
-    Check: has duration elapsed?    |   (< 1ms, globally cached)    |
-          |                         |      |                         |
-    YES: advance queue position     |   Return JSON:                |
-    Write D1: new queue_position    |   { track, startedAt,         |
-    Write KV: updated now_playing   |     endsAt, next }            |
-          |                         |                                |
-    NO: just refresh KV TTL         +--------------------------------+
-          |
-          v
-       (done)
-```
+### Modified Components
 
-**D1 Schema (source of truth):**
+| Component | Change | Why |
+|-----------|--------|-----|
+| `api/src/index.ts` | Add profile + artist route registrations | New API endpoints |
+| `packages/shared/src/index.ts` | Add Artist types, update NowPlayingTrack | Shared type contract |
+| `api/src/routes/now-playing.ts` | LEFT JOIN artists table | Enrich now-playing with profile data |
+| `api/src/routes/queue.ts` | Same enrichment as now-playing | Queue preview with profile data |
+| `api/src/routes/submit.ts` | Look up artist profile for artist_name | Use display_name if profile exists |
+| `web/src/App.tsx` | Wrap in router, split into pages | Client-side routing |
+| `web/src/main.tsx` | Potentially add router provider | Router setup (optional with wouter) |
+| `web/src/hooks/useNowPlaying.ts` | Consume artistUsername, artistAvatarUrl | Profile link in player UI |
+
+---
+
+## Integration Point #1: D1 Schema Changes
+
+### New `artists` Table (Migration 0003)
 
 ```sql
--- The queue state table: only ONE row, ever
-CREATE TABLE queue_state (
-  id INTEGER PRIMARY KEY CHECK (id = 1),  -- Singleton row
-  current_track_id TEXT REFERENCES tracks(id),
-  started_at TEXT NOT NULL,                -- ISO timestamp: when track started
-  queue_position INTEGER NOT NULL DEFAULT 0
+-- Migration: 0003_artists-table.sql
+
+CREATE TABLE IF NOT EXISTS artists (
+  wallet TEXT PRIMARY KEY,
+  username TEXT NOT NULL UNIQUE COLLATE NOCASE,
+  display_name TEXT NOT NULL,
+  bio TEXT,
+  avatar_url TEXT,
+  created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+  updated_at INTEGER NOT NULL DEFAULT (unixepoch())
 );
 
--- Tracks table
-CREATE TABLE tracks (
-  id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
-  title TEXT NOT NULL,
-  artist_wallet TEXT NOT NULL,             -- Wallet that paid = artist identity
-  artist_network TEXT NOT NULL DEFAULT 'evm',
-  duration_seconds REAL NOT NULL,          -- Parsed from audio file
-  audio_key TEXT NOT NULL,                 -- R2 object key
-  art_key TEXT,                            -- R2 object key (nullable, use identicon)
-  file_size_bytes INTEGER NOT NULL,
-  content_type TEXT NOT NULL,              -- audio/mpeg or audio/wav
-  submission_tx TEXT,                      -- x402 payment transaction hash
-  play_count INTEGER NOT NULL DEFAULT 0,
-  tip_total_usdc TEXT NOT NULL DEFAULT '0',
-  purchase_count INTEGER NOT NULL DEFAULT 0,
-  created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  weight REAL NOT NULL DEFAULT 1.0         -- Decay weight, decreases over time
-);
-
-CREATE INDEX idx_tracks_artist ON tracks(artist_wallet);
-CREATE INDEX idx_tracks_weight ON tracks(weight DESC);
-CREATE INDEX idx_tracks_created ON tracks(created_at DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_artists_username
+  ON artists(username COLLATE NOCASE);
 ```
 
-**KV cache structure:**
+**Confidence:** HIGH -- follows exact pattern of existing migrations (`0001_tracks-schema.sql`, `0002_submission-fields.sql`). D1 migrations are sequential SQL files applied via `wrangler d1 migrations apply`.
+
+### Relationship to Tracks Table
+
+The `tracks.wallet` column already exists and serves as the implicit foreign key to `artists.wallet`. A formal `FOREIGN KEY` constraint is NOT recommended because:
+
+1. Tracks can exist without an artist profile (agent submits before creating a profile)
+2. The wallet column is already populated on all existing tracks
+3. Adding a FK would require all existing `tracks.wallet` values to exist in `artists.wallet`, which they do not (no profiles exist yet)
+4. D1 enforces FK by default (`PRAGMA foreign_keys = on`), so a FK constraint would block track submission for agents without profiles
+
+**Recommendation:** No formal foreign key. The relationship is implicit via `tracks.wallet = artists.wallet`. Queries use explicit LEFT JOINs when needed, and LEFT JOIN handles the case where no profile exists.
+
+### Denormalization Strategy for artist_name
+
+The `tracks.artist_name` column already exists (added in migration 0002). Currently it is set to the wallet address at submission time (line 156 of `submit.ts`: `walletAddress, // Use wallet as artist_name for MVP`).
+
+**Strategy: Write-through denormalization with lazy backfill.**
+
+1. **On profile create/update (PUT /api/profile):** After upserting the `artists` row, run:
+   ```sql
+   UPDATE tracks SET artist_name = ? WHERE wallet = ?
+   ```
+   This updates all existing tracks by that wallet to use the new display_name.
+
+2. **On track submission (POST /api/submit):** Look up the artist profile first:
+   ```sql
+   SELECT display_name FROM artists WHERE wallet = ?
+   ```
+   If found, use `display_name` as `artist_name`. If not found, continue using wallet address (existing behavior).
+
+3. **No background migration needed.** When an agent creates a profile, all their tracks get the display_name immediately. Agents without profiles keep the wallet address, which is the current behavior.
+
+**Why not JOIN every time instead of denormalizing?** The `artist_name` is used in the now-playing KV cache, queue preview, and track listings. The denormalized value avoids needing a JOIN for every D1 query, and the artist_name column already exists for exactly this purpose. Writes are infrequent (profile updates are rare); reads are constant (every now-playing poll).
+
+**Note:** The LEFT JOIN on now-playing/queue queries (Integration Point #5 below) fetches the `username` and `avatar_url` -- these are NOT denormalized onto tracks because they are only needed for enriched API responses, not for the core track data. The `artist_name` denormalization serves a different purpose: it is the canonical display name embedded in the track record.
+
+**Confidence:** HIGH -- the `artist_name` column already exists for exactly this purpose.
+
+---
+
+## Integration Point #2: R2 Storage for Avatars
+
+### Same Bucket, New Prefix
+
+**Recommendation:** Use the existing `AUDIO_BUCKET` (claw-fm-audio) R2 bucket with a new `avatars/` prefix.
+
+| Prefix | Content | Key Convention |
+|--------|---------|---------------|
+| `tracks/` | MP3 audio | `tracks/{timestamp}-{uuid}.mp3` |
+| `covers/` | Cover art | `covers/{trackId}.{ext}` |
+| `avatars/` | Artist avatars | `avatars/{wallet}.{ext}` |
+
+**Why same bucket:**
+- One R2 binding already configured (`AUDIO_BUCKET`)
+- No additional wrangler.toml changes needed
+- Served via existing `/audio/*` catch-all route (which serves any R2 key)
+- Logically grouped (all user-uploaded media)
+
+**Why wallet-based key:** Avatars are per-wallet (one per artist). Using `avatars/{wallet}.{ext}` means uploading a new avatar overwrites the old one automatically (R2 `put` is idempotent). No orphan cleanup needed.
+
+### Image Validation in Workers
+
+The existing `processAndUploadCoverArt` function in `api/src/lib/image.ts` already validates:
+- File type via magic number (`file-type` library, already a dependency)
+- Allowed types: JPEG, PNG, WebP
+- Max size: 5MB
+- Uploads to R2 with correct content-type
+
+**Recommendation:** Create a new `processAndUploadAvatar` function that reuses the same validation pattern but with avatar-specific constraints:
 
 ```typescript
-// KV key: "now_playing"
-// Updated by cron every 30 seconds
-interface NowPlayingCache {
-  track: {
-    id: string;
-    title: string;
-    artistWallet: string;
-    duration: number;       // seconds
-    audioUrl: string;       // R2 public URL
-    artUrl: string | null;  // R2 public URL or null (frontend generates identicon)
-  };
-  startedAt: string;        // ISO timestamp
-  endsAt: string;           // ISO timestamp (startedAt + duration)
-  position: number;         // Queue position index
-  next: {                   // Preview of next track
-    id: string;
-    title: string;
-    artistWallet: string;
-  } | null;
-  updatedAt: string;        // When KV was last written
+// api/src/lib/avatar.ts
+export async function processAndUploadAvatar(
+  imageFile: File,
+  walletAddress: string,
+  bucket: R2Bucket
+): Promise<string> {
+  // 1. Validate type via magic number (reuse file-type, same as image.ts)
+  // 2. Validate size (max 2MB for avatars -- tighter than 5MB covers)
+  // 3. Upload to R2 at avatars/{wallet}.{ext}
+  // 4. Return R2 key (e.g., "avatars/0x1234...abcd.png")
 }
 ```
 
-**Confidence:** HIGH - This is a standard CF Workers pattern. KV global reads are ~1ms from any Cloudflare edge. Cron triggers are reliable. D1 handles queue mutations.
+### Image Resizing Trade-off
 
-### Pattern 2: Client-Side Synchronized Playback
+**Option A: No resizing (recommended for v1.1).** Accept the image as-is after type/size validation. Serve original via `/audio/avatars/{wallet}.{ext}`. Frontend uses CSS `object-fit: cover` with fixed dimensions (e.g., 64x64 in player, 128x128 on profile page).
 
-**What:** Since this is radio (not on-demand streaming), all listeners should be hearing approximately the same part of the same track. But listeners join at different times. The server tells the client "Track X started at time T", and the client seeks to the correct position.
+**Option B: Cloudflare Images binding.** Add `[images] binding = "IMAGES"` to wrangler.toml. Resize to 256x256 on upload using `env.IMAGES.input(stream).transform({ width: 256, height: 256, fit: 'cover' }).output({ format: 'webp' })`. Requires Cloudflare Images product (additional billing, ~$0.50 per 1000 transformations).
 
-**Why:** True server-side streaming (Icecast/SHOUTcast) requires persistent TCP connections and continuous data push -- impossible on CF Workers. Instead, each browser fetches the full audio file from R2 and syncs playback position based on server-provided timestamps.
+**Recommendation: Option A for v1.1.** Rationale:
+- 2MB size limit keeps images reasonably small
+- CSS handles display sizing perfectly
+- No additional Cloudflare product dependency or billing
+- Existing cover art uses the exact same approach (no server-side resizing)
+- Can add resizing later if bandwidth becomes a concern (profile at scale)
+- Most AI agent avatars are already appropriately sized (generated images)
 
-**How it works:**
+**Confidence:** HIGH -- matches existing cover art pattern exactly. Cloudflare Images binding verified via official docs.
+
+---
+
+## Integration Point #3: API Route Structure
+
+### Route Registration Pattern
+
+The existing pattern in `api/src/index.ts` is straightforward Hono route mounting:
 
 ```typescript
-// Frontend: useNowPlaying hook
-async function syncPlayback(nowPlaying: NowPlayingCache) {
-  const now = Date.now();
-  const startedAt = new Date(nowPlaying.startedAt).getTime();
-  const elapsed = (now - startedAt) / 1000; // seconds into track
+// Existing (api/src/index.ts lines 33-39)
+app.route('/api/genres', genresRoute)
+app.route('/api/submit', submitRoute)
+app.route('/api/now-playing', nowPlayingRoute)
+app.route('/api/queue', queueRoute)
+app.route('/api/tip', tipRoute)
+app.route('/api/downloads', downloadsRoute)
+app.route('/audio', audioRoute)
+```
 
-  if (elapsed >= nowPlaying.track.duration) {
-    // Track should have ended -- re-poll for next track
-    return pollNowPlaying();
-  }
+New routes follow the same pattern:
 
-  // Load audio and seek to correct position
-  audio.src = nowPlaying.track.audioUrl;
-  await audio.play();
-  audio.currentTime = elapsed;
+```typescript
+import profileRoute from './routes/profile'
+import artistRoute from './routes/artist'
+
+app.route('/api/profile', profileRoute)
+app.route('/api/artist', artistRoute)
+```
+
+### Route File: `api/src/routes/profile.ts`
+
+Authenticated profile management (x402-gated).
+
+```
+PUT /api/profile
+  Request: multipart/form-data
+    - username (string, required)
+    - display_name (string, required)
+    - bio (string, optional)
+    - avatar (File, optional -- JPEG/PNG/WebP, max 2MB)
+  Auth: x402 payment header (0.01 USDC, proves wallet ownership)
+  Behavior:
+    1. Parse multipart body
+    2. Validate username format (lowercase alphanumeric + hyphens, 3-30 chars)
+    3. Verify x402 payment -> extract walletAddress
+    4. Check username availability (SELECT 1 FROM artists WHERE username = ? AND wallet != ?)
+    5. Upload avatar to R2 if provided
+    6. UPSERT artists table (INSERT ... ON CONFLICT(wallet) DO UPDATE)
+    7. UPDATE tracks SET artist_name = display_name WHERE wallet = walletAddress
+    8. DELETE KV 'now-playing' (invalidate cache)
+    9. Return { wallet, username, displayName, bio, avatarUrl }
+```
+
+**Key design note:** This is a single PUT endpoint that handles both creation and update. The x402 payment acts as both authentication AND rate limiting (costs 0.01 USDC per change). The `INSERT ... ON CONFLICT(wallet) DO UPDATE` pattern (SQLite UPSERT) makes this idempotent.
+
+### Route File: `api/src/routes/artist.ts`
+
+Public read-only profile access (no auth required).
+
+```
+GET /api/artist/:username
+  - No auth (public)
+  - Query: SELECT * FROM artists WHERE username = ?
+  - Query: SELECT id, title, genre, duration, cover_url, created_at FROM tracks WHERE wallet = ?
+  - Returns: { profile: ArtistProfile, tracks: TrackSummary[] }
+
+GET /api/artist/by-wallet/:wallet
+  - No auth (public, used by frontend for player UI enrichment)
+  - Query: SELECT * FROM artists WHERE wallet = ?
+  - Returns: { profile: ArtistProfile } or 404
+```
+
+**Why two GET endpoints:** The `:username` endpoint serves profile pages (human-friendly URL). The `by-wallet/:wallet` endpoint is used internally when the frontend has a wallet address from the now-playing API and needs to check if a profile exists (though with the enriched now-playing response from Integration Point #5, this endpoint may only be needed as a fallback).
+
+### x402 Pattern Reuse
+
+The existing `verifyPayment` function from `api/src/middleware/x402.ts` is designed for direct reuse. The pattern is identical to `submit.ts` (lines 49-65):
+
+1. Parse request body
+2. Validate inputs
+3. Call `verifyPayment(c, requirements)` -- returns `{ valid, walletAddress, error }`
+4. If `!valid`, return `paymentResult.error!`
+5. Use `paymentResult.walletAddress!` as the authenticated identity
+6. Perform the operation
+
+**Profile-specific x402 requirements:**
+```typescript
+const paymentResult = await verifyPayment(c, {
+  scheme: 'exact',
+  network: 'base',
+  maxAmountRequired: '10000', // 0.01 USDC (same as track submission)
+  asset: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+  resource: '/api/profile',
+  description: 'Profile creation/update',
+  payTo: c.env.PLATFORM_WALLET,
+})
+```
+
+The wallet address from payment verification IS the identity -- no additional auth system needed. This is the pattern used by submit (line 65: `const walletAddress = paymentResult.walletAddress!`) and tip (line 41-49) endpoints.
+
+**Confidence:** HIGH -- direct reuse of existing, working, proven pattern.
+
+---
+
+## Integration Point #4: Frontend Routing
+
+### Current State
+
+The frontend has NO client-side routing:
+- `main.tsx` renders `<WalletProvider><App /></WalletProvider>` directly
+- `App.tsx` is a single monolithic view with the player UI
+- No `react-router`, `wouter`, or any routing library installed
+- `web/package.json` shows no routing dependency
+
+Cloudflare Pages serves the app as an SPA by default -- when a request does not match a static file, it serves `index.html`. There is no `404.html` in the project, so SPA fallback is active. This means refreshing on `/artist/some-username` will serve `index.html` and the client-side router takes over.
+
+### Recommended Approach: wouter v3.9.0
+
+| Factor | wouter | react-router v7 |
+|--------|--------|-----------------|
+| Bundle size | ~2.1 KB gzipped | ~18.7 KB gzipped |
+| Dependencies | Zero | Multiple |
+| React 19 support | Yes (v3.9.0, explicit demos) | Yes |
+| API complexity | Minimal -- hooks + components | Heavy -- loaders, actions, data API |
+| Setup required | Near-zero (`<Router>` component is optional) | Requires RouterProvider, createBrowserRouter |
+| Fit for this project | Perfect -- 2 routes total | Overkill for 2 routes |
+| Monthly downloads | 3M+ | 20M+ |
+
+**Recommendation: wouter.** The project has exactly two routes (`/` and `/artist/:username`). wouter adds 2KB. react-router adds 19KB. The hooks API (`useRoute`, `useLocation`, `useParams`) integrates cleanly with the existing hooks-heavy codebase.
+
+### Minimal Routing Implementation
+
+The critical architectural constraint is that the **player bar must persist across all routes**. The player is global state -- it plays regardless of which page you are viewing. Audio hooks (`useNowPlaying`, `useCrossfade`) must run at the App level, not inside a route.
+
+```
+App.tsx (layout shell -- always mounted)
+  +-- Header (always visible)
+  +-- <Switch> (route-dependent content area)
+  |     +-- Route "/" -> RadioView (current main content, extracted from App.tsx)
+  |     +-- Route "/artist/:username" -> ArtistProfile (new page)
+  +-- PlayerBar (always visible at bottom)
+```
+
+With wouter, the `<Router>` wrapper is optional. You can use `<Route>` and `<Switch>` directly:
+
+```tsx
+import { Route, Switch, Link } from 'wouter'
+
+export default function App() {
+  // Audio hooks stay here at the top level -- they run on every route
+  const nowPlaying = useNowPlaying()
+  const crossfade = useCrossfade()
+  // ... other hooks
+
+  return (
+    <div className="min-h-screen flex flex-col">
+      <Header />
+      <main className="flex-1">
+        <Switch>
+          <Route path="/">
+            <RadioView crossfade={crossfade} nowPlaying={nowPlaying} ... />
+          </Route>
+          <Route path="/artist/:username">
+            {(params) => <ArtistProfile username={params.username} />}
+          </Route>
+          <Route>Not Found</Route>
+        </Switch>
+      </main>
+      <PlayerBar crossfade={crossfade} nowPlaying={nowPlaying} />
+    </div>
+  )
 }
 ```
 
-**Key detail:** Playback will be approximately synchronized across listeners (within a few seconds), not perfectly in sync. This is acceptable for radio. Perfect sync would require a real streaming server.
+### Artist Name as Link
 
-**Confidence:** HIGH - This is how web-based "simulated radio" works. Spotify's radio modes, YouTube live premieres, and internet radio web players all use variations of this pattern.
+In the player UI, the artist name currently renders as plain text (App.tsx line 276-283). With profiles, it becomes a link:
 
-### Pattern 3: Dual-GainNode Crossfade
+```tsx
+// Before (plain text)
+<p style={{ color: 'var(--text-secondary)' }}>
+  {displayArtist}
+</p>
 
-**What:** Smooth audio transitions between tracks using Web Audio API. Two audio sources crossfade using opposing GainNode ramps.
-
-**Why:** Abrupt silence between tracks breaks the radio feel. Crossfade is the expected behavior for continuous playback.
-
-**How it works:**
-
-```
-AudioContext
-├── Source A (HTMLAudioElement → MediaElementAudioSourceNode)
-│   └── GainNode A ─────┐
-│                        ├──→ AnalyserNode ──→ destination (speakers)
-│   GainNode B ──────────┘
-│   └── MediaElementAudioSourceNode
-└── Source B (HTMLAudioElement)
-```
-
-```typescript
-// lib/audio-engine.ts
-class AudioEngine {
-  private ctx: AudioContext;
-  private analyser: AnalyserNode;
-  private sources: [AudioSource, AudioSource]; // A and B
-  private activeIndex: 0 | 1 = 0;
-
-  constructor() {
-    this.ctx = new AudioContext();
-    this.analyser = this.ctx.createAnalyser();
-    this.analyser.fftSize = 256; // 128 frequency bins for visualizer
-    this.analyser.connect(this.ctx.destination);
-
-    // Two audio elements + gain nodes for crossfade
-    this.sources = [
-      this.createSource(),
-      this.createSource(),
-    ];
-  }
-
-  private createSource(): AudioSource {
-    const audio = new Audio();
-    audio.crossOrigin = 'anonymous'; // Required for R2 CORS
-    const source = this.ctx.createMediaElementSource(audio);
-    const gain = this.ctx.createGain();
-    gain.gain.value = 0;
-    source.connect(gain);
-    gain.connect(this.analyser);
-    return { audio, source, gain };
-  }
-
-  async crossfadeTo(url: string, seekTo: number, fadeDuration = 3) {
-    const next = this.sources[1 - this.activeIndex];
-    const current = this.sources[this.activeIndex];
-
-    // Load next track
-    next.audio.src = url;
-    next.audio.currentTime = seekTo;
-    await next.audio.play();
-
-    // Crossfade: current out, next in
-    const now = this.ctx.currentTime;
-    current.gain.gain.setValueAtTime(1, now);
-    current.gain.gain.linearRampToValueAtTime(0, now + fadeDuration);
-    next.gain.gain.setValueAtTime(0, now);
-    next.gain.gain.linearRampToValueAtTime(1, now + fadeDuration);
-
-    // After fade completes, pause old source
-    setTimeout(() => {
-      current.audio.pause();
-      current.audio.src = '';
-    }, fadeDuration * 1000);
-
-    this.activeIndex = (1 - this.activeIndex) as 0 | 1;
-  }
-
-  getFrequencyData(): Uint8Array {
-    const data = new Uint8Array(this.analyser.frequencyBinCount);
-    this.analyser.getByteFrequencyData(data);
-    return data;
-  }
-}
+// After (link to profile, if username exists)
+{crossfade.currentTrack?.artistUsername ? (
+  <Link
+    href={`/artist/${crossfade.currentTrack.artistUsername}`}
+    style={{ color: 'var(--text-secondary)' }}
+  >
+    {displayArtist}
+  </Link>
+) : (
+  <p style={{ color: 'var(--text-secondary)' }}>
+    {displayArtist}
+  </p>
+)}
 ```
 
-**Critical detail:** `audio.crossOrigin = 'anonymous'` is REQUIRED when connecting HTMLAudioElement to Web Audio API for CORS-enabled R2 URLs. Without it, the AudioContext is tainted and AnalyserNode returns silence. R2 public buckets need CORS headers configured.
+### Cloudflare Pages SPA Fallback
 
-**Confidence:** HIGH - Web Audio API crossfade with GainNode.linearRampToValueAtTime is the standard approach. AnalyserNode.getByteFrequencyData is the standard for frequency visualizers.
+Cloudflare Pages automatically serves `index.html` for any path that does not match a static file, as long as there is no `404.html` in the build output. The current project has no `404.html`, so this works out of the box.
 
-### Pattern 4: Decay-Weighted Queue Rotation
+**No `_redirects` file needed.** No `_routes.json` needed. The default behavior is correct.
 
-**What:** Newer tracks are played more frequently. Track weight decays over time, creating natural rotation that keeps the station fresh while still playing older tracks occasionally.
+**Verification:** The Vite dev server proxy config (`web/vite.config.ts`) only proxies `/api` and `/audio` paths -- all other paths fall through to the SPA. This is consistent with the production behavior.
 
-**Why:** Without decay, early submissions dominate forever. With pure FIFO, the queue is just a list that plays through once. Decay rotation is how real radio stations work (new songs get heavy rotation, then taper off).
+**Confidence:** HIGH -- verified via official Cloudflare Pages documentation. The project already relies on this SPA behavior.
 
-**How it works:**
+---
 
-```sql
--- Select next track using weighted random selection
--- Weight decays based on age: weight = 1 / (1 + days_since_submission * decay_factor)
--- Higher weight = more likely to be selected
-SELECT id, title, duration_seconds, audio_key, art_key, artist_wallet,
-       (1.0 / (1.0 + (julianday('now') - julianday(created_at)) * 0.5)) as current_weight
-FROM tracks
-WHERE id != ?  -- Not the track that just played
-ORDER BY current_weight * abs(random() % 1000) / 1000.0 DESC
-LIMIT 1;
-```
-
-**Decay formula:** `weight = 1 / (1 + age_in_days * decay_factor)`
-- A track submitted today has weight ~1.0
-- A track submitted yesterday has weight ~0.67
-- A track submitted a week ago has weight ~0.22
-- Decay factor of 0.5 means weight halves roughly every 2 days
-
-This is computed at selection time (not stored), so no cron needed to update weights. The `weight` column in the schema is reserved for manual boosts or overrides if needed later.
-
-**Confidence:** HIGH - Decay-weighted random selection is a well-known scheduling algorithm.
-
-### Pattern 5: x402 Payment Split Pattern
-
-**What:** Tips and purchases require splitting payment: 95% to artist, 5% to platform. This is handled by making TWO separate x402 payment operations: one to the artist wallet, one to the platform wallet.
-
-**Why:** x402 protocol payments are atomic transfers to a single recipient. There is no built-in split mechanism. The simplest approach is two sequential payments from the listener's wallet.
-
-**How it works (tip flow):**
-
-```
-Listener clicks "Tip $0.50"
-        |
-        v
-Frontend constructs TWO x402 payment payloads:
-  1. $0.475 to artist_wallet (95%)
-  2. $0.025 to platform_wallet (5%)
-        |
-        v
-POST /api/tip
-Headers:
-  PAYMENT-SIGNATURE: base64(artist_payment_payload)
-  X-PLATFORM-PAYMENT: base64(platform_payment_payload)
-Body: { trackId, amount }
-        |
-        v
-API middleware:
-  1. Verify artist payment (x402 verify)
-  2. Verify platform payment (x402 verify)
-  3. If both valid: settle both
-  4. If either fails: reject, don't settle
-        |
-        v
-Record tip in D1, return success
-```
-
-**Alternative approach (simpler for MVP):** Pay 100% to platform wallet, and the platform distributes to artists periodically. This is simpler (one payment per transaction) but requires trust. The split approach is more trustless.
-
-**Recommendation for MVP:** Start with the single-payment-to-platform approach. It is much simpler to implement (one x402 flow per transaction, not two). Add trustless splitting in a later phase. Agents already trust the platform enough to submit tracks.
-
-**Confidence:** MEDIUM - The two-payment split is architecturally sound but untested in the x402 ecosystem specifically. The single-payment approach is proven by x402-storage-api.
-
-## Data Flow: Major Operations
-
-### Flow 1: Track Submission
-
-```
-Agent                          API Worker                    R2          D1
-  |                                |                         |           |
-  |  POST /api/submit              |                         |           |
-  |  Content-Type: multipart       |                         |           |
-  |  PAYMENT-SIGNATURE: base64     |                         |           |
-  |------------------------------->|                         |           |
-  |                                |                         |           |
-  |                    [x402 middleware]                      |           |
-  |                    Verify payment (0.01 USDC)             |           |
-  |                                |                         |           |
-  |                    [validate audio]                      |           |
-  |                    Check: MP3/WAV, <50MB, <10min         |           |
-  |                    Parse: duration from audio headers     |           |
-  |                                |                         |           |
-  |                                |  PUT /tracks/{id}.mp3   |           |
-  |                                |------------------------>|           |
-  |                                |                         |           |
-  |                                |  PUT /art/{id}.png      |           |
-  |                                |  (if image provided)    |           |
-  |                                |------------------------>|           |
-  |                                |                         |           |
-  |                    [settle x402 payment]                  |           |
-  |                                |                         |           |
-  |                                |  INSERT INTO tracks     |           |
-  |                                |  INSERT INTO payments   |           |
-  |                                |------------------------->           |
-  |                                |                         |           |
-  |  200 { trackId, title, ... }   |                         |           |
-  |<-------------------------------|                         |           |
-```
-
-**Audio validation detail:** Duration must be parsed server-side. For MP3, read the first few frames to get bitrate and calculate duration from file size. For WAV, read the RIFF header. Libraries like `music-metadata` work in Node.js but may need adaptation for Workers runtime. Alternatively, store the file first and let the frontend report actual duration on first play (simpler, but means D1 might have inaccurate duration briefly).
-
-**Recommended approach:** Parse duration from audio headers in the Worker. MP3 duration can be estimated from Content-Length and bitrate (first frame header). WAV duration is trivially computed from header (data chunk size / sample rate / channels / bits-per-sample * 8). This avoids needing a heavy parsing library.
-
-### Flow 2: Now-Playing Poll + Playback
-
-```
-Listener Browser                 API Worker            KV           R2
-  |                                |                   |            |
-  |  GET /api/now-playing          |                   |            |
-  |------------------------------->|                   |            |
-  |                                |  GET "now_playing"|            |
-  |                                |------------------>|            |
-  |                                |  { track, times } |            |
-  |                                |<------------------|            |
-  |  200 { track, startedAt,       |                   |            |
-  |        endsAt, audioUrl }      |                   |            |
-  |<-------------------------------|                   |            |
-  |                                                    |            |
-  |  [Calculate: elapsed = now - startedAt]            |            |
-  |                                                    |            |
-  |  GET /tracks/{id}.mp3 (audio URL from response)    |            |
-  |------------------------------------------------------->         |
-  |  <audio stream>                                    |            |
-  |<-------------------------------------------------------         |
-  |                                                    |            |
-  |  [audio.currentTime = elapsed]                     |            |
-  |  [audio.play()]                                    |            |
-  |  [Start visualizer from AnalyserNode]              |            |
-  |                                                    |            |
-  |  ... track plays ...                               |            |
-  |                                                    |            |
-  |  [Track approaching end: elapsed > duration - 5s]  |            |
-  |                                                    |            |
-  |  GET /api/now-playing  (re-poll for next track)    |            |
-  |------------------------------->|                   |            |
-```
-
-**Polling strategy:** Poll `/api/now-playing` on two triggers:
-1. **On load:** Initial sync when page opens
-2. **Near track end:** When `currentTime > duration - 10s`, poll for what's next
-3. **Fallback interval:** Every 30 seconds as a safety net (handles edge cases like browser tab sleeping)
-
-Do NOT poll continuously every second. That wastes bandwidth and KV reads for no benefit.
-
-### Flow 3: Queue Advancement (Cron)
-
-```
-Cron Trigger (every 30s)         D1                    KV
-  |                               |                     |
-  |  SELECT current track +       |                     |
-  |  started_at from queue_state  |                     |
-  |------------------------------>|                     |
-  |  { track, started_at }        |                     |
-  |<------------------------------|                     |
-  |                               |                     |
-  |  [Calculate: has track ended?]|                     |
-  |  now > started_at + duration  |                     |
-  |                               |                     |
-  |  IF YES:                      |                     |
-  |    Select next track          |                     |
-  |    (decay-weighted random)    |                     |
-  |------------------------------>|                     |
-  |    { next_track }             |                     |
-  |<------------------------------|                     |
-  |                               |                     |
-  |    UPDATE queue_state SET     |                     |
-  |    current_track_id = next,   |                     |
-  |    started_at = now,          |                     |
-  |    queue_position = pos + 1   |                     |
-  |------------------------------>|                     |
-  |                               |                     |
-  |    UPDATE tracks SET          |                     |
-  |    play_count = play_count+1  |                     |
-  |    WHERE id = next_track_id   |                     |
-  |------------------------------>|                     |
-  |                               |                     |
-  |  ALWAYS:                      |                     |
-  |    PUT "now_playing" = {      |                     |
-  |      track, startedAt,        |                     |
-  |      endsAt, next }           |                     |
-  |---------------------------------------------->      |
-  |                               |                     |
-```
-
-**Why 30s interval:** Track durations range from 30s to 10min. A 30-second cron ensures the queue advances within 30 seconds of a track ending. This means a brief silence gap of up to 30 seconds between tracks in the worst case. Mitigation: the frontend can pre-fetch the next track and start crossfading before the cron fires, using its own timer.
-
-**Better approach for seamless transitions:** Store `next_track` in the KV cache. The frontend knows when the current track ends (it has `endsAt`). When `endsAt` is within 5 seconds, the frontend fetches the next track's audio from R2 and begins crossfade. The cron then catches up and officially advances the queue. This makes the transition feel instant from the listener's perspective, even though the server-side state lags by up to 30 seconds.
-
-### Flow 4: Tip Payment
-
-```
-Listener Browser                 API Worker           OpenFacilitator     D1
-  |                                |                        |              |
-  |  [Click "Tip $0.50"]          |                        |              |
-  |  [Wallet constructs x402      |                        |              |
-  |   payment: $0.50 to platform] |                        |              |
-  |                                |                        |              |
-  |  POST /api/tip                 |                        |              |
-  |  PAYMENT-SIGNATURE: base64     |                        |              |
-  |  Body: { trackId: "abc" }      |                        |              |
-  |------------------------------->|                        |              |
-  |                                |                        |              |
-  |                    [x402 middleware: verify]             |              |
-  |                                |  verify(payload, req)  |              |
-  |                                |----------------------->|              |
-  |                                |  { isValid: true }     |              |
-  |                                |<-----------------------|              |
-  |                                |                        |              |
-  |                    [Route handler]                      |              |
-  |                    Look up track artist_wallet          |              |
-  |                                |  SELECT artist_wallet  |              |
-  |                                |  FROM tracks           |              |
-  |                                |---------------------------------------->
-  |                                |  { artist_wallet }     |              |
-  |                                |<----------------------------------------
-  |                                |                        |              |
-  |                    [Settle payment to platform]         |              |
-  |                                |  settle(payload, req)  |              |
-  |                                |----------------------->|              |
-  |                                |  { success, tx }       |              |
-  |                                |<-----------------------|              |
-  |                                |                        |              |
-  |                    [Record tip: track, amount, payer]   |              |
-  |                                |  INSERT INTO tips      |              |
-  |                                |---------------------------------------->
-  |                                |                        |              |
-  |                    [Calculate artist payout: 95%]       |              |
-  |                    [Queue payout to artist wallet]      |              |
-  |                                |  INSERT INTO payouts   |              |
-  |                                |---------------------------------------->
-  |                                |                        |              |
-  |  200 { success, tx, ... }      |                        |              |
-  |<-------------------------------|                        |              |
-```
-
-**MVP simplification:** For MVP, all payments go to the platform wallet. Artist payouts are tracked in D1 and distributed via a separate payout mechanism (manual or cron-triggered batch). This avoids the complexity of dual x402 payments.
-
-### Flow 5: Track Purchase/Download
-
-Same flow as tipping, but:
-- Fixed price (e.g., $1.00) instead of preset tip amounts
-- On success, return a signed R2 URL for the full-quality audio download
-- Record purchase in D1 with buyer wallet
-
-```typescript
-// Generate time-limited download URL after purchase
-const downloadUrl = await env.AUDIO_BUCKET.createSignedUrl(track.audio_key, {
-  expiresIn: 3600, // 1 hour
-});
-```
-
-**Note:** R2 signed URLs require using the S3-compatible API or the newer R2 binding method. For public audio playback, use R2 custom domain (public bucket). For purchased downloads, use signed URLs with expiry.
-
-## Queue State: How It Works Without a Persistent Process
-
-This is the most critical architectural decision. Here is the full picture.
+## Integration Point #5: Now-Playing/Queue API Enrichment
 
 ### The Problem
 
-CF Workers are request-driven. No persistent process runs between requests. You cannot have a "while(true) { play next track }" loop. Yet the radio station needs a globally shared concept of "what is playing right now."
+The now-playing and queue APIs return `NowPlayingTrack` objects. Currently these include `artistName` (from the denormalized `tracks.artist_name`) and `artistWallet`. For profile features, we also need `artistUsername` and `artistAvatarUrl` so the frontend can:
+- Link artist name to `/artist/:username`
+- Display the avatar in the player UI and queue preview
 
-### The Solution: Server-Authoritative Time-Based State
+### Strategy: LEFT JOIN at Query Time
 
-The queue state is purely a function of timestamps and database state. At any point in time, the "now playing" can be derived from:
+Modify the D1 queries in `now-playing.ts` and `queue.ts` to LEFT JOIN the artists table:
 
-1. `queue_state.current_track_id` -- which track
-2. `queue_state.started_at` -- when it started
-3. `tracks.duration_seconds` -- how long it lasts
+```sql
+-- Current query (now-playing.ts line 44-47)
+SELECT id, title, wallet, artist_name, duration, file_url, cover_url, genre
+FROM tracks
+WHERE id = ?
 
-**Is the track still playing?** `now < started_at + duration_seconds`
-**How far in?** `elapsed = now - started_at`
-**When does it end?** `endsAt = started_at + duration_seconds`
+-- New query (with artist profile enrichment)
+SELECT
+  t.id, t.title, t.wallet, t.artist_name, t.duration,
+  t.file_url, t.cover_url, t.genre,
+  a.username AS artist_username,
+  a.avatar_url AS artist_avatar_url
+FROM tracks t
+LEFT JOIN artists a ON t.wallet = a.wallet
+WHERE t.id = ?
+```
 
-The cron trigger's only job is to check if the current track has ended and, if so, select the next one. This is idempotent -- running the cron multiple times for the same track-end produces the same result.
+**Why LEFT JOIN (not separate lookup):**
+- Single query instead of N+1 (queue.ts fetches up to 5 tracks at once)
+- D1 is SQLite -- JOINs on primary keys are extremely fast (artists.wallet is PK)
+- LEFT JOIN means tracks without profiles still return (username/avatar will be NULL)
+- No additional API calls from frontend
+- Consistent approach for all track-fetching queries
 
-### What If the Cron Misses?
+**Queries that need this change:**
+1. `now-playing.ts` line 44 -- current track fetch
+2. `now-playing.ts` line 92 -- next track fetch (crossfade pre-buffer)
+3. `queue.ts` line 37 -- queue preview batch fetch
+4. `queue.ts` line 84 -- currently playing in queue response
 
-If the cron doesn't fire (extremely rare on Cloudflare), the frontend detects that `now > endsAt` and re-polls. The next API request or cron trigger will advance the queue. The station has a brief gap, but recovers automatically.
+### Shared Type Updates
 
-### What About Empty Queue?
-
-When no tracks exist yet:
+Update `NowPlayingTrack` in `packages/shared/src/index.ts`:
 
 ```typescript
-// GET /api/now-playing when queue is empty
-if (!queueState || !queueState.current_track_id) {
-  return c.json({
-    status: 'waiting',
-    message: 'Waiting for the first track. Get your agent on air!',
-    track: null,
-    startedAt: null,
-    endsAt: null,
-  });
+export interface NowPlayingTrack {
+  id: number
+  title: string
+  artistWallet: string
+  artistName?: string
+  artistUsername?: string    // NEW: null if no profile
+  artistAvatarUrl?: string   // NEW: null if no profile/no avatar
+  duration: number
+  coverUrl?: string
+  fileUrl: string
+  genre: string
 }
 ```
 
-The frontend shows the "waiting for first track" state with the agent onboarding prompt.
-
-### What About First Track Submitted?
-
-When the first track is submitted and the queue is empty, the submit handler also initializes the queue:
+New types to add:
 
 ```typescript
-// In submit route, after storing track
-const queueState = await db.prepare('SELECT * FROM queue_state WHERE id = 1').first();
-if (!queueState) {
-  // First track ever -- start playing immediately
-  await db.prepare(
-    `INSERT INTO queue_state (id, current_track_id, started_at, queue_position)
-     VALUES (1, ?, datetime('now'), 0)`
-  ).bind(trackId).run();
+export interface ArtistProfile {
+  wallet: string
+  username: string
+  displayName: string
+  bio?: string
+  avatarUrl?: string
+  createdAt: number
+  updatedAt: number
+}
 
-  // Update KV immediately (don't wait for cron)
-  await env.KV.put('now_playing', JSON.stringify(buildNowPlaying(track)));
+export interface ArtistProfileResponse {
+  profile: ArtistProfile
+  tracks: TrackSummary[]
+}
+
+export interface TrackSummary {
+  id: number
+  title: string
+  genre: string
+  duration: number
+  coverUrl?: string
+  createdAt: number
+}
+
+export interface ProfileUpdateResponse {
+  wallet: string
+  username: string
+  displayName: string
+  bio?: string
+  avatarUrl?: string
 }
 ```
 
-## Durable Objects vs Polling: Analysis
+The `NowPlayingTrack` fields are optional (`?`), so existing frontend code that only reads `artistName` and `artistWallet` continues to work without changes. The profile link and avatar are progressive enhancements.
 
-| Criterion | Polling + KV + Cron | Durable Objects + WebSocket |
-|-----------|--------------------|-----------------------------|
-| Complexity | LOW - standard CF primitives | HIGH - new primitive, hibernation, billing |
-| Latency (state change) | ~30s worst case | ~instant (WebSocket push) |
-| Latency (read) | ~1ms (KV global cache) | ~50ms (DO in single region) |
-| Cost | KV reads: $0.50/M, Cron: free | DO: $0.15/M requests + $0.005/wall-clock-hour |
-| Global distribution | YES (KV replicated globally) | NO (DO runs in one region, requires stub routing) |
-| Failure mode | Graceful (stale KV, frontend retries) | Connection drops, reconnect logic needed |
-| Build time | Hours | Days |
+**Confidence:** HIGH -- straightforward SQL JOIN, additive type changes with full backward compatibility.
 
-**Recommendation:** Use Polling + KV + Cron for MVP. The 30-second worst-case latency for queue advancement is invisible to users because the frontend handles transitions client-side using timestamps. Add Durable Objects later only if you need real-time features (chat, live listener count, instant notifications).
+---
 
-**The key insight:** The frontend already knows when the track ends (it has the duration). It does not need the server to tell it in real time. The server just needs to have the next track ready when the frontend asks.
+## Integration Point #6: Cache Invalidation
 
-## R2 Configuration
+### The Problem
 
-### Audio Delivery
+The now-playing response is cached in KV (key: `now-playing`, TTL: ~60s via `kv-cache.ts`). When an artist updates their profile (display name, avatar), the cached now-playing response may contain stale data if that artist's track is currently playing.
 
-Use an **R2 custom domain** (public bucket) for audio delivery. This provides:
-- Global CDN caching via Cloudflare
-- No signed URLs needed for playback (simpler)
-- Standard HTTP range requests (audio seeking works)
-- CORS headers configured at the bucket level
+### How Stale Can It Get?
 
-```toml
-# wrangler.toml
-[[r2_buckets]]
-binding = "AUDIO_BUCKET"
-bucket_name = "claw-fm-audio"
-# Public access via custom domain: audio.claw.fm
-```
+KV cache TTL is 60 seconds (the KV minimum). In the worst case, after a profile update, the now-playing response shows the old display name for up to 60 seconds. This is acceptable for a radio station -- profile updates are infrequent events.
 
-**CORS configuration** (required for Web Audio API AnalyserNode):
+Additionally, KV's eventual consistency model means even after deletion, some edge locations may briefly serve stale data. Cloudflare's 2025 KV improvements provide read-your-own-writes consistency from the same PoP, but cross-PoP propagation may take a few seconds.
 
-```json
-{
-  "AllowedOrigins": ["https://claw.fm", "http://localhost:5173"],
-  "AllowedMethods": ["GET", "HEAD"],
-  "AllowedHeaders": ["*"],
-  "ExposeHeaders": ["Content-Length", "Content-Range"],
-  "MaxAgeSeconds": 86400
-}
-```
+### Invalidation Strategy
 
-**URL pattern:**
-- Playback: `https://audio.claw.fm/tracks/{id}.mp3`
-- Cover art: `https://audio.claw.fm/art/{id}.png`
-
-### Signed URLs for Purchases
-
-For purchased downloads, use the R2 binding's `createPresignedUrl` (S3-compatible) or serve through the Worker with auth:
+**On profile update (PUT /api/profile):** Invalidate the KV cache immediately.
 
 ```typescript
-// Worker route: GET /api/download/:trackId
-// Verify purchase in D1 first, then proxy from R2
-const object = await env.AUDIO_BUCKET.get(`tracks/${trackId}.mp3`);
-return new Response(object.body, {
-  headers: {
-    'Content-Type': 'audio/mpeg',
-    'Content-Disposition': `attachment; filename="${track.title}.mp3"`,
-  },
-});
+// In profile.ts route, after successful upsert:
+await c.env.KV.delete('now-playing')
 ```
 
-## Scaling Considerations
+The existing codebase already does this in several places:
+- `QueueBrain.ts` line 126: `this.env.KV.delete('now-playing').catch(() => {})`
+- `tip.ts` line 71: `await c.env.KV.delete('now-playing')`
+- `kv-cache.ts` exports `invalidateNowPlaying(kv)` function for this exact purpose
 
-| Concern | At 10 Listeners | At 1K Listeners | At 100K Listeners |
-|---------|-----------------|-----------------|-------------------|
-| Audio delivery | R2 public URL, CF CDN handles | Same -- CDN cached globally | Same -- CF CDN scales automatically |
-| Now-playing reads | KV: negligible | KV: ~30 reads/min (poll) | KV: ~3K reads/min -- still cheap ($0.50/M) |
-| Queue advancement | Cron every 30s, 1 D1 write | Same -- single cron, single write | Same -- queue state is singleton |
-| Submissions | Rare (agents submit infrequently) | ~10/hour, D1 handles easily | ~100/hour, still trivial for D1 |
-| Tips/purchases | Rare at first | ~50/hour, D1 + facilitator handle fine | Facilitator becomes bottleneck (~5K/hour) |
-| Frontend bundle | ~200KB gzipped | Same | Same -- CF Pages CDN |
-| R2 storage | ~1GB (100 tracks) | ~10GB (1000 tracks) | ~100GB -- R2 pricing: $0.015/GB/month |
+So the pattern is established, tested, and there is even a dedicated helper function (`invalidateNowPlaying` from `lib/kv-cache.ts`).
 
-**Bottleneck analysis:**
-- At scale, the OpenFacilitator is the first bottleneck (external service, blockchain settlement latency)
-- D1 handles millions of reads/day easily; writes are limited to submissions + tips (low volume)
-- KV is designed for millions of reads/second globally
-- R2 + CF CDN handles audio delivery with zero concern
+**What happens after invalidation:**
+1. Next poll from any frontend hits cache miss
+2. `now-playing.ts` queries QueueBrain DO for current track ID
+3. D1 query with LEFT JOIN picks up updated `tracks.artist_name` (from denormalization write-through) and current `artists.avatar_url`/`artists.username`
+4. Fresh response is cached in KV
+5. All subsequent polls get fresh data
 
-**When to consider Durable Objects:** Only if you add features that need real-time push: live listener count displayed to all users, real-time chat, instant tip notifications to all listeners. The core radio playback never needs it.
+**Edge case: Profile update when that artist's track is NOT playing.** No action needed -- the cached now-playing response does not contain that artist's data, so there is nothing stale. Still worth invalidating because the queue preview might contain that artist's tracks.
 
-## Anti-Patterns to Avoid
+**Edge case: Profile update race with track transition.** The QueueBrain alarm already invalidates KV on track transitions. Profile update invalidation is additive -- two deletes are fine (KV delete is idempotent).
 
-### Anti-Pattern 1: Server-Side Audio Streaming
+### No Complex Versioning Needed
 
-**What:** Trying to implement an Icecast/SHOUTcast-style server that streams audio data continuously to clients.
+Some architectures use cache versioning (embed a version number in the cache key) or ETags. This is unnecessary here because:
+- KV TTL is already short (60s)
+- Profile updates are rare (minutes/hours apart)
+- Explicit invalidation handles the immediate case
+- The cost of a cache miss is one D1 query + one DO call (milliseconds)
+- The existing `invalidateNowPlaying` helper already exists
 
-**Why bad:** CF Workers cannot maintain persistent TCP connections. Each request has a ~30s execution time limit (up to 6 minutes with paid plan). Streaming audio requires a persistent connection pushing data for minutes.
+**Confidence:** HIGH -- exact pattern already used throughout the codebase.
 
-**Instead:** Client-side playback with R2 public URLs. The browser downloads the full audio file and plays it locally. Server just provides metadata and timing.
+---
 
-### Anti-Pattern 2: WebSocket for Now-Playing
+## Integration Point #7: Migration Strategy
 
-**What:** Using Durable Objects + WebSocket to push "now playing" updates to all connected clients.
+### Safety Requirements
 
-**Why bad for MVP:** Massively overengineered. Queue changes every 2-10 minutes. A simple polling endpoint with KV caching is simpler, cheaper, more reliable, and globally distributed. WebSockets through Durable Objects pin to a single region.
+1. **Zero downtime** -- no breaking changes to existing API responses
+2. **No data loss** -- existing tracks and their metadata preserved
+3. **Backward compatible** -- agents without profiles continue to work identically
+4. **Incremental** -- can deploy database changes, API changes, and frontend changes in separate steps
 
-**Instead:** Poll `/api/now-playing` when the frontend needs it (on load, near track end, every 30s fallback). KV reads are <1ms globally.
+### Migration File: `api/migrations/0003_artists-table.sql`
 
-### Anti-Pattern 3: Storing Queue Order in a List
+```sql
+-- Create artists table for profile data
+-- wallet is PRIMARY KEY (one profile per wallet)
+-- username is UNIQUE with COLLATE NOCASE (case-insensitive uniqueness)
 
-**What:** Maintaining an ordered array/list of track IDs as "the queue" and shuffling/reordering it.
+CREATE TABLE IF NOT EXISTS artists (
+  wallet TEXT PRIMARY KEY,
+  username TEXT NOT NULL UNIQUE COLLATE NOCASE,
+  display_name TEXT NOT NULL,
+  bio TEXT,
+  avatar_url TEXT,
+  created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+  updated_at INTEGER NOT NULL DEFAULT (unixepoch())
+);
 
-**Why bad:** Creates complex state management, race conditions on concurrent writes, and makes decay-based rotation difficult. A list implies a fixed order that must be maintained.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_artists_username
+  ON artists(username COLLATE NOCASE);
+```
 
-**Instead:** Stateless selection at advancement time. When the cron needs the next track, it runs a single SQL query with decay-weighted random selection. No queue list to maintain. The "queue" is virtual -- it is the set of all tracks ordered by their current weight.
+**Key safety properties:**
+- `CREATE TABLE IF NOT EXISTS` -- idempotent, safe to re-run
+- No `ALTER TABLE` on existing `tracks` table -- the `artist_name` column already exists from migration 0002
+- No foreign key constraints -- tracks continue to work independently of profiles
+- No data backfill required -- artists table starts empty, profiles are created on-demand via the API
+- `COLLATE NOCASE` on username -- prevents "Alice" and "alice" from coexisting, handled at the database level
+- No `BEGIN TRANSACTION` -- D1 wraps each migration in a transaction automatically
 
-### Anti-Pattern 4: Parsing Full Audio in Worker
+### Deployment Order
 
-**What:** Using a full audio parsing library (like `music-metadata`) to extract duration, bitrate, ID3 tags from uploaded audio in the Worker.
+1. **Apply D1 migration** (`wrangler d1 migrations apply claw-fm --remote`) -- creates empty table, zero risk to existing data or functionality
+2. **Deploy API with new routes** -- new endpoints become available (`/api/profile`, `/api/artist/*`), existing endpoints unchanged, LEFT JOINs gracefully return NULL for all profiles (none exist yet)
+3. **Deploy frontend with routing** -- new pages become available (`/artist/:username`), existing player UI unchanged, profile links show only when `artistUsername` is non-null
 
-**Why bad:** These libraries often depend on Node.js APIs not available in Workers runtime. Large dependency size. Complex error handling for malformed files.
+Each step is independently safe and independently reversible. If step 2 has issues, roll back the Worker -- the empty table has no impact. If step 3 has issues, roll back Pages -- the API still works.
 
-**Instead:** Parse minimal headers only. For MP3: read first frame header (4 bytes at known offset) to get bitrate, calculate duration from file size. For WAV: read RIFF header (44 bytes) to get sample rate, channels, bits per sample, data chunk size. These are trivial to implement without dependencies. Alternatively, require the submitting agent to declare duration, and verify on first play.
+### Username Constraints
 
-### Anti-Pattern 5: Two x402 Payments Per Tip
+Validated at the API level (in the profile route handler, following the pattern of `validateSubmission` in `middleware/validation.ts`):
 
-**What:** Requiring the listener to sign two separate x402 payments (one to artist, one to platform) for every tip.
+- Lowercase alphanumeric + hyphens only: `/^[a-z0-9][a-z0-9-]*[a-z0-9]$/`
+- Length: 3-30 characters
+- Cannot start or end with hyphen
+- Cannot be double-hyphen (`--`)
+- Reserved words: `admin`, `api`, `audio`, `artist`, `artists`, `profile`, `settings`, `help`, `about`, `submit`, `queue`, `now-playing`, `health`, `dev`
 
-**Why bad for MVP:** Doubles the payment complexity, doubles facilitator calls, doubles the chance of partial failure (one settles, one doesn't). Client must construct two payment payloads.
+**Confidence:** HIGH -- follows exact D1 migration pattern from v1.0 (`0001_tracks-schema.sql`, `0002_submission-fields.sql`).
 
-**Instead:** For MVP, single payment to platform. Track artist payouts in D1. Distribute via batch payout mechanism later. Upgrade to direct split when the payment flow is proven.
+---
 
-## Integration Points
+## Integration Point #8: x402 Gating for Profile Endpoints
 
-### x402 Payment Integration
+### Which Endpoints Need Payment?
 
-Adapt directly from x402-storage-api patterns. Key files to port:
+| Endpoint | x402 Gated? | Rationale |
+|----------|------------|-----------|
+| `PUT /api/profile` | YES | Creates/updates profile, proves wallet identity, deters squatting |
+| `GET /api/artist/:username` | NO | Public read, needed for profile pages by anyone |
+| `GET /api/artist/by-wallet/:wallet` | NO | Public read, needed by player UI enrichment |
 
-| x402-storage-api | claw.fm equivalent | Changes needed |
-|------------------|--------------------|----------------|
-| `middleware/x402.ts` | `middleware/x402.ts` | Change `calculateAmount` to return fixed 0.01 USDC for submissions |
-| `services/facilitator.ts` | `services/facilitator.ts` | Direct copy, already generic |
-| `types/x402.ts` | `types/x402.ts` | Direct copy |
-| `middleware/rate-limit.ts` | `middleware/rate-limit.ts` | Adjust limits for radio station use |
+### Payment as Authentication
 
-**Submission pricing:** Fixed 0.01 USDC = `10000n` in atomic units (USDC has 6 decimals).
+The x402 pattern provides both payment AND authentication in a single step. When `verifyPayment` succeeds, it returns `walletAddress` -- this IS the authenticated identity. No session tokens, no JWTs, no cookies, no new auth dependency.
 
-**Tip pricing:** Preset amounts: $0.25, $0.50, $1.00, $5.00. Use `requirePayment` middleware with dynamic amount from request body.
-
-**Purchase pricing:** Fixed price per track (e.g., $1.00). Stored in track metadata or global config.
-
-### R2 Integration
+The profile route uses this wallet address to determine which profile to upsert:
 
 ```typescript
-// In env.ts
-interface Env {
-  DB: D1Database;
-  AUDIO_BUCKET: R2Bucket;
-  KV: KVNamespace;
-  RATE_LIMIT_KV: KVNamespace;
-  FACILITATOR_URL: string;
-  EVM_PAY_TO_ADDRESS: string;
-}
+// profile.ts
+const paymentResult = await verifyPayment(c, requirements)
+if (!paymentResult.valid) return paymentResult.error!
 
-// In submit route
-const audioKey = `tracks/${trackId}.mp3`;
-await env.AUDIO_BUCKET.put(audioKey, audioBuffer, {
-  httpMetadata: { contentType: 'audio/mpeg' },
-});
-
-// Public URL via custom domain
-const audioUrl = `https://audio.claw.fm/${audioKey}`;
+const walletAddress = paymentResult.walletAddress!
+// walletAddress is now the cryptographically proven identity
+// UPSERT artists WHERE wallet = walletAddress
 ```
 
-### Embedded Wallet Integration
+This means:
+- Only the wallet owner can create/update their profile (cryptographic proof via x402 payment)
+- Each profile change costs 0.01 USDC (deters username squatting and rapid changes)
+- No additional auth middleware, session management, or token refresh logic needed
+- Pattern is identical to track submission (`submit.ts` line 49-65)
+- Agent clients already know how to construct x402 payment headers (they do it for submission)
 
-Port from x402.storage web patterns:
+### Username Changes
 
-```typescript
-// lib/wallet.ts
-import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
+Username changes use the same `PUT /api/profile` endpoint. Each call costs 0.01 USDC. The endpoint:
+1. Verifies payment (extracts wallet address as identity)
+2. Validates new username format
+3. Checks username availability: `SELECT 1 FROM artists WHERE username = ? COLLATE NOCASE AND wallet != ?`
+4. Upserts the profile with the new username
+5. If `display_name` changed: `UPDATE tracks SET artist_name = ? WHERE wallet = ?`
+6. Invalidates KV cache: `await invalidateNowPlaying(c.env.KV)`
+7. Returns updated profile
 
-interface WalletData {
-  privateKey: `0x${string}`;
-  address: `0x${string}`;
-}
+**Confidence:** HIGH -- direct reuse of existing, proven x402 pattern.
 
-function getOrCreateWallet(): WalletData {
-  const stored = localStorage.getItem('claw_wallet');
-  if (stored) return JSON.parse(stored);
-
-  const privateKey = generatePrivateKey();
-  const account = privateKeyToAccount(privateKey);
-  const wallet = { privateKey, address: account.address };
-  localStorage.setItem('claw_wallet', JSON.stringify(wallet));
-  return wallet;
-}
-```
-
-**Lazy creation:** Same pattern as x402.storage -- don't create wallet until listener wants to tip/buy. Music plays without a wallet.
+---
 
 ## Suggested Build Order
 
-Based on component dependencies:
+Based on dependency analysis of the integration points above, the recommended phase structure for the v1.1 roadmap:
+
+### Phase 1: Database + Shared Types + API Endpoints
+
+**Build first because everything else depends on it.**
+
+1. Write and apply migration `0003_artists-table.sql`
+2. Add shared types (`ArtistProfile`, `TrackSummary`, `ProfileUpdateResponse`, updated `NowPlayingTrack`) to `@claw/shared`
+3. Create `api/src/lib/avatar.ts` (avatar validation + R2 upload)
+4. Create `api/src/routes/profile.ts` (PUT /api/profile with x402, multipart, upsert, avatar upload)
+5. Create `api/src/routes/artist.ts` (GET /api/artist/:username with track catalog, GET /api/artist/by-wallet/:wallet)
+6. Add username validation logic (format, reserved words, availability)
+7. Register routes in `api/src/index.ts`
+
+**Deliverable:** Working API endpoints that can be tested with curl or agent clients before any frontend work begins. Agents can create profiles immediately.
+
+### Phase 2: Data Flow Enrichment (Now-Playing, Submit, Cache)
+
+**Build second because it connects profiles to the existing data flow without frontend changes.**
+
+1. Modify `now-playing.ts` queries to LEFT JOIN artists table (all 2 queries)
+2. Modify `queue.ts` queries to LEFT JOIN artists table (all 2 queries)
+3. Modify `submit.ts` to look up artist display_name on submission
+4. Add KV invalidation to profile route (use existing `invalidateNowPlaying`)
+5. Update `NowPlayingTrack` construction to include `artistUsername`/`artistAvatarUrl` fields
+6. On profile upsert: batch-update `tracks.artist_name` for all tracks by that wallet
+
+**Deliverable:** Existing player UI gets richer data via the same API endpoints. Even without profile pages, agents with profiles see their display name in the now-playing display. Fully backward compatible -- agents without profiles see no change.
+
+### Phase 3: Frontend Routing + Profile Pages
+
+**Build last because it consumes everything above.**
+
+1. Install wouter (`npm install wouter`)
+2. Extract current main content from `App.tsx` into `RadioView` component
+3. Refactor `App.tsx` to use wouter `<Switch>` / `<Route>` with persistent PlayerBar
+4. Create `ArtistProfile` page component (fetches `GET /api/artist/:username`, displays profile + track catalog)
+5. Make artist name in player UI a `<Link>` to `/artist/:username` (when `artistUsername` is available)
+6. Add avatar display in player UI (with identicon fallback when no avatar)
+7. Verify Cloudflare Pages SPA fallback works for `/artist/:username` refresh
+
+**Deliverable:** Full feature complete. Profile pages accessible at `/artist/:username`, player links to profiles, avatars displayed.
+
+### Dependency Graph
 
 ```
-Phase 1: Foundation
-  ├── API scaffolding (Hono + wrangler.toml + D1 schema)
-  ├── R2 bucket setup with public domain
-  └── Basic types (shared package)
-       │
-Phase 2: Submission Pipeline
-  ├── POST /api/submit (multipart handler)
-  ├── x402 middleware (port from x402-storage-api)
-  ├── Audio validation (format, size, duration parsing)
-  ├── R2 upload (audio + optional art)
-  └── D1 track record creation
-       │ (depends on: Phase 1)
-       │
-Phase 3: Queue + Now-Playing
-  ├── Queue state initialization (singleton row)
-  ├── Decay-weighted track selection query
-  ├── Cron trigger: advance queue
-  ├── KV cache: write now_playing
-  ├── GET /api/now-playing (read KV)
-  └── GET /api/queue (upcoming tracks preview)
-       │ (depends on: Phase 2 -- needs tracks in DB)
-       │
-Phase 4: Frontend Player
-  ├── React app scaffolding (Vite + CF Pages)
-  ├── Audio engine (AudioContext, crossfade, analyser)
-  ├── Visualizer component (frequency bars from AnalyserNode)
-  ├── Now-playing display (poll API, show track info)
-  ├── Playback sync (seek to correct position on load)
-  └── Empty queue state UI
-       │ (depends on: Phase 3 -- needs now-playing API)
-       │
-Phase 5: Payments
-  ├── Embedded wallet (viem, localStorage)
-  ├── Tip flow (preset amounts, x402 to platform)
-  ├── Purchase flow (fixed price, x402 to platform)
-  ├── Payment recording in D1
-  └── Artist payout tracking
-       │ (depends on: Phase 4 -- needs frontend + API)
-       │
-Phase 6: Polish
-  ├── Agent onboarding section (copy-paste prompt)
-  ├── Fallback identicon cover art
-  ├── Error states and loading states
-  ├── Rate limiting tuning
-  └── Mobile responsiveness
+Migration 0003 (artists table)
+  |
+  v
+Shared Types (@claw/shared -- ArtistProfile, updated NowPlayingTrack)
+  |
+  +---> Profile API (routes/profile.ts + routes/artist.ts + lib/avatar.ts)
+  |       |
+  |       +---> Data Flow Enrichment (LEFT JOINs in now-playing.ts + queue.ts)
+  |       |       |
+  |       |       +---> Submit enrichment (lookup display_name)
+  |       |       |
+  |       |       +---> KV invalidation on profile update
+  |       |
+  +---+---+---> Frontend Routing + Profile Pages (wouter + ArtistProfile page)
 ```
 
-**Critical path:** Phase 1 -> Phase 2 -> Phase 3 -> Phase 4. These must be sequential. Phase 5 can partially overlap with Phase 4 (API payment routes while frontend is being built). Phase 6 is independent polish.
+---
+
+## Anti-Patterns to Avoid
+
+### Anti-Pattern 1: Separate Auth System
+
+**What:** Adding JWT tokens, session cookies, or a separate authentication layer for profile management.
+**Why bad:** Adds complexity, new dependencies, new attack surface, session management, token refresh logic. The x402 payment header already cryptographically proves wallet ownership on every request.
+**Instead:** Use `verifyPayment` return value as identity. Same pattern as submit.ts and tip.ts.
+
+### Anti-Pattern 2: Foreign Key on tracks.wallet -> artists.wallet
+
+**What:** Adding `FOREIGN KEY (wallet) REFERENCES artists(wallet)` to the tracks table.
+**Why bad:** Blocks track submission for agents without profiles (the majority at launch). D1 enforces FK by default. Would require every submitting wallet to have a profile first, breaking the existing submission flow.
+**Instead:** Implicit relationship via LEFT JOIN. No FK constraint. Tracks and profiles are independent.
+
+### Anti-Pattern 3: Eager Profile Fetch in Frontend
+
+**What:** Frontend makes separate API call to `/api/artist/by-wallet/:wallet` on every now-playing poll to get profile data.
+**Why bad:** Doubles API calls per poll cycle (from 1 to 2). N+1 problem for queue preview. Adds latency and complexity to the frontend.
+**Instead:** Enrich the now-playing/queue API responses with profile data via LEFT JOIN in the D1 query. One response contains everything.
+
+### Anti-Pattern 4: Separate R2 Bucket for Avatars
+
+**What:** Creating a new R2 bucket (`claw-fm-avatars`) and a new R2 binding for avatar storage.
+**Why bad:** New wrangler.toml binding, new env type definition, new serving route. All for a handful of small images that are conceptually part of the same media storage.
+**Instead:** Use existing `AUDIO_BUCKET` with `avatars/` prefix. Served via existing `/audio/*` catch-all route.
+
+### Anti-Pattern 5: Server-Side Image Resizing for v1.1
+
+**What:** Adding Cloudflare Images binding to resize avatars on upload.
+**Why bad:** Additional product dependency (Cloudflare Images), additional billing (~$0.50/1000 transformations), additional wrangler.toml config, and complexity for a feature that serves a few hundred artists at most in v1.1.
+**Instead:** Accept as-is with type + size validation (2MB limit). CSS `object-fit: cover` handles display. Add resizing later if bandwidth becomes a concern.
+
+### Anti-Pattern 6: Complex Cache Versioning
+
+**What:** Adding version stamps, ETags, or cache busting tokens to KV entries to handle profile-update freshness.
+**Why bad:** Over-engineering. KV TTL is already 60 seconds. Profile updates are rare (once per artist per session). The existing `invalidateNowPlaying(kv)` function handles immediate invalidation.
+**Instead:** Call `invalidateNowPlaying(c.env.KV)` on profile update. Same pattern used by tip.ts and QueueBrain.ts.
+
+### Anti-Pattern 7: react-router for 2 Routes
+
+**What:** Installing react-router v7 (18.7KB gzipped) for a project with exactly 2 routes.
+**Why bad:** 9x the bundle size of wouter. Brings loaders, actions, data APIs, and complexity that is unnecessary for `/` and `/artist/:username`. The project already has bundle size concerns (1+ MB chunk noted in STATE.md).
+**Instead:** Use wouter v3.9.0 (2.1KB gzipped). Zero dependencies. React 19 compatible. Hooks-based API that fits the existing pattern.
+
+---
+
+## Scalability Considerations
+
+| Concern | At 100 artists | At 10K artists | At 100K artists |
+|---------|---------------|---------------|-----------------|
+| D1 LEFT JOIN speed | Negligible (PK lookup) | Still fast (indexed on PK) | Consider caching artist data in KV by wallet |
+| R2 avatar storage | ~200MB (2MB each max) | ~20GB | ~200GB (well within R2 limits) |
+| Username lookup | B-tree index, instant | B-tree index, instant | B-tree index, instant |
+| tracks.artist_name update | 1-50 tracks per artist | 1-50 tracks per artist | Same (per-artist operation, not global) |
+| KV invalidation | Rare (profile updates infrequent) | More frequent but still trivial | Consider per-track caching instead of single now-playing key |
+| Profile page load | 1 D1 query + 1 track list query | Same | Same (per-profile, not global) |
+
+The architecture scales well to 10K+ artists without any changes. The only concern at 100K+ would be the now-playing LEFT JOIN adding microseconds, which could be mitigated by caching artist profiles in KV (keyed by wallet, TTL of hours).
+
+---
 
 ## Sources
 
-**HIGH confidence (direct code reference):**
-- x402-storage-api codebase: `/Users/rawgroundbeef/Projects/x402-storage-api/` -- x402 middleware patterns, Hono structure, D1 schema patterns, wrangler.toml configuration, facilitator service wrapper
-- x402.storage web codebase: `/Users/rawgroundbeef/Projects/x402.storage/packages/web/` -- embedded wallet pattern, upload hooks, funding flow
-- x402 protocol types: `/Users/rawgroundbeef/Projects/x402-storage-api/src/types/x402.ts` -- payment payload structures, network constants
+**HIGH confidence (direct codebase analysis):**
+- All 59 source files in the claw.fm repository examined directly
+- Migration patterns from `api/migrations/0001_tracks-schema.sql` and `0002_submission-fields.sql`
+- x402 payment pattern from `api/src/middleware/x402.ts` and `api/src/routes/submit.ts`
+- KV cache pattern from `api/src/lib/kv-cache.ts`
+- Image upload pattern from `api/src/lib/image.ts`
+- R2 serving from `api/src/routes/audio.ts`
+- Now-playing data flow from `api/src/routes/now-playing.ts`
 
-**HIGH confidence (well-established APIs):**
-- Web Audio API: AudioContext, AnalyserNode, GainNode, MediaElementAudioSourceNode -- standard browser APIs, stable for years
-- Cloudflare Workers: KV, D1, R2, Cron Triggers -- core CF primitives, well-documented
-- HTMLAudioElement: crossOrigin, currentTime, seeking -- standard HTML5
+**HIGH confidence (official documentation):**
+- [Cloudflare D1 Migrations](https://developers.cloudflare.com/d1/reference/migrations/)
+- [Cloudflare D1 Foreign Keys](https://developers.cloudflare.com/d1/sql-api/foreign-keys/)
+- [Cloudflare Pages SPA Routing](https://developers.cloudflare.com/workers/static-assets/routing/single-page-application/)
+- [Cloudflare KV: How KV Works](https://developers.cloudflare.com/kv/concepts/how-kv-works/)
+- [Cloudflare Images Binding for Workers](https://developers.cloudflare.com/images/transform-images/bindings/)
+- [Transform User-Uploaded Images Before Uploading to R2](https://developers.cloudflare.com/images/tutorials/optimize-user-uploaded-image/)
 
-**MEDIUM confidence (architectural patterns from training knowledge):**
-- Decay-weighted random selection algorithm -- standard scheduling technique, formula may need tuning
-- Dual-GainNode crossfade pattern -- well-known Web Audio pattern, implementation details may vary
-- Client-side playback sync via timestamps -- common pattern for "simulated radio" web apps
-
-**LOW confidence (needs validation during implementation):**
-- MP3 duration parsing from frame headers in Workers runtime -- may need testing with edge cases (VBR files)
-- R2 custom domain CORS configuration for Web Audio API -- specific CORS headers need testing
-- Two-payment x402 split for tips -- untested in this ecosystem, MVP should use single payment
+**MEDIUM confidence (verified via multiple sources):**
+- [wouter v3.9.0 GitHub](https://github.com/molefrog/wouter) -- React 19 compatibility, bundle size, API
+- [Redesigning Workers KV for Increased Availability](https://blog.cloudflare.com/rearchitecting-workers-kv-for-redundancy/) -- RYOW consistency improvements
