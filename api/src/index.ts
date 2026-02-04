@@ -8,6 +8,10 @@ import queueRoute from './routes/queue'
 import tipRoute from './routes/tip'
 import downloadsRoute from './routes/downloads'
 import audioRoute from './routes/audio'
+import profileRoute from './routes/profile'
+import artistRoute from './routes/artist'
+import usernameRoute from './routes/username'
+import avatarRoute from './routes/avatar'
 
 type Bindings = {
   DB: D1Database
@@ -37,6 +41,10 @@ app.route('/api/queue', queueRoute)
 app.route('/api/tip', tipRoute)
 app.route('/api/downloads', downloadsRoute)
 app.route('/audio', audioRoute)
+app.route('/api/profile', profileRoute)
+app.route('/api/artist', artistRoute)
+app.route('/api/username', usernameRoute)
+app.route('/api/avatar', avatarRoute)
 
 // DEV ONLY - seed route to trigger queue start (remove before deploy)
 app.post('/api/dev/seed-start', async (c) => {
