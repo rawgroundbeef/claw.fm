@@ -64,7 +64,7 @@ export interface NowPlayingTrack {
   title: string
   artistWallet: string
   artistName?: string
-  duration: number   // seconds
+  duration: number   // milliseconds
   coverUrl?: string
   fileUrl: string
   genre: string

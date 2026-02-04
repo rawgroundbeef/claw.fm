@@ -244,6 +244,6 @@ export function useCrossfade(): UseCrossfadeReturn {
     currentTrack,
     activeAnalyser: active.analyserNode,
     currentTime: active.currentTime,
-    duration: currentTrack?.duration || 0,
+    duration: (currentTrack?.duration || 0) / 1000,
   }
 }
