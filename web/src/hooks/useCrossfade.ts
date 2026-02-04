@@ -97,7 +97,7 @@ export function useCrossfade(): UseCrossfadeReturn {
       if (nowPlaying.startedAt && active.audioElement) {
         const position = getCorrectPlaybackPosition(
           nowPlaying.startedAt,
-          newTrack.duration * 1000,
+          newTrack.duration,
           serverOffset
         )
         active.audioElement.currentTime = position
@@ -141,7 +141,7 @@ export function useCrossfade(): UseCrossfadeReturn {
         if (nowPlaying.startedAt && inactive.audioElement) {
           const position = getCorrectPlaybackPosition(
             nowPlaying.startedAt,
-            newTrack.duration * 1000,
+            newTrack.duration,
             serverOffset
           )
           inactive.audioElement.currentTime = position
@@ -203,7 +203,7 @@ export function useCrossfade(): UseCrossfadeReturn {
     if (active.audioElement) {
       const position = getCorrectPlaybackPosition(
         nowPlaying.startedAt,
-        nowPlaying.track.duration * 1000,
+        nowPlaying.track.duration,
         serverOffset
       )
       active.audioElement.currentTime = position

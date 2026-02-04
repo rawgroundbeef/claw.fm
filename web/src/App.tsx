@@ -56,7 +56,7 @@ export default function App() {
       if (nowPlaying.track && nowPlaying.startedAt) {
         const position = getCorrectPlaybackPosition(
           nowPlaying.startedAt,
-          nowPlaying.track.duration * 1000,
+          nowPlaying.track.duration,
           serverOffset
         )
 
@@ -75,7 +75,7 @@ export default function App() {
       if (nowPlaying.track && nowPlaying.startedAt) {
         const position = getCorrectPlaybackPosition(
           nowPlaying.startedAt,
-          nowPlaying.track.duration * 1000,
+          nowPlaying.track.duration,
           serverOffset
         )
 

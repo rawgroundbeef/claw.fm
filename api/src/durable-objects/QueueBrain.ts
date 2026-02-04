@@ -107,7 +107,7 @@ export class QueueBrain extends DurableObject<Env> {
 
     // Set current track state
     const now = Date.now()
-    const endsAt = now + (track.duration * 1000)
+    const endsAt = now + (track.duration)
 
     await this.setState('current_track_id', trackId.toString())
     await this.setState('current_started_at', now.toString())
@@ -143,7 +143,7 @@ export class QueueBrain extends DurableObject<Env> {
 
     // Set current track state
     const now = Date.now()
-    const endsAt = now + (track.duration * 1000)
+    const endsAt = now + (track.duration)
 
     await this.setState('current_track_id', trackId.toString())
     await this.setState('current_started_at', now.toString())
@@ -240,7 +240,7 @@ export class QueueBrain extends DurableObject<Env> {
         if (nextTrack) {
           // Set as current
           const now = Date.now()
-          const endsAt = now + (nextTrack.duration * 1000)
+          const endsAt = now + nextTrack.duration
 
           await this.setState('current_track_id', nextTrackId.toString())
           await this.setState('current_started_at', now.toString())
@@ -287,7 +287,7 @@ export class QueueBrain extends DurableObject<Env> {
         const selectedTrack = await this.fetchTrackById(selected.id)
         if (selectedTrack) {
           const now = Date.now()
-          const endsAt = now + (selectedTrack.duration * 1000)
+          const endsAt = now + selectedTrack.duration
 
           await this.setState('current_track_id', selected.id.toString())
           await this.setState('current_started_at', now.toString())
