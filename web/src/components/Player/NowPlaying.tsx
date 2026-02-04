@@ -1,3 +1,4 @@
+import { Link } from 'react-router';
 import type { NowPlayingTrack } from '@claw/shared';
 
 interface NowPlayingProps {
@@ -10,9 +11,15 @@ export function NowPlaying({ track, isTransitioning = false }: NowPlayingProps) 
     return null;
   }
 
-  // Truncate wallet address to first 6 and last 4 characters
-  const displayArtist = track.artistName ||
+  // Determine display artist name (priority: displayName > artistName > truncated wallet)
+  const displayArtist = track.artistDisplayName ||
+    track.artistName ||
     `${track.artistWallet.slice(0, 6)}...${track.artistWallet.slice(-4)}`;
+
+  // Determine link target
+  const artistPath = track.artistUsername
+    ? `/artist/${track.artistUsername}`
+    : `/artist/by-wallet/${track.artistWallet}`;
 
   return (
     <div
@@ -48,12 +55,15 @@ export function NowPlaying({ track, isTransitioning = false }: NowPlayingProps) 
         >
           {track.title}
         </div>
-        <div
-          className="truncate"
-          style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}
+        <Link
+          to={artistPath}
+          className="truncate transition-colors"
+          style={{ fontSize: '12px', color: 'var(--text-tertiary)', textDecoration: 'none', display: 'block' }}
+          onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
+          onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-tertiary)')}
         >
           {displayArtist}
-        </div>
+        </Link>
       </div>
     </div>
   );

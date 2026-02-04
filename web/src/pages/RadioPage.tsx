@@ -1,3 +1,4 @@
+import { Link } from 'react-router'
 import { useAudio } from '../contexts/AudioContext'
 import { EmptyState } from '../components/EmptyState'
 import { TipButtons } from '../components/TipButtons'
@@ -10,14 +11,22 @@ export function RadioPage() {
   const isWaiting = nowPlaying.state === 'waiting'
   const isPrePlay = nowPlaying.state === 'playing' && !crossfade.isPlaying
 
-  // Display artist name
+  // Display artist name (priority: displayName > artistName > truncated wallet)
   const displayArtist = crossfade.currentTrack
-    ? crossfade.currentTrack.artistName ||
+    ? crossfade.currentTrack.artistDisplayName ||
+      crossfade.currentTrack.artistName ||
       `${crossfade.currentTrack.artistWallet.slice(0, 6)}...${crossfade.currentTrack.artistWallet.slice(-4)}`
     : ''
 
+  // Determine artist link target
+  const artistPath = crossfade.currentTrack
+    ? (crossfade.currentTrack.artistUsername
+        ? `/artist/${crossfade.currentTrack.artistUsername}`
+        : `/artist/by-wallet/${crossfade.currentTrack.artistWallet}`)
+    : '/'
+
   return (
-    <>
+    <div className="flex flex-col items-center justify-center flex-1">
       {isWaiting ? (
         <EmptyState />
       ) : (
@@ -98,14 +107,15 @@ export function RadioPage() {
             >
               {crossfade.currentTrack?.title || 'Loading...'}
             </h2>
-            <p
-              className="mt-1 cursor-pointer transition-colors"
-              style={{ fontSize: '15px', color: 'var(--text-secondary)' }}
+            <Link
+              to={artistPath}
+              className="mt-1 transition-colors"
+              style={{ fontSize: '15px', color: 'var(--text-secondary)', textDecoration: 'none', display: 'inline-block' }}
               onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
               onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-secondary)')}
             >
               {displayArtist}
-            </p>
+            </Link>
           </div>
 
           {/* Action buttons - only show when playing */}
@@ -179,6 +189,6 @@ export function RadioPage() {
           )}
         </div>
       )}
-    </>
+    </div>
   )
 }
