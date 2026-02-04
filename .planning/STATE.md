@@ -10,14 +10,14 @@ See: .planning/PROJECT.md (updated 2026-02-03)
 ## Current Position
 
 Phase: 7 - Schema, Shared Types, and API Endpoints
-Plan: 01 of 3 (Schema, Types, and Wiring)
-Status: Plan 07-01 complete
-Last activity: 2026-02-04 -- Completed 07-01-PLAN.md (schema migration, shared types, route stubs)
+Plan: 03 of 3 (Read Endpoints)
+Status: Plan 07-03 complete
+Last activity: 2026-02-04 -- Completed 07-03-PLAN.md (username availability, artist lookups)
 
-Progress: [███░░░░░░░░░░░░░░░░░] 11%
+Progress: [█████░░░░░░░░░░░░░░░] 22%
 
 Phases: 3 total (7, 8, 9)
-- Phase 7: Schema + API (13 requirements) -- Plan 1/3 complete
+- Phase 7: Schema + API (13 requirements) -- Plan 3/3 complete
 - Phase 8: Data Flow Enrichment (4 requirements) -- Not Started
 - Phase 9: Frontend Routing + Profile Pages (7 requirements) -- Not Started
 
@@ -43,6 +43,12 @@ Phase 7 Plan 01 decisions:
 - Reserved username blocklist includes all system route names (admin, api, artist, audio, etc.)
 - Username regex pattern: ^[a-z0-9][a-z0-9_]*[a-z0-9]$ (alphanumeric start/end, underscores allowed in middle)
 
+Phase 7 Plan 03 decisions:
+- Route ordering: /by-wallet/:wallet registered before /:username to prevent path conflicts
+- Username availability returns 200 (not 400) for invalid format with available:false and reason field
+- Cover URLs: data: URIs passed through as-is, R2 keys prefixed with /audio/
+- Track catalog sorted newest-first via ORDER BY created_at DESC
+
 ### Pending Todos
 
 - Apply D1 migration 0003_artist-profiles.sql to production before deploying Phase 7 code
@@ -62,5 +68,5 @@ New for v1.1:
 ## Session Continuity
 
 Last session: 2026-02-04
-Stopped at: Completed 07-01-PLAN.md (schema migration, shared types, route stubs)
+Stopped at: Completed 07-03-PLAN.md (username availability, artist lookups)
 Resume with: Next plan 07-02 (write endpoints: PUT /api/profile and POST /api/avatar)
