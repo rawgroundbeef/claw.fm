@@ -83,7 +83,7 @@ queueRoute.get('/', async (c) => {
           genre: row.genre,
           artistUsername: row.profile_username || undefined,
           artistDisplayName: row.profile_display_name || undefined,
-          artistAvatarUrl: row.profile_avatar_url || undefined,
+          artistAvatarUrl: row.profile_avatar_url ? `/audio/${row.profile_avatar_url}` : undefined,
           artistBio: row.profile_bio ? truncateBio(row.profile_bio) : undefined
         })
       }
@@ -147,7 +147,7 @@ queueRoute.get('/', async (c) => {
           genre: currentTrack.genre,
           artistUsername: currentTrack.profile_username || undefined,
           artistDisplayName: currentTrack.profile_display_name || undefined,
-          artistAvatarUrl: currentTrack.profile_avatar_url || undefined,
+          artistAvatarUrl: currentTrack.profile_avatar_url ? `/audio/${currentTrack.profile_avatar_url}` : undefined,
           artistBio: currentTrack.profile_bio ? truncateBio(currentTrack.profile_bio) : undefined
         }
       }

@@ -99,7 +99,7 @@ nowPlayingRoute.get('/', async (c) => {
       genre: currentTrack.genre,
       artistUsername: currentTrack.profile_username || undefined,
       artistDisplayName: currentTrack.profile_display_name || undefined,
-      artistAvatarUrl: currentTrack.profile_avatar_url || undefined,
+      artistAvatarUrl: currentTrack.profile_avatar_url ? `/audio/${currentTrack.profile_avatar_url}` : undefined,
       artistBio: currentTrack.profile_bio ? truncateBio(currentTrack.profile_bio) : undefined
     }
 
@@ -155,7 +155,7 @@ nowPlayingRoute.get('/', async (c) => {
             genre: nextTrackData.genre,
             artistUsername: nextTrackData.profile_username || undefined,
             artistDisplayName: nextTrackData.profile_display_name || undefined,
-            artistAvatarUrl: nextTrackData.profile_avatar_url || undefined,
+            artistAvatarUrl: nextTrackData.profile_avatar_url ? `/audio/${nextTrackData.profile_avatar_url}` : undefined,
             artistBio: nextTrackData.profile_bio ? truncateBio(nextTrackData.profile_bio) : undefined
           }
         }

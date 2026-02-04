@@ -70,7 +70,7 @@ artistRoute.get('/by-wallet/:wallet', async (c) => {
           username: profile.username as string,
           displayName: profile.display_name as string,
           bio: (profile.bio as string | null) || null,
-          avatarUrl: (profile.avatar_url as string | null) || null,
+          avatarUrl: profile.avatar_url ? `/audio/${profile.avatar_url}` : null,
           wallet: profile.wallet as string,
           createdAt: profile.created_at as number
         }
@@ -137,7 +137,7 @@ artistRoute.get('/:username', async (c) => {
         username: profile.username as string,
         displayName: profile.display_name as string,
         bio: (profile.bio as string | null) || null,
-        avatarUrl: (profile.avatar_url as string | null) || null,
+        avatarUrl: profile.avatar_url ? `/audio/${profile.avatar_url}` : null,
         wallet: profile.wallet as string,
         createdAt: profile.created_at as number
       },
