@@ -10,14 +10,14 @@ See: .planning/PROJECT.md (updated 2026-02-03)
 ## Current Position
 
 Phase: 7 - Schema, Shared Types, and API Endpoints
-Plan: 03 of 3 (Read Endpoints)
-Status: Plan 07-03 complete
-Last activity: 2026-02-04 -- Completed 07-03-PLAN.md (username availability, artist lookups)
+Plan: 3 of 3 (ALL COMPLETE)
+Status: Phase 7 complete
+Last activity: 2026-02-04 -- Completed 07-02-PLAN.md (profile write endpoints, avatar upload)
 
-Progress: [█████░░░░░░░░░░░░░░░] 22%
+Progress: [██████░░░░░░░░░░░░░░] 33%
 
 Phases: 3 total (7, 8, 9)
-- Phase 7: Schema + API (13 requirements) -- Plan 3/3 complete
+- Phase 7: Schema + API (13 requirements) -- ALL 3 PLANS COMPLETE
 - Phase 8: Data Flow Enrichment (4 requirements) -- Not Started
 - Phase 9: Frontend Routing + Profile Pages (7 requirements) -- Not Started
 
@@ -43,6 +43,13 @@ Phase 7 Plan 01 decisions:
 - Reserved username blocklist includes all system route names (admin, api, artist, audio, etc.)
 - Username regex pattern: ^[a-z0-9][a-z0-9_]*[a-z0-9]$ (alphanumeric start/end, underscores allowed in middle)
 
+Phase 7 Plan 02 decisions:
+- Validation happens before x402 payment settlement to prevent charging for invalid requests
+- UPDATE path catches UNIQUE constraint errors for username conflicts
+- Avatar uploads use wallet-based keys (avatars/{wallet}.{ext}) for automatic overwrites
+- CF Images Binding is optional with graceful fallback to original image
+- 2MB max avatar size (vs 5MB for track cover art)
+
 Phase 7 Plan 03 decisions:
 - Route ordering: /by-wallet/:wallet registered before /:username to prevent path conflicts
 - Username availability returns 200 (not 400) for invalid format with available:false and reason field
@@ -52,7 +59,8 @@ Phase 7 Plan 03 decisions:
 ### Pending Todos
 
 - Apply D1 migration 0003_artist-profiles.sql to production before deploying Phase 7 code
-- Verify CF Images Binding is enabled on project Cloudflare account before implementing avatar upload (Plan 07-02)
+- Verify CF Images Binding is enabled on project Cloudflare account (avatar fallback works but resize preferred)
+- Test x402 payment flow end-to-end with real wallet before Phase 9 integration
 
 ### Blockers/Concerns
 
@@ -68,5 +76,5 @@ New for v1.1:
 ## Session Continuity
 
 Last session: 2026-02-04
-Stopped at: Completed 07-03-PLAN.md (username availability, artist lookups)
-Resume with: Next plan 07-02 (write endpoints: PUT /api/profile and POST /api/avatar)
+Stopped at: Completed 07-02-PLAN.md (profile write endpoints, avatar upload) - PHASE 7 COMPLETE
+Resume with: Phase 8 Plan 01 (data flow enrichment)
