@@ -35,6 +35,10 @@ export function useNowPlaying(): UseNowPlayingReturn {
   // Track previous ID to detect transitions
   const previousTrackIdRef = useRef<number | null>(null)
 
+  // Use ref for endsAt so the polling effect doesn't re-run on every change
+  const endsAtRef = useRef<number | null>(null)
+  endsAtRef.current = endsAt
+
   // Calculate time remaining
   const timeRemaining = endsAt ? Math.max(0, (endsAt - Date.now()) / 1000) : null
 
@@ -85,24 +89,25 @@ export function useNowPlaying(): UseNowPlayingReturn {
     // Fetch immediately on mount
     fetchNowPlaying()
 
-    // Determine poll interval based on time remaining
-    const getPollInterval = () => {
-      if (timeRemaining !== null && timeRemaining < 10) {
-        // Poll more frequently when < 10s remaining (catch nextTrack appearing)
-        return 2000
-      }
-      // Normal polling: every 5 seconds (matches KV cache TTL)
-      return 5000
+    // Poll with dynamic interval using setTimeout chain
+    let timeoutId: ReturnType<typeof setTimeout>
+
+    const scheduleNext = () => {
+      const remaining = endsAtRef.current
+        ? Math.max(0, (endsAtRef.current - Date.now()) / 1000)
+        : null
+      const interval = remaining !== null && remaining < 10 ? 2000 : 5000
+
+      timeoutId = setTimeout(async () => {
+        await fetchNowPlaying()
+        scheduleNext()
+      }, interval)
     }
 
-    // Set up polling interval
-    const intervalId = setInterval(() => {
-      fetchNowPlaying()
-    }, getPollInterval())
+    scheduleNext()
 
-    // Update interval if timeRemaining changes
-    return () => clearInterval(intervalId)
-  }, [fetchNowPlaying, timeRemaining])
+    return () => clearTimeout(timeoutId)
+  }, [fetchNowPlaying])
 
   return {
     state,
