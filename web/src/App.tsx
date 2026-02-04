@@ -126,7 +126,7 @@ export default function App() {
       />
 
       {/* Header */}
-      <header className="flex items-center justify-between" style={{ padding: '20px 32px' }}>
+      <header className="flex items-center justify-between px-4 py-4 md:px-8 md:py-5">
         <div className="flex items-center" style={{ gap: '12px' }}>
           <span
             className="font-semibold tracking-wider uppercase"
@@ -224,8 +224,8 @@ export default function App() {
             <div
               className="relative rounded-lg overflow-hidden flex items-end justify-center"
               style={{
-                width: '320px',
-                height: '320px',
+                width: 'min(320px, 80vw)',
+                height: 'min(320px, 80vw)',
                 background: crossfade.currentTrack?.coverUrl
                   ? undefined
                   : 'var(--cover-gradient)',
@@ -267,8 +267,8 @@ export default function App() {
               className="text-center track-info-enter track-info-active"
             >
               <h2
-                className="font-semibold"
-                style={{ fontSize: '24px', color: 'var(--text-primary)' }}
+                className="font-semibold text-lg md:text-2xl"
+                style={{ color: 'var(--text-primary)' }}
               >
                 {crossfade.currentTrack?.title || 'Loading...'}
               </h2>
@@ -284,7 +284,7 @@ export default function App() {
 
             {/* Action buttons - only show when playing */}
             {crossfade.isPlaying && crossfade.currentTrack && nowPlaying.track && (
-              <div className="flex items-center" style={{ gap: '12px' }}>
+              <div className="flex items-center flex-wrap justify-center" style={{ gap: '8px' }}>
                 <TipButtons
                   trackId={nowPlaying.track.id}
                   onTipSuccess={() => {

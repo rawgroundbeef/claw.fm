@@ -64,6 +64,19 @@ submitRoute.post('/', async (c) => {
 
     const walletAddress = paymentResult.walletAddress!
 
+    // Step 4.5: Rate limit check (5 submissions per hour per wallet)
+    const rateCheck = await c.env.DB.prepare(
+      'SELECT COUNT(*) as count FROM tracks WHERE wallet = ? AND created_at > unixepoch() - 3600'
+    ).bind(walletAddress).first<{ count: number }>()
+
+    if (rateCheck && rateCheck.count >= 5) {
+      const error: SubmissionError = {
+        error: 'RATE_LIMITED',
+        message: 'Maximum 5 submissions per hour. Please try again later.',
+      }
+      return c.json(error, 429)
+    }
+
     // Step 5: Check for duplicates (now we have wallet)
     const duplicateCheck = await c.env.DB.prepare(
       'SELECT id FROM tracks WHERE file_hash = ? AND wallet = ?'

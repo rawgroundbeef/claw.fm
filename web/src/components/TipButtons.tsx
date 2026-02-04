@@ -37,7 +37,7 @@ export function TipButtons({ trackId, disabled = false, onTipSuccess }: TipButto
 
   return (
     <>
-      <div className="flex items-center" style={{ gap: '12px' }}>
+      <div className="flex items-center flex-wrap justify-center" style={{ gap: '8px' }}>
         {TIP_AMOUNTS.map((amount) => {
           const isActive = activeAmount === amount
 
@@ -48,7 +48,7 @@ export function TipButtons({ trackId, disabled = false, onTipSuccess }: TipButto
               disabled={isButtonDisabled}
               className="flex items-center justify-center font-medium transition-colors"
               style={{
-                padding: '12px 28px',
+                padding: '10px 20px',
                 fontSize: '14px',
                 borderRadius: '24px',
                 background: isButtonDisabled
