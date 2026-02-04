@@ -15,8 +15,12 @@ import type { NowPlayingResponse } from '@claw/shared'
  * @returns Cached response or null if not found/expired
  */
 export async function getCachedNowPlaying(kv: KVNamespace): Promise<NowPlayingResponse | null> {
-  const cached = await kv.get('now-playing', 'json')
-  return cached as NowPlayingResponse | null
+  try {
+    const cached = await kv.get('now-playing', 'json')
+    return cached as NowPlayingResponse | null
+  } catch {
+    return null
+  }
 }
 
 /**
@@ -39,7 +43,11 @@ export async function cacheNowPlaying(kv: KVNamespace, response: NowPlayingRespo
     const secondsRemaining = Math.floor((endsAt - Date.now()) / 1000)
     ttl = Math.max(60, Math.min(secondsRemaining, 60))
   }
-  await kv.put('now-playing', JSON.stringify(response), { expirationTtl: ttl })
+  try {
+    await kv.put('now-playing', JSON.stringify(response), { expirationTtl: ttl })
+  } catch {
+    // Best-effort — don't block playback if KV is down or rate-limited
+  }
 }
 
 /**
@@ -50,5 +58,9 @@ export async function cacheNowPlaying(kv: KVNamespace, response: NowPlayingRespo
  * @param kv KV namespace binding
  */
 export async function invalidateNowPlaying(kv: KVNamespace): Promise<void> {
-  await kv.delete('now-playing')
+  try {
+    await kv.delete('now-playing')
+  } catch {
+    // Best-effort
+  }
 }

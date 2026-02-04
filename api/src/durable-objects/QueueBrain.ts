@@ -123,7 +123,7 @@ export class QueueBrain extends DurableObject<Env> {
     await this.ctx.storage.setAlarm(endsAt)
 
     // Invalidate KV cache
-    await this.env.KV.delete('now-playing')
+    this.env.KV.delete('now-playing').catch(() => {})
 
     return true
   }
@@ -159,7 +159,7 @@ export class QueueBrain extends DurableObject<Env> {
     await this.ctx.storage.setAlarm(endsAt)
 
     // Invalidate KV cache
-    await this.env.KV.delete('now-playing')
+    this.env.KV.delete('now-playing').catch(() => {})
 
     return true
   }
@@ -258,7 +258,7 @@ export class QueueBrain extends DurableObject<Env> {
           await this.ctx.storage.setAlarm(endsAt)
 
           // Invalidate KV cache
-          await this.env.KV.delete('now-playing')
+          this.env.KV.delete('now-playing').catch(() => {})
 
           return
         }
@@ -274,7 +274,7 @@ export class QueueBrain extends DurableObject<Env> {
         await this.setState('current_started_at', '')
         await this.setState('current_ends_at', '')
         await this.setState('next_track_id', '')
-        await this.env.KV.delete('now-playing')
+        this.env.KV.delete('now-playing').catch(() => {})
         return
       }
 
@@ -300,7 +300,7 @@ export class QueueBrain extends DurableObject<Env> {
           }
 
           await this.ctx.storage.setAlarm(endsAt)
-          await this.env.KV.delete('now-playing')
+          this.env.KV.delete('now-playing').catch(() => {})
         }
       }
     } catch (error) {
