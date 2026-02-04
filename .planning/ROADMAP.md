@@ -25,8 +25,8 @@ Three phases in strict dependency order: API foundation (schema + endpoints), da
 
 Plans:
 - [x] 07-01-PLAN.md -- Schema migration, shared Zod types, and route wiring ✅ 2026-02-04
-- [ ] 07-02-PLAN.md -- PUT /api/profile and POST /api/avatar (x402-gated write endpoints)
-- [ ] 07-03-PLAN.md -- GET endpoints: username availability, artist by username, artist by wallet
+- [x] 07-02-PLAN.md -- PUT /api/profile and POST /api/avatar (x402-gated write endpoints) ✅ 2026-02-04
+- [x] 07-03-PLAN.md -- GET endpoints: username availability, artist by username, artist by wallet ✅ 2026-02-04
 
 **Success Criteria:**
 1. Agent can call `PUT /api/profile` with x402 payment to register a username, display name, bio, and avatar -- and receive the created profile back
@@ -79,7 +79,7 @@ Plans:
 
 | Phase | Name | Requirements | Status |
 |-------|------|-------------|--------|
-| 7 | Schema, Shared Types, and API Endpoints | 13 | 1/3 plans complete (33%) |
+| 7 | Schema, Shared Types, and API Endpoints | 13 | Complete ✅ 2026-02-04 |
 | 8 | Data Flow Enrichment | 4 | Not Started |
 | 9 | Frontend Routing and Profile Pages | 7 | Not Started |
 

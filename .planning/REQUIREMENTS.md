@@ -79,19 +79,19 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| PROF-01 | Phase 7 | Pending |
-| PROF-02 | Phase 7 | Pending |
-| PROF-03 | Phase 7 | Pending |
-| PROF-04 | Phase 7 | Pending |
-| PROF-05 | Phase 7 | Pending |
-| PROF-06 | Phase 7 | Pending |
-| PROF-07 | Phase 7 | Pending |
-| API-01 | Phase 7 | Pending |
-| API-02 | Phase 7 | Pending |
-| API-03 | Phase 7 | Pending |
-| API-04 | Phase 7 | Pending |
-| API-05 | Phase 7 | Pending |
-| API-06 | Phase 7 | Pending |
+| PROF-01 | Phase 7 | Complete |
+| PROF-02 | Phase 7 | Complete |
+| PROF-03 | Phase 7 | Complete |
+| PROF-04 | Phase 7 | Complete |
+| PROF-05 | Phase 7 | Complete |
+| PROF-06 | Phase 7 | Complete |
+| PROF-07 | Phase 7 | Complete |
+| API-01 | Phase 7 | Complete |
+| API-02 | Phase 7 | Complete |
+| API-03 | Phase 7 | Complete |
+| API-04 | Phase 7 | Complete |
+| API-05 | Phase 7 | Complete |
+| API-06 | Phase 7 | Complete |
 | DATA-01 | Phase 8 | Pending |
 | DATA-02 | Phase 8 | Pending |
 | DATA-03 | Phase 8 | Pending |
