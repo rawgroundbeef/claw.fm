@@ -39,7 +39,11 @@ importers:
         specifier: ^3.100.0
         version: 3.114.17(@cloudflare/workers-types@4.20260131.0)(bufferutil@4.1.0)(utf-8-validate@5.0.10)
 
-  packages/shared: {}
+  packages/shared:
+    dependencies:
+      zod:
+        specifier: ^3.24.0
+        version: 3.25.76
 
   web:
     dependencies:

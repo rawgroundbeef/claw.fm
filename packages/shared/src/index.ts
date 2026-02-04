@@ -1,3 +1,5 @@
+import { z } from 'zod'
+
 // Genre constants
 export const GENRES = [
   'electronic',
@@ -98,4 +100,110 @@ export interface TipResponse {
 export interface DownloadResponse {
   downloadUrl: string
   expiresAt: number    // UNIX ms when URL expires
+}
+
+// Artist Profile schemas and types
+
+// Reserved usernames that cannot be claimed
+export const RESERVED_USERNAMES = [
+  'admin',
+  'api',
+  'artist',
+  'artists',
+  'audio',
+  'browse',
+  'claw',
+  'dashboard',
+  'downloads',
+  'explore',
+  'feed',
+  'genres',
+  'health',
+  'help',
+  'home',
+  'login',
+  'logout',
+  'now-playing',
+  'official',
+  'play',
+  'profile',
+  'queue',
+  'radio',
+  'search',
+  'settings',
+  'signup',
+  'submit',
+  'support',
+  'tip',
+  'verified'
+] as const
+
+// Username validation schema
+export const UsernameSchema = z
+  .string()
+  .min(3, 'Username must be at least 3 characters')
+  .max(20, 'Username must be 20 characters or less')
+  .regex(
+    /^[a-z0-9][a-z0-9_]*[a-z0-9]$/,
+    'Username must be lowercase alphanumeric or underscores, cannot start or end with underscore'
+  )
+  .refine((val) => !RESERVED_USERNAMES.includes(val as any), {
+    message: 'This username is reserved'
+  })
+
+// Profile update schema
+export const ProfileUpdateSchema = z.object({
+  username: UsernameSchema,
+  displayName: z
+    .string()
+    .min(1, 'Display name is required')
+    .max(50, 'Display name must be 50 characters or less'),
+  bio: z.string().max(280, 'Bio must be 280 characters or less').optional()
+})
+
+// Inferred type from schema
+export type ProfileUpdate = z.infer<typeof ProfileUpdateSchema>
+
+// Full artist profile (database record)
+export interface ArtistProfile {
+  id: number
+  wallet: string
+  username: string
+  displayName: string
+  bio: string | null
+  avatarUrl: string | null
+  createdAt: number
+  updatedAt: number
+}
+
+// API response types
+export interface ProfileResponse {
+  profile: ArtistProfile
+}
+
+export interface ProfileError {
+  error: string
+  message: string
+  field?: string
+}
+
+export interface UsernameAvailableResponse {
+  username: string
+  available: boolean
+}
+
+// Public-facing artist profile (for artist pages)
+export interface ArtistPublicProfile {
+  username: string
+  displayName: string
+  bio: string | null
+  avatarUrl: string | null
+  wallet: string
+  createdAt: number
+}
+
+// Artist profile with tracks (for artist page)
+export interface ArtistProfileWithTracks {
+  profile: ArtistPublicProfile
+  tracks: Track[]
 }
