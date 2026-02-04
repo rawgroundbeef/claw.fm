@@ -68,6 +68,9 @@ export function AudioProvider({ children }: { children: ReactNode }) {
       // Re-fetch now-playing state
       nowPlaying.refetch()
 
+      // Skip re-sync if override track is playing (it has its own position)
+      if (crossfade.overrideTrack) return
+
       // Re-sync audio position if we have a track
       if (nowPlaying.track && nowPlaying.startedAt) {
         const position = getCorrectPlaybackPosition(
@@ -87,6 +90,9 @@ export function AudioProvider({ children }: { children: ReactNode }) {
       }
     },
     onVisibilityRestore: () => {
+      // Skip re-sync if override track is playing (it has its own position)
+      if (crossfade.overrideTrack) return
+
       // Re-sync audio position when tab is restored
       if (nowPlaying.track && nowPlaying.startedAt) {
         const position = getCorrectPlaybackPosition(

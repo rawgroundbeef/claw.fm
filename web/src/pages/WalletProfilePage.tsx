@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router'
-import { ArtistPublicProfile, Track } from '@claw/shared'
+import { ArtistPublicProfile, NowPlayingTrack, Track } from '@claw/shared'
 import { API_URL } from '../lib/constants'
 import { NotFoundPage } from './NotFoundPage'
+import { useAudio } from '../contexts/AudioContext'
 
 // Response type for by-wallet endpoint
 interface WalletProfileResponse {
@@ -22,6 +23,7 @@ function formatDuration(ms: number): string {
 export function WalletProfilePage() {
   const { wallet } = useParams<{ wallet: string }>()
   const navigate = useNavigate()
+  const { crossfade } = useAudio()
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -181,6 +183,21 @@ export function WalletProfilePage() {
 
   const { tracks } = data
 
+  const toNowPlaying = (track: Track): NowPlayingTrack => ({
+    id: track.id,
+    title: track.title,
+    artistWallet: track.wallet,
+    artistName: track.artistName,
+    duration: track.duration,
+    coverUrl: track.coverUrl,
+    fileUrl: track.fileUrl,
+    genre: track.genre,
+  })
+
+  const handleTrackClick = (track: Track) => {
+    crossfade.playOverride(toNowPlaying(track))
+  }
+
   return (
     <div className="w-full max-w-2xl self-start" style={{ marginTop: '48px' }}>
       {/* Hero header */}
@@ -232,17 +249,24 @@ export function WalletProfilePage() {
           <div className="flex flex-col gap-3">
             {tracks.map((track) => {
               const coverUrl = track.coverUrl || undefined
+              const isActive = crossfade.overrideTrack?.id === track.id
 
               return (
                 <div
                   key={track.id}
                   className="flex items-center gap-3 p-2 rounded transition-colors"
-                  style={{ background: 'transparent' }}
+                  style={{
+                    background: isActive ? 'color-mix(in srgb, var(--accent) 15%, transparent)' : 'transparent',
+                    cursor: 'pointer',
+                  }}
+                  onClick={() => handleTrackClick(track)}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'var(--bg-hover)'
+                    if (!isActive) e.currentTarget.style.background = 'var(--bg-hover)'
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'transparent'
+                    e.currentTarget.style.background = isActive
+                      ? 'color-mix(in srgb, var(--accent) 15%, transparent)'
+                      : 'transparent'
                   }}
                 >
                   {/* Cover art */}

@@ -1,6 +1,10 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { getAudioContext, resumeAudioContext } from '../utils/audioContext'
 
+interface UseAudioPlayerOptions {
+  onEnded?: () => void
+}
+
 interface UseAudioPlayerReturn {
   play: () => Promise<void>
   pause: () => void
@@ -30,13 +34,17 @@ interface UseAudioPlayerReturn {
  * IMPORTANT: MediaElementSource can only be created ONCE per audio element.
  * This hook creates it on mount and stores in ref.
  */
-export function useAudioPlayer(): UseAudioPlayerReturn {
+export function useAudioPlayer(options?: UseAudioPlayerOptions): UseAudioPlayerReturn {
   const [isPlaying, setIsPlaying] = useState(false)
   const [isLoaded, setIsLoaded] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [isBuffering, setIsBuffering] = useState(false)
   const [hasError, setHasError] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
+
+  // Stable ref for onEnded callback (avoids effect re-runs)
+  const onEndedRef = useRef(options?.onEnded)
+  onEndedRef.current = options?.onEnded
 
   // Audio graph refs (created once on mount)
   const audioRef = useRef<HTMLAudioElement | null>(null)
@@ -106,6 +114,10 @@ export function useAudioPlayer(): UseAudioPlayerReturn {
       setIsBuffering(true)
     }
 
+    const handleEnded = () => {
+      onEndedRef.current?.()
+    }
+
     const handleStalled = () => {
       setIsBuffering(true)
 
@@ -130,6 +142,7 @@ export function useAudioPlayer(): UseAudioPlayerReturn {
     audio.addEventListener('playing', handlePlaying)
     audio.addEventListener('waiting', handleWaiting)
     audio.addEventListener('stalled', handleStalled)
+    audio.addEventListener('ended', handleEnded)
 
     // Cleanup on unmount
     return () => {
@@ -140,6 +153,7 @@ export function useAudioPlayer(): UseAudioPlayerReturn {
       audio.removeEventListener('playing', handlePlaying)
       audio.removeEventListener('waiting', handleWaiting)
       audio.removeEventListener('stalled', handleStalled)
+      audio.removeEventListener('ended', handleEnded)
 
       if (stallRecoveryTimeoutRef.current !== null) {
         window.clearTimeout(stallRecoveryTimeoutRef.current)

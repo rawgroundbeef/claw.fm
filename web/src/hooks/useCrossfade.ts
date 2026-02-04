@@ -18,6 +18,9 @@ interface UseCrossfadeReturn {
   activeAnalyser: AnalyserNode | null  // For visualizer to consume
   currentTime: number        // Current playback position in seconds
   duration: number           // Current track duration in seconds
+  overrideTrack: NowPlayingTrack | null
+  playOverride: (track: NowPlayingTrack) => void
+  clearOverride: () => void
 }
 
 const CROSSFADE_DURATION_SEC = 2  // 2 second crossfade (short & subtle)
@@ -36,9 +39,22 @@ export function useCrossfade(): UseCrossfadeReturn {
   const nowPlaying = useNowPlaying()
   const { offset: serverOffset } = useServerTime()
 
+  // Override track state (click-to-play from profile pages)
+  const [overrideTrack, setOverrideTrack] = useState<NowPlayingTrack | null>(null)
+  const overrideTrackRef = useRef<NowPlayingTrack | null>(null)
+  const clearOverrideRef = useRef<() => void>(() => {})
+
+  // Handler called when either player's audio element fires 'ended'
+  const handlePlayerEnded = useCallback(() => {
+    if (overrideTrackRef.current) {
+      // Override track finished — crossfade back to radio
+      clearOverrideRef.current()
+    }
+  }, [])
+
   // Dual audio players for crossfade
-  const playerA = useAudioPlayer()
-  const playerB = useAudioPlayer()
+  const playerA = useAudioPlayer({ onEnded: handlePlayerEnded })
+  const playerB = useAudioPlayer({ onEnded: handlePlayerEnded })
 
   // Track which player is currently active
   const activePlayerRef = useRef<'A' | 'B'>('A')
@@ -75,6 +91,9 @@ export function useCrossfade(): UseCrossfadeReturn {
   // Handle track transitions
   useEffect(() => {
     if (!nowPlaying.track || nowPlaying.state !== 'playing') return
+
+    // Skip server-driven transitions while override is active
+    if (overrideTrackRef.current) return
 
     // Check if this is a new track (ID changed)
     if (currentTrack && currentTrack.id === nowPlaying.track.id) {
@@ -171,6 +190,97 @@ export function useCrossfade(): UseCrossfadeReturn {
     executeCrossfade()
   }, [nowPlaying.track, nowPlaying.startedAt, currentTrack, getActivePlayers, serverOffset, userVolume, playerA, playerB])
 
+  // Clear override — crossfade back to current radio track
+  const clearOverride = useCallback(() => {
+    if (!overrideTrackRef.current) return
+
+    overrideTrackRef.current = null
+    setOverrideTrack(null)
+
+    // Crossfade back to the current server radio track
+    if (nowPlaying.track && nowPlaying.startedAt && isPlaying) {
+      const { active, inactive } = getActivePlayers()
+      const ctx = getAudioContext()
+      const now = ctx.currentTime
+
+      // Load radio track on inactive player
+      inactive.setSource(`${API_URL}${nowPlaying.track.fileUrl}`)
+
+      // Seek to correct server position
+      if (inactive.audioElement) {
+        const position = getCorrectPlaybackPosition(
+          nowPlaying.startedAt,
+          nowPlaying.track.duration,
+          serverOffset
+        )
+        inactive.audioElement.currentTime = position
+      }
+
+      const activeGain = active.gainNode
+      const inactiveGain = inactive.gainNode
+      if (activeGain && inactiveGain) {
+        activeGain.gain.cancelScheduledValues(now)
+        inactiveGain.gain.cancelScheduledValues(now)
+        activeGain.gain.setValueAtTime(activeGain.gain.value, now)
+        activeGain.gain.linearRampToValueAtTime(0, now + CROSSFADE_DURATION_SEC)
+        inactiveGain.gain.setValueAtTime(0, now)
+        inactiveGain.gain.linearRampToValueAtTime(userVolume, now + CROSSFADE_DURATION_SEC)
+      }
+
+      inactive.play()
+      activePlayerRef.current = activePlayerRef.current === 'A' ? 'B' : 'A'
+      setCurrentTrack(nowPlaying.track)
+
+      setTimeout(() => {
+        active.pause()
+        if (active.audioElement) active.audioElement.currentTime = 0
+      }, CROSSFADE_DURATION_SEC * 1000 + 100)
+    }
+  }, [nowPlaying.track, nowPlaying.startedAt, isPlaying, getActivePlayers, serverOffset, userVolume])
+
+  // Keep ref in sync
+  clearOverrideRef.current = clearOverride
+
+  // Play override track — crossfade to a specific track from position 0
+  const playOverride = useCallback((track: NowPlayingTrack) => {
+    // No-op if same track already playing as override
+    if (overrideTrackRef.current && overrideTrackRef.current.id === track.id) return
+
+    overrideTrackRef.current = track
+    setOverrideTrack(track)
+
+    const { active, inactive } = getActivePlayers()
+    const ctx = getAudioContext()
+    const now = ctx.currentTime
+
+    // Load override track on inactive player from position 0
+    inactive.setSource(`${API_URL}${track.fileUrl}`)
+    if (inactive.audioElement) {
+      inactive.audioElement.currentTime = 0
+    }
+
+    const activeGain = active.gainNode
+    const inactiveGain = inactive.gainNode
+    if (activeGain && inactiveGain) {
+      activeGain.gain.cancelScheduledValues(now)
+      inactiveGain.gain.cancelScheduledValues(now)
+      activeGain.gain.setValueAtTime(activeGain.gain.value, now)
+      activeGain.gain.linearRampToValueAtTime(0, now + CROSSFADE_DURATION_SEC)
+      inactiveGain.gain.setValueAtTime(0, now)
+      inactiveGain.gain.linearRampToValueAtTime(userVolume, now + CROSSFADE_DURATION_SEC)
+    }
+
+    inactive.play()
+    activePlayerRef.current = activePlayerRef.current === 'A' ? 'B' : 'A'
+    setCurrentTrack(track)
+    setIsPlaying(true)
+
+    setTimeout(() => {
+      active.pause()
+      if (active.audioElement) active.audioElement.currentTime = 0
+    }, CROSSFADE_DURATION_SEC * 1000 + 100)
+  }, [getActivePlayers, userVolume])
+
   // Play function - starts playback
   const play = useCallback(async () => {
     if (!nowPlaying.track || !nowPlaying.startedAt) {
@@ -245,5 +355,8 @@ export function useCrossfade(): UseCrossfadeReturn {
     activeAnalyser: active.analyserNode,
     currentTime: active.currentTime,
     duration: (currentTrack?.duration || 0) / 1000,
+    overrideTrack,
+    playOverride,
+    clearOverride,
   }
 }
