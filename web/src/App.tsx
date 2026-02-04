@@ -2,6 +2,8 @@ import { BrowserRouter, Routes, Route } from 'react-router'
 import { AudioProvider } from './contexts/AudioContext'
 import { RadioLayout } from './layouts/RadioLayout'
 import { RadioPage } from './pages/RadioPage'
+import { ArtistProfilePage } from './pages/ArtistProfilePage'
+import { NotFoundPage } from './pages/NotFoundPage'
 
 export default function App() {
   return (
@@ -10,8 +12,8 @@ export default function App() {
         <Routes>
           <Route element={<RadioLayout />}>
             <Route index element={<RadioPage />} />
-            {/* Temporary catch-all until Plan 02 adds 404 page */}
-            <Route path="*" element={<RadioPage />} />
+            <Route path="artist/:username" element={<ArtistProfilePage />} />
+            <Route path="*" element={<NotFoundPage />} />
           </Route>
         </Routes>
       </BrowserRouter>
