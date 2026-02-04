@@ -47,6 +47,12 @@ Plans:
 
 **Requirements:** DATA-01, DATA-02, DATA-03, DATA-04
 
+**Plans:** 2 plans
+
+Plans:
+- [ ] 08-01-PLAN.md -- Extend NowPlayingTrack shared types and create bio truncation helper
+- [ ] 08-02-PLAN.md -- LEFT JOIN enrichment for now-playing/queue and cache invalidation on profile mutations
+
 **Success Criteria:**
 1. Now-playing and queue API responses include `artistUsername` and `artistDisplayName` fields when the submitting wallet has a profile
 2. Tracks from wallets without profiles continue to display truncated wallet addresses with no errors or missing data
