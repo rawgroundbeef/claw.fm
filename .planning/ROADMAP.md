@@ -24,7 +24,7 @@ Three phases in strict dependency order: API foundation (schema + endpoints), da
 **Plans:** 3 plans
 
 Plans:
-- [ ] 07-01-PLAN.md -- Schema migration, shared Zod types, and route wiring
+- [x] 07-01-PLAN.md -- Schema migration, shared Zod types, and route wiring ✅ 2026-02-04
 - [ ] 07-02-PLAN.md -- PUT /api/profile and POST /api/avatar (x402-gated write endpoints)
 - [ ] 07-03-PLAN.md -- GET endpoints: username availability, artist by username, artist by wallet
 
@@ -79,7 +79,7 @@ Plans:
 
 | Phase | Name | Requirements | Status |
 |-------|------|-------------|--------|
-| 7 | Schema, Shared Types, and API Endpoints | 13 | Not Started |
+| 7 | Schema, Shared Types, and API Endpoints | 13 | 1/3 plans complete (33%) |
 | 8 | Data Flow Enrichment | 4 | Not Started |
 | 9 | Frontend Routing and Profile Pages | 7 | Not Started |
 

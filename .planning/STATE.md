@@ -10,14 +10,14 @@ See: .planning/PROJECT.md (updated 2026-02-03)
 ## Current Position
 
 Phase: 7 - Schema, Shared Types, and API Endpoints
-Plan: --
-Status: Roadmap created, awaiting plan-phase
-Last activity: 2026-02-03 -- Roadmap created for v1.1 (3 phases, 24 requirements)
+Plan: 01 of 3 (Schema, Types, and Wiring)
+Status: Plan 07-01 complete
+Last activity: 2026-02-04 -- Completed 07-01-PLAN.md (schema migration, shared types, route stubs)
 
-Progress: [░░░░░░░░░░░░░░░░░░░░] 0%
+Progress: [███░░░░░░░░░░░░░░░░░] 11%
 
 Phases: 3 total (7, 8, 9)
-- Phase 7: Schema + API (13 requirements) -- Not Started
+- Phase 7: Schema + API (13 requirements) -- Plan 1/3 complete
 - Phase 8: Data Flow Enrichment (4 requirements) -- Not Started
 - Phase 9: Frontend Routing + Profile Pages (7 requirements) -- Not Started
 
@@ -37,9 +37,16 @@ Key v1.1 decisions from research:
 - x402 for profile auth (same pattern as track submission)
 - Mutable usernames (paid change via x402)
 
+Phase 7 Plan 01 decisions:
+- COLLATE NOCASE on both column definition and index for case-insensitive username uniqueness
+- Zod schemas in shared package for validation reuse across API and frontend
+- Reserved username blocklist includes all system route names (admin, api, artist, audio, etc.)
+- Username regex pattern: ^[a-z0-9][a-z0-9_]*[a-z0-9]$ (alphanumeric start/end, underscores allowed in middle)
+
 ### Pending Todos
 
-- Verify CF Images Binding is enabled on project Cloudflare account before Phase 7 planning
+- Apply D1 migration 0003_artist-profiles.sql to production before deploying Phase 7 code
+- Verify CF Images Binding is enabled on project Cloudflare account before implementing avatar upload (Plan 07-02)
 
 ### Blockers/Concerns
 
@@ -54,6 +61,6 @@ New for v1.1:
 
 ## Session Continuity
 
-Last session: 2026-02-03
-Stopped at: Roadmap created for v1.1 milestone
-Resume with: `/gsd:plan-phase 7`
+Last session: 2026-02-04
+Stopped at: Completed 07-01-PLAN.md (schema migration, shared types, route stubs)
+Resume with: Next plan 07-02 (write endpoints: PUT /api/profile and POST /api/avatar)
