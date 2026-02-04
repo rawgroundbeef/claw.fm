@@ -70,6 +70,11 @@ export interface NowPlayingTrack {
   coverUrl?: string
   fileUrl: string
   genre: string
+  // Artist profile enrichment (Phase 8 — optional, NULL if no profile)
+  artistUsername?: string
+  artistDisplayName?: string
+  artistAvatarUrl?: string
+  artistBio?: string           // Truncated to ~100 chars server-side
 }
 
 export interface NowPlayingResponse {
