@@ -9,16 +9,16 @@ See: .planning/PROJECT.md (updated 2026-02-03)
 
 ## Current Position
 
-Phase: 7 - Schema, Shared Types, and API Endpoints
-Plan: 3 of 3 complete
-Status: Phase 7 VERIFIED and COMPLETE
-Last activity: 2026-02-04 -- Phase 7 verified (7/7 must-haves passed)
+Phase: 8 - Data Flow Enrichment
+Plan: 1 of 4 complete
+Status: In Progress
+Last activity: 2026-02-04 -- Completed 08-01-PLAN.md (type foundation)
 
-Progress: [██████░░░░░░░░░░░░░░] 33%
+Progress: [████████░░░░░░░░░░░░] 37%
 
 Phases: 3 total (7, 8, 9)
 - Phase 7: Schema + API (13 requirements) -- COMPLETE ✅ (verified 2026-02-04)
-- Phase 8: Data Flow Enrichment (4 requirements) -- Not Started
+- Phase 8: Data Flow Enrichment (4 requirements) -- IN PROGRESS (1/4 plans complete)
 - Phase 9: Frontend Routing + Profile Pages (7 requirements) -- Not Started
 
 ## Accumulated Context
@@ -56,6 +56,11 @@ Phase 7 Plan 03 decisions:
 - Cover URLs: data: URIs passed through as-is, R2 keys prefixed with /audio/
 - Track catalog sorted newest-first via ORDER BY created_at DESC
 
+Phase 8 Plan 01 decisions:
+- Bio truncation threshold: 80% of maxLength (20% margin for word boundary search)
+- All 4 new NowPlayingTrack fields are optional for backward compatibility
+- Server-side bio truncation (not client-side) keeps KV cache payloads small
+
 ### Pending Todos
 
 - Apply D1 migration 0003_artist-profiles.sql to production before deploying Phase 7 code
@@ -76,5 +81,5 @@ New for v1.1:
 ## Session Continuity
 
 Last session: 2026-02-04
-Stopped at: Phase 7 complete and verified (7/7 must-haves)
-Resume with: `/gsd:discuss-phase 8`
+Stopped at: Completed 08-01-PLAN.md (type foundation for artist profile enrichment)
+Resume with: `/gsd:execute-phase 08` (continue with Plan 02)
