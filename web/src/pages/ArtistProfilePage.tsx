@@ -12,14 +12,6 @@ function formatDuration(ms: number): string {
   return `${minutes}:${seconds.toString().padStart(2, '0')}`
 }
 
-// Helper to prepare cover/avatar URLs
-function prepareImageUrl(url: string | null | undefined): string | undefined {
-  if (!url) return undefined
-  // data: URIs pass through as-is
-  if (url.startsWith('data:')) return url
-  // R2 keys need /audio/ prefix
-  return `/audio/${url}`
-}
 
 export function ArtistProfilePage() {
   const { username } = useParams<{ username: string }>()
@@ -192,7 +184,7 @@ export function ArtistProfilePage() {
   if (!data) return null
 
   const { profile, tracks } = data
-  const avatarUrl = prepareImageUrl(profile.avatarUrl)
+  const avatarUrl = profile.avatarUrl || undefined
 
   return (
     <div className="w-full max-w-2xl self-start" style={{ marginTop: '48px' }}>
@@ -260,7 +252,7 @@ export function ArtistProfilePage() {
         ) : (
           <div className="flex flex-col gap-3">
             {tracks.map((track) => {
-              const coverUrl = prepareImageUrl(track.coverUrl)
+              const coverUrl = track.coverUrl || undefined
 
               return (
                 <div

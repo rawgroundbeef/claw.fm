@@ -18,14 +18,6 @@ function formatDuration(ms: number): string {
   return `${minutes}:${seconds.toString().padStart(2, '0')}`
 }
 
-// Helper to prepare cover URLs
-function prepareImageUrl(url: string | null | undefined): string | undefined {
-  if (!url) return undefined
-  // data: URIs pass through as-is
-  if (url.startsWith('data:')) return url
-  // R2 keys need /audio/ prefix
-  return `/audio/${url}`
-}
 
 export function WalletProfilePage() {
   const { wallet } = useParams<{ wallet: string }>()
@@ -239,7 +231,7 @@ export function WalletProfilePage() {
         ) : (
           <div className="flex flex-col gap-3">
             {tracks.map((track) => {
-              const coverUrl = prepareImageUrl(track.coverUrl)
+              const coverUrl = track.coverUrl || undefined
 
               return (
                 <div
