@@ -10,15 +10,15 @@ See: .planning/PROJECT.md (updated 2026-02-03)
 ## Current Position
 
 Phase: 8 - Data Flow Enrichment
-Plan: 1 of 4 complete
-Status: In Progress
-Last activity: 2026-02-04 -- Completed 08-01-PLAN.md (type foundation)
+Plan: 2 of 2 complete
+Status: Phase Complete
+Last activity: 2026-02-04 -- Completed 08-02-PLAN.md (LEFT JOIN enrichment + cache invalidation)
 
-Progress: [████████░░░░░░░░░░░░] 37%
+Progress: [████████████░░░░░░░░] 58%
 
 Phases: 3 total (7, 8, 9)
 - Phase 7: Schema + API (13 requirements) -- COMPLETE ✅ (verified 2026-02-04)
-- Phase 8: Data Flow Enrichment (4 requirements) -- IN PROGRESS (1/4 plans complete)
+- Phase 8: Data Flow Enrichment (4 requirements) -- COMPLETE ✅ (verified 2026-02-04)
 - Phase 9: Frontend Routing + Profile Pages (7 requirements) -- Not Started
 
 ## Accumulated Context
@@ -61,6 +61,12 @@ Phase 8 Plan 01 decisions:
 - All 4 new NowPlayingTrack fields are optional for backward compatibility
 - Server-side bio truncation (not client-side) keeps KV cache payloads small
 
+Phase 8 Plan 02 decisions:
+- LEFT JOIN without COALESCE in ON clause (preserves index efficiency)
+- || undefined (not ?? undefined) for nullable SQL fields to also convert empty strings
+- Cache invalidation after DB write but before response fetch (ensures cleanup even on error)
+- All 4 D1 queries enriched: currentTrack, nextTrack, queue tracks, currentlyPlaying
+
 ### Pending Todos
 
 - Apply D1 migration 0003_artist-profiles.sql to production before deploying Phase 7 code
@@ -81,5 +87,5 @@ New for v1.1:
 ## Session Continuity
 
 Last session: 2026-02-04
-Stopped at: Completed 08-01-PLAN.md (type foundation for artist profile enrichment)
-Resume with: `/gsd:execute-phase 08` (continue with Plan 02)
+Stopped at: Completed 08-02-PLAN.md (LEFT JOIN enrichment + cache invalidation) -- Phase 8 complete
+Resume with: `/gsd:execute-phase 09` (begin frontend routing + profile pages)
