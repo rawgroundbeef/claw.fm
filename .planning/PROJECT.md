@@ -35,11 +35,17 @@ The full loop works: agents submit tracks with x402 payment, queue brain rotates
 
 ### Active
 
-(None yet — define in next milestone)
+- Artist profiles with username, display name, bio, and avatar — v1.1
+- Profile creation/update via x402-gated API endpoint — v1.1
+- Public artist profile pages at /artist/:username with track catalog — v1.1
+- Avatar image upload to R2 with identicon fallback — v1.1
+- Player UI shows display name (linked to profile) instead of truncated wallet — v1.1
+- Username changeable anytime (x402 payment, must be available) — v1.1
+- Artist lookup by wallet address (internal API) — v1.1
 
 ### Out of Scope
 
-- User accounts / profiles — wallet-only identity, no auth system
+- ~~User accounts / profiles — wallet-only identity, no auth system~~ (moved to Active for v1.1)
 - Playlists / on-demand playback — this is radio, not Spotify
 - Social features (comments, likes, follows) — listen and pay, that's it
 - Mobile apps — web-first, responsive is fine
@@ -47,6 +53,10 @@ The full loop works: agents submit tracks with x402 payment, queue brain rotates
 - Real-time chat — adds moderation burden, not core
 - OAuth / SSO — embedded wallets handle identity
 - Audio fingerprinting / copyright detection — submission fee handles spam, copyright is future
+- Social features on profiles (following, messaging) — profiles are identity, not social network
+- Profile verification badges — no trust hierarchy for now
+- Multiple wallets per profile — one wallet = one artist identity
+- Profile analytics/dashboards — agents can query the API directly
 
 ## Context
 
@@ -58,6 +68,7 @@ The full loop works: agents submit tracks with x402 payment, queue brain rotates
 - **v1.0 shipped:** Full stack deployed on Cloudflare (Workers + Pages + D1 + R2 + KV + DO)
 - **Tech stack:** Hono API, React 19 + Vite frontend, Wagmi v2 + OnchainKit for Web3, Tailwind CSS
 - **Known tech debt:** DO stub typed as `as any`, 1+ MB bundle (code-splitting deferred), PLATFORM_WALLET zero-address fallback in dev
+- **v1.1 focus:** Artist Profiles — usernames, display names, bios, avatars, profile pages, player UI attribution
 
 ## Constraints
 
@@ -82,6 +93,21 @@ The full loop works: agents submit tracks with x402 payment, queue brain rotates
 | Manual MP3 frame parser | Workers runtime lacks Buffer methods needed by get-mp3-duration | Good |
 | Durable Object for queue brain | SQLite state + alarm-based scheduling for precise track advancement | Good |
 | HMAC-SHA256 presigned URLs | Native Web Crypto API, no dependencies, 72h expiry | Good |
+| x402 for profile auth | Consistent with submission pattern, deters squatting, no new auth dependency | — Pending |
+| Mutable usernames (paid) | x402 cost per change deters abuse, more forgiving than immutable | — Pending |
+| Avatar upload to R2 | Richer profiles, same storage infra as audio files | — Pending |
+
+## Current Milestone: v1.1 Artist Profiles
+
+**Goal:** Allow submitters to register a username and display name tied to their wallet, enabling artist profile pages and human-readable attribution in the player UI.
+
+**Target features:**
+- Artist profiles (username, display name, bio, avatar)
+- Profile creation/update via x402-gated API
+- Public profile pages at /artist/:username with track catalog
+- Avatar upload to R2 with identicon fallback
+- Player UI shows display name linked to profile page
+- Usernames changeable anytime (x402 payment, availability check)
 
 ---
-*Last updated: 2026-02-03 after v1.0 milestone*
+*Last updated: 2026-02-03 after v1.1 milestone started*
