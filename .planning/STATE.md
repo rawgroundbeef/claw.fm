@@ -9,17 +9,17 @@ See: .planning/PROJECT.md (updated 2026-02-03)
 
 ## Current Position
 
-Phase: 8 - Data Flow Enrichment
-Plan: 2 of 2 complete
-Status: Phase 8 VERIFIED and COMPLETE
-Last activity: 2026-02-04 -- Phase 8 verified (9/9 must-haves passed)
+Phase: 9 - Frontend Routing + Profile Pages
+Plan: 1 of 4 complete
+Status: In progress
+Last activity: 2026-02-04 -- Completed 09-01-PLAN.md (router foundation)
 
-Progress: [█████████████░░░░░░░] 67%
+Progress: [██████████████░░░░░░] 70%
 
 Phases: 3 total (7, 8, 9)
 - Phase 7: Schema + API (13 requirements) -- COMPLETE ✅ (verified 2026-02-04)
 - Phase 8: Data Flow Enrichment (4 requirements) -- COMPLETE ✅ (verified 2026-02-04)
-- Phase 9: Frontend Routing + Profile Pages (7 requirements) -- Not Started
+- Phase 9: Frontend Routing + Profile Pages (7 requirements) -- IN PROGRESS (1/4 plans)
 
 ## Accumulated Context
 
@@ -67,6 +67,11 @@ Phase 8 Plan 02 decisions:
 - Cache invalidation after DB write but before response fetch (ensures cleanup even on error)
 - All 4 D1 queries enriched: currentTrack, nextTrack, queue tracks, currentlyPlaying
 
+Phase 9 Plan 01 decisions:
+- AudioContext calls both useNowPlaying and useCrossfade (not refactoring useCrossfade to accept nowPlaying param)
+- ReturnType utility type for hook return types (interfaces not exported from hook files)
+- Temporary catch-all route renders RadioPage until Plan 02 adds 404 page
+
 ### Pending Todos
 
 - Apply D1 migration 0003_artist-profiles.sql to production before deploying Phase 7 code
@@ -81,11 +86,11 @@ Open (carried from v1.0):
 - PLATFORM_WALLET env var must be set in production
 
 New for v1.1:
-- Router integration (Phase 9) is highest risk -- audio must continue across navigation
+- Router foundation complete (Plan 09-01) -- mobile Safari testing needed to confirm audio persistence
 - x402 squatting economics: 0.01 USDC may be too low, monitor post-launch
 
 ## Session Continuity
 
 Last session: 2026-02-04
-Stopped at: Phase 8 complete and verified (9/9 must-haves)
-Resume with: `/gsd:discuss-phase 9`
+Stopped at: Completed 09-01-PLAN.md (router foundation and audio state lift)
+Resume file: None
