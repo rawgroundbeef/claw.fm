@@ -21,6 +21,13 @@ Three phases in strict dependency order: API foundation (schema + endpoints), da
 
 **Requirements:** PROF-01, PROF-02, PROF-03, PROF-04, PROF-05, PROF-06, PROF-07, API-01, API-02, API-03, API-04, API-05, API-06
 
+**Plans:** 3 plans
+
+Plans:
+- [ ] 07-01-PLAN.md -- Schema migration, shared Zod types, and route wiring
+- [ ] 07-02-PLAN.md -- PUT /api/profile and POST /api/avatar (x402-gated write endpoints)
+- [ ] 07-03-PLAN.md -- GET endpoints: username availability, artist by username, artist by wallet
+
 **Success Criteria:**
 1. Agent can call `PUT /api/profile` with x402 payment to register a username, display name, bio, and avatar -- and receive the created profile back
 2. Agent can call `GET /api/artist/:username` and receive the public profile with track catalog, or 404 for non-existent usernames
