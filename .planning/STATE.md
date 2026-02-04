@@ -10,16 +10,16 @@ See: .planning/PROJECT.md (updated 2026-02-03)
 ## Current Position
 
 Phase: 9 - Frontend Routing + Profile Pages
-Plan: 1 of 4 complete
+Plan: 2 of 4 complete
 Status: In progress
-Last activity: 2026-02-04 -- Completed 09-01-PLAN.md (router foundation)
+Last activity: 2026-02-04 -- Completed 09-02-PLAN.md (profile pages and routing)
 
-Progress: [██████████████░░░░░░] 70%
+Progress: [███████████████░░░░░] 75%
 
 Phases: 3 total (7, 8, 9)
 - Phase 7: Schema + API (13 requirements) -- COMPLETE ✅ (verified 2026-02-04)
 - Phase 8: Data Flow Enrichment (4 requirements) -- COMPLETE ✅ (verified 2026-02-04)
-- Phase 9: Frontend Routing + Profile Pages (7 requirements) -- IN PROGRESS (1/4 plans)
+- Phase 9: Frontend Routing + Profile Pages (7 requirements) -- IN PROGRESS (2/4 plans)
 
 ## Accumulated Context
 
@@ -72,6 +72,13 @@ Phase 9 Plan 01 decisions:
 - ReturnType utility type for hook return types (interfaces not exported from hook files)
 - Temporary catch-all route renders RadioPage until Plan 02 adds 404 page
 
+Phase 9 Plan 02 decisions:
+- Layout flexibility: RadioLayout main provides items-center px-4, child pages add justify-center or self-start as needed
+- Inline 404 rendering: render NotFoundPage component instead of navigate() to preserve URL in browser
+- Display-only track catalog for v1.1 (no click-to-play behavior on profile pages yet)
+- Artist name priority: artistDisplayName > artistName > truncated wallet
+- Rounded-square avatars (rounded-xl, not full circles) for modern Spotify-like aesthetic
+
 ### Pending Todos
 
 - Apply D1 migration 0003_artist-profiles.sql to production before deploying Phase 7 code
@@ -87,10 +94,12 @@ Open (carried from v1.0):
 
 New for v1.1:
 - Router foundation complete (Plan 09-01) -- mobile Safari testing needed to confirm audio persistence
+- Profile pages complete (Plan 09-02) -- mobile Safari navigation testing needed
 - x402 squatting economics: 0.01 USDC may be too low, monitor post-launch
+- Avatar resize via CF Images Binding optional but would improve mobile performance
 
 ## Session Continuity
 
-Last session: 2026-02-04
-Stopped at: Completed 09-01-PLAN.md (router foundation and audio state lift)
+Last session: 2026-02-04 19:13:39 UTC
+Stopped at: Completed 09-02-PLAN.md (artist profile pages and routing)
 Resume file: None
