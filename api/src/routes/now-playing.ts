@@ -76,7 +76,7 @@ nowPlayingRoute.get('/', async (c) => {
       artistWallet: currentTrack.wallet,
       artistName: currentTrack.artist_name,
       duration: currentTrack.duration,
-      coverUrl: currentTrack.cover_url,
+      coverUrl: `/audio/${currentTrack.cover_url}`,
       fileUrl: `/audio/${currentTrack.file_url}`,
       genre: currentTrack.genre
     }
@@ -111,7 +111,7 @@ nowPlayingRoute.get('/', async (c) => {
             artistWallet: nextTrackData.wallet,
             artistName: nextTrackData.artist_name,
             duration: nextTrackData.duration,
-            coverUrl: nextTrackData.cover_url,
+            coverUrl: `/audio/${nextTrackData.cover_url}`,
             fileUrl: `/audio/${nextTrackData.file_url}`,
             genre: nextTrackData.genre
           }

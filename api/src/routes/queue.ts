@@ -60,8 +60,8 @@ queueRoute.get('/', async (c) => {
           artistWallet: row.wallet,
           artistName: row.artist_name,
           duration: row.duration,
-          coverUrl: row.cover_url,
-          fileUrl: row.file_url,
+          coverUrl: `/audio/${row.cover_url}`,
+          fileUrl: `/audio/${row.file_url}`,
           genre: row.genre
         })
       }
@@ -103,8 +103,8 @@ queueRoute.get('/', async (c) => {
           artistWallet: currentTrack.wallet,
           artistName: currentTrack.artist_name,
           duration: currentTrack.duration,
-          coverUrl: currentTrack.cover_url,
-          fileUrl: currentTrack.file_url,
+          coverUrl: `/audio/${currentTrack.cover_url}`,
+          fileUrl: `/audio/${currentTrack.file_url}`,
           genre: currentTrack.genre
         }
       }
