@@ -28,10 +28,10 @@ Requirements for Artist Profiles milestone. Each maps to roadmap phases.
 
 ### Data Flow
 
-- [ ] **DATA-01**: Now-playing and queue endpoints return `artistUsername` and `artistDisplayName` when profile exists
-- [ ] **DATA-02**: Tracks from artists without profiles gracefully fall back to truncated wallet address
-- [ ] **DATA-03**: Profile updates trigger KV cache invalidation so now-playing reflects changes
-- [ ] **DATA-04**: Artist profile data is fetched via LEFT JOIN (not denormalized batch updates)
+- [x] **DATA-01**: Now-playing and queue endpoints return `artistUsername` and `artistDisplayName` when profile exists
+- [x] **DATA-02**: Tracks from artists without profiles gracefully fall back to truncated wallet address
+- [x] **DATA-03**: Profile updates trigger KV cache invalidation so now-playing reflects changes
+- [x] **DATA-04**: Artist profile data is fetched via LEFT JOIN (not denormalized batch updates)
 
 ### Frontend
 
@@ -92,10 +92,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | API-04 | Phase 7 | Complete |
 | API-05 | Phase 7 | Complete |
 | API-06 | Phase 7 | Complete |
-| DATA-01 | Phase 8 | Pending |
-| DATA-02 | Phase 8 | Pending |
-| DATA-03 | Phase 8 | Pending |
-| DATA-04 | Phase 8 | Pending |
+| DATA-01 | Phase 8 | Complete |
+| DATA-02 | Phase 8 | Complete |
+| DATA-03 | Phase 8 | Complete |
+| DATA-04 | Phase 8 | Complete |
 | UI-01 | Phase 9 | Pending |
 | UI-02 | Phase 9 | Pending |
 | UI-03 | Phase 9 | Pending |

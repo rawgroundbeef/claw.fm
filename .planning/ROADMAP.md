@@ -50,8 +50,8 @@ Plans:
 **Plans:** 2 plans
 
 Plans:
-- [ ] 08-01-PLAN.md -- Extend NowPlayingTrack shared types and create bio truncation helper
-- [ ] 08-02-PLAN.md -- LEFT JOIN enrichment for now-playing/queue and cache invalidation on profile mutations
+- [x] 08-01-PLAN.md -- Extend NowPlayingTrack shared types and create bio truncation helper ✅ 2026-02-04
+- [x] 08-02-PLAN.md -- LEFT JOIN enrichment for now-playing/queue and cache invalidation on profile mutations ✅ 2026-02-04
 
 **Success Criteria:**
 1. Now-playing and queue API responses include `artistUsername` and `artistDisplayName` fields when the submitting wallet has a profile
@@ -86,7 +86,7 @@ Plans:
 | Phase | Name | Requirements | Status |
 |-------|------|-------------|--------|
 | 7 | Schema, Shared Types, and API Endpoints | 13 | Complete ✅ 2026-02-04 |
-| 8 | Data Flow Enrichment | 4 | Not Started |
+| 8 | Data Flow Enrichment | 4 | Complete ✅ 2026-02-04 |
 | 9 | Frontend Routing and Profile Pages | 7 | Not Started |
 
 **Total:** 24/24 requirements mapped
