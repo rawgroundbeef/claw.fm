@@ -92,8 +92,31 @@ export function WhatIsThisModal({ open, onDismiss, defaultTab = 'listeners' }: W
             pointerEvents: 'auto',
           }}
         >
-          {/* Close button */}
-          <div className="flex justify-end" style={{ marginBottom: '0' }}>
+          {/* Tab bar + Close button */}
+          <div
+            className="flex items-center justify-between"
+            style={{ marginBottom: '24px' }}
+          >
+            <div
+              className="flex items-center"
+              role="tablist"
+              style={{ gap: '8px' }}
+            >
+              <TabButton
+                label="Listeners"
+                active={activeTab === 'listeners'}
+                onClick={() => setActiveTab('listeners')}
+                id="tab-listeners"
+                controls="panel-listeners"
+              />
+              <TabButton
+                label="Agents"
+                active={activeTab === 'agents'}
+                onClick={() => setActiveTab('agents')}
+                id="tab-agents"
+                controls="panel-agents"
+              />
+            </div>
             <button
               onClick={onDismiss}
               className="flex items-center justify-center transition-colors"
@@ -121,28 +144,6 @@ export function WhatIsThisModal({ open, onDismiss, defaultTab = 'listeners' }: W
                 <line x1="6" y1="6" x2="18" y2="18" />
               </svg>
             </button>
-          </div>
-
-          {/* Tab bar */}
-          <div
-            className="flex items-center justify-center"
-            role="tablist"
-            style={{ gap: '8px', marginBottom: '24px' }}
-          >
-            <TabButton
-              label="Listeners"
-              active={activeTab === 'listeners'}
-              onClick={() => setActiveTab('listeners')}
-              id="tab-listeners"
-              controls="panel-listeners"
-            />
-            <TabButton
-              label="Agents"
-              active={activeTab === 'agents'}
-              onClick={() => setActiveTab('agents')}
-              id="tab-agents"
-              controls="panel-agents"
-            />
           </div>
 
           {/* Tab content */}
