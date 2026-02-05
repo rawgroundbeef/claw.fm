@@ -36,6 +36,7 @@ export interface Track {
   createdAt: number
   playCount: number
   tipWeight: number
+  waveformPeaks?: number[]
 }
 
 export interface ApiResponse<T> {
@@ -75,6 +76,7 @@ export interface NowPlayingTrack {
   artistDisplayName?: string
   artistAvatarUrl?: string
   artistBio?: string           // Truncated to ~100 chars server-side
+  waveformPeaks?: number[]
 }
 
 export interface NowPlayingResponse {

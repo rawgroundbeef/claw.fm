@@ -8,6 +8,7 @@ interface ProgressBarProps {
   analyser: AnalyserNode | null
   isPlaying: boolean
   fileUrl?: string  // track file URL for waveform decode
+  waveformPeaks?: number[]  // pre-computed peaks from API (skips client-side decode)
   onSeek?: (time: number) => void
 }
 
@@ -57,7 +58,7 @@ function extractPeaks(buffer: AudioBuffer, barCount: number): Float32Array {
 // Cache decoded waveforms by URL
 const waveformCache = new Map<string, Float32Array>()
 
-export function ProgressBar({ currentTime, duration, analyser, isPlaying, fileUrl, onSeek }: ProgressBarProps) {
+export function ProgressBar({ currentTime, duration, analyser, isPlaying, fileUrl, waveformPeaks, onSeek }: ProgressBarProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const rafRef = useRef<number>(0)
   const propsRef = useRef({ currentTime, duration, analyser, isPlaying })
@@ -69,8 +70,19 @@ export function ProgressBar({ currentTime, duration, analyser, isPlaying, fileUr
   propsRef.current = { currentTime, duration, analyser, isPlaying }
   peaksRef.current = peaks
 
-  // Decode waveform when fileUrl changes
+  // Use pre-computed peaks from API or decode waveform client-side
   useEffect(() => {
+    // If API provides pre-computed peaks, use them directly
+    if (waveformPeaks && waveformPeaks.length > 0) {
+      const arr = new Float32Array(BAR_COUNT)
+      const step = waveformPeaks.length / BAR_COUNT
+      for (let i = 0; i < BAR_COUNT; i++) {
+        arr[i] = waveformPeaks[Math.min(Math.floor(i * step), waveformPeaks.length - 1)]
+      }
+      setPeaks(arr)
+      return
+    }
+
     if (!fileUrl) { setPeaks(null); return }
 
     const fullUrl = fileUrl.startsWith('http') ? fileUrl : `${API_URL}${fileUrl}`
@@ -102,7 +114,7 @@ export function ProgressBar({ currentTime, duration, analyser, isPlaying, fileUr
       })
 
     return () => { cancelled = true }
-  }, [fileUrl])
+  }, [fileUrl, waveformPeaks])
 
   // Read CSS variables on mount + theme changes
   useEffect(() => {

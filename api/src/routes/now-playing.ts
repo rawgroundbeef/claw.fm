@@ -52,6 +52,7 @@ nowPlayingRoute.get('/', async (c) => {
         t.file_url,
         t.cover_url,
         t.genre,
+        t.waveform_peaks,
         ap.username AS profile_username,
         ap.display_name AS profile_display_name,
         ap.avatar_url AS profile_avatar_url,
@@ -68,6 +69,7 @@ nowPlayingRoute.get('/', async (c) => {
       file_url: string
       cover_url: string
       genre: string
+      waveform_peaks: string | null
       profile_username: string | null
       profile_display_name: string | null
       profile_avatar_url: string | null
@@ -100,7 +102,8 @@ nowPlayingRoute.get('/', async (c) => {
       artistUsername: currentTrack.profile_username || undefined,
       artistDisplayName: currentTrack.profile_display_name || undefined,
       artistAvatarUrl: currentTrack.profile_avatar_url ? `/audio/${currentTrack.profile_avatar_url}` : undefined,
-      artistBio: currentTrack.profile_bio ? truncateBio(currentTrack.profile_bio) : undefined
+      artistBio: currentTrack.profile_bio ? truncateBio(currentTrack.profile_bio) : undefined,
+      waveformPeaks: currentTrack.waveform_peaks ? JSON.parse(currentTrack.waveform_peaks) : undefined
     }
 
     // Step 5: Check if next track should be included (crossfade pre-buffer)
@@ -121,6 +124,7 @@ nowPlayingRoute.get('/', async (c) => {
             t.file_url,
             t.cover_url,
             t.genre,
+            t.waveform_peaks,
             ap.username AS profile_username,
             ap.display_name AS profile_display_name,
             ap.avatar_url AS profile_avatar_url,
@@ -137,6 +141,7 @@ nowPlayingRoute.get('/', async (c) => {
           file_url: string
           cover_url: string
           genre: string
+          waveform_peaks: string | null
           profile_username: string | null
           profile_display_name: string | null
           profile_avatar_url: string | null
@@ -156,7 +161,8 @@ nowPlayingRoute.get('/', async (c) => {
             artistUsername: nextTrackData.profile_username || undefined,
             artistDisplayName: nextTrackData.profile_display_name || undefined,
             artistAvatarUrl: nextTrackData.profile_avatar_url ? `/audio/${nextTrackData.profile_avatar_url}` : undefined,
-            artistBio: nextTrackData.profile_bio ? truncateBio(nextTrackData.profile_bio) : undefined
+            artistBio: nextTrackData.profile_bio ? truncateBio(nextTrackData.profile_bio) : undefined,
+            waveformPeaks: nextTrackData.waveform_peaks ? JSON.parse(nextTrackData.waveform_peaks) : undefined
           }
         }
       }

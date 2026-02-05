@@ -4,6 +4,7 @@ import { validateSubmission } from '../middleware/validation'
 import { verifyPayment } from '../middleware/x402'
 import { generateIdenticon } from '../lib/identicon'
 import { processAndUploadCoverArt } from '../lib/image'
+import { extractWaveformPeaks } from '../lib/audio'
 
 type Env = {
   Bindings: {
@@ -103,6 +104,10 @@ submitRoute.post('/', async (c) => {
       },
     })
 
+    // Step 6.5: Extract waveform peaks for visualization
+    const waveformPeaks = extractWaveformPeaks(audioBuffer)
+    const waveformJson = waveformPeaks ? JSON.stringify(waveformPeaks) : null
+
     // Step 7: Handle cover art
     let coverUrl: string
 
@@ -144,8 +149,9 @@ submitRoute.post('/', async (c) => {
         file_url,
         file_hash,
         cover_url,
+        waveform_peaks,
         created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, unixepoch())
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, unixepoch())
     `)
       .bind(
         title,
@@ -157,7 +163,8 @@ submitRoute.post('/', async (c) => {
         audioDuration,
         trackKey,
         fileHash,
-        coverUrl
+        coverUrl,
+        waveformJson
       )
       .run()
 

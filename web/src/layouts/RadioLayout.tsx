@@ -137,6 +137,7 @@ export function RadioLayout() {
               analyser={crossfade.activeAnalyser}
               isPlaying={crossfade.isPlaying}
               fileUrl={crossfade.currentTrack?.fileUrl}
+              waveformPeaks={crossfade.currentTrack?.waveformPeaks}
               onSeek={crossfade.seek}
             />
           </div>

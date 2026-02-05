@@ -5,6 +5,7 @@ import { API_URL } from '../lib/constants'
 import { NotFoundPage } from './NotFoundPage'
 import { useAudio } from '../contexts/AudioContext'
 import { TipArtistModal } from '../components/TipArtistModal'
+import { MiniWaveform } from '../components/MiniWaveform'
 
 function formatDuration(ms: number): string {
   const totalSeconds = Math.floor(ms / 1000)
@@ -132,6 +133,7 @@ export function ArtistProfilePage() {
     artistDisplayName: data!.profile.displayName,
     artistAvatarUrl: data!.profile.avatarUrl || undefined,
     artistBio: data!.profile.bio || undefined,
+    waveformPeaks: track.waveformPeaks,
   })
 
   const handleTrackClick = (track: Track) => {
@@ -414,7 +416,7 @@ export function ArtistProfilePage() {
             <div
               className="hidden sm:grid"
               style={{
-                gridTemplateColumns: '48px 1fr 80px 80px 60px',
+                gridTemplateColumns: '48px 1fr 72px 80px 80px 60px',
                 gap: '12px',
                 alignItems: 'center',
                 padding: '0 8px 8px',
@@ -424,6 +426,7 @@ export function ArtistProfilePage() {
             >
               <span />
               <span style={{ ...labelStyle, marginBottom: 0 }}>TITLE</span>
+              <span />
               <span style={{ ...labelStyle, marginBottom: 0, textAlign: 'right' }}>PLAYS</span>
               <span style={{ ...labelStyle, marginBottom: 0, textAlign: 'right' }}>TIPS</span>
               <span style={{ ...labelStyle, marginBottom: 0, textAlign: 'right' }}>TIME</span>
@@ -483,7 +486,7 @@ export function ArtistProfilePage() {
               )
             })}
 
-            {/* Desktop rows (5-col) */}
+            {/* Desktop rows (6-col) */}
             {sortedTracks.map((track) => {
               const coverUrl = track.coverUrl || undefined
               const isActive = crossfade.overrideTrack?.id === track.id
@@ -493,7 +496,7 @@ export function ArtistProfilePage() {
                   key={`d-${track.id}`}
                   className="hidden sm:grid"
                   style={{
-                    gridTemplateColumns: '48px 1fr 80px 80px 60px',
+                    gridTemplateColumns: '48px 1fr 72px 80px 80px 60px',
                     gap: '12px',
                     alignItems: 'center',
                     padding: '8px',
@@ -530,6 +533,19 @@ export function ArtistProfilePage() {
                       {track.title}
                     </p>
                     <p style={{ fontSize: '12px', color: 'var(--text-tertiary)', margin: '2px 0 0' }}>{track.genre}</p>
+                  </div>
+                  {/* Mini waveform */}
+                  <div style={{ display: 'flex', justifyContent: 'center' }}>
+                    {track.waveformPeaks ? (
+                      <MiniWaveform
+                        peaks={track.waveformPeaks}
+                        width={60}
+                        height={24}
+                        color={isActive ? 'var(--accent)' : 'var(--text-faint)'}
+                      />
+                    ) : (
+                      <span style={{ width: '60px', height: '24px' }} />
+                    )}
                   </div>
                   <span style={{ fontSize: '13px', color: 'var(--text-secondary)', textAlign: 'right' }}>
                     {formatNumber(track.playCount)}
