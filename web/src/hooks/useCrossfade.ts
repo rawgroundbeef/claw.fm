@@ -11,6 +11,7 @@ interface UseCrossfadeReturn {
   play: () => Promise<void>
   pause: () => void
   setVolume: (volume: number) => void
+  seek: (time: number) => void
   isPlaying: boolean
   isLoading: boolean
   isBuffering: boolean
@@ -343,6 +344,14 @@ export function useCrossfade(): UseCrossfadeReturn {
     active.setVolume(clamped)
   }, [getActivePlayers])
 
+  // Seek to a specific time
+  const seek = useCallback((time: number) => {
+    const { active } = getActivePlayers()
+    if (active.audioElement) {
+      active.audioElement.currentTime = Math.max(0, time)
+    }
+  }, [getActivePlayers])
+
   // Get active player state for UI
   const { active } = getActivePlayers()
 
@@ -350,6 +359,7 @@ export function useCrossfade(): UseCrossfadeReturn {
     play,
     pause,
     setVolume,
+    seek,
     isPlaying,
     isLoading: active.isLoading,
     isBuffering: active.isBuffering,
