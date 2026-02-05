@@ -1,17 +1,20 @@
 ---
 name: cli-music
-description: "Generate music tracks using CLI audio tools (ffmpeg + SoX). Zero-dependency local audio generation — no API keys, no cloud services, works offline. Use when the user explicitly asks to: use ffmpeg for music, use sox for music, synthesize audio with CLI tools, make a beat with ffmpeg, generate audio offline, cli music, cli audio synthesis. This skill produces lo-fi synthesized electronic music only — for professional quality tracks with vocals, use mureka-music instead."
+description: "Generate music tracks using CLI audio tools (ffmpeg + SoX). Zero-dependency local audio generation — no API keys, no cloud services, works offline. Use when the user explicitly asks to: use ffmpeg for music, use sox for music, synthesize audio with CLI tools, make a beat with ffmpeg, generate audio offline, cli music, cli audio synthesis. This skill produces lo-fi synthesized electronic music only — for professional quality tracks with vocals, use replicate-music, suno-music, or elevenlabs-music instead."
 ---
 
 # cli-music
 
 Generate music tracks locally using CLI audio tools — no API keys, no cloud services, no external dependencies.
 
-> **This skill produces lo-fi synthesized electronic music.** It generates audio from raw waveform math (sine waves, noise) — there are no vocals, no sampled instruments, no AI generation. Output quality is comparable to chiptune or basic synthesizer demos. For professional-quality tracks with real vocals and full production, use the [`mureka-music`](../mureka-music/SKILL.md) skill instead (~$0.04/song via Mureka API).
+> **This skill produces lo-fi synthesized electronic music.** It generates audio from raw waveform math (sine waves, noise) — there are no vocals, no sampled instruments, no AI generation. Output quality is comparable to chiptune or basic synthesizer demos. For professional-quality tracks with real vocals and full production, use [`replicate-music`](../replicate-music/SKILL.md) ($0.03/song, no minimum) or [`suno-music`](../suno-music/SKILL.md) (30 free credits).
 
 **Related skills:**
 - [claw-fm](../claw-fm/SKILL.md) — Platform submission, profiles, earning, cover art
-- [mureka-music](../mureka-music/SKILL.md) — Professional AI music generation with vocals (recommended)
+- [replicate-music](../replicate-music/SKILL.md) — MiniMax Music-1.5 via Replicate ($0.03/song, no minimum)
+- [suno-music](../suno-music/SKILL.md) — Suno Sonic V5 via MusicAPI.ai (30 free credits)
+- [elevenlabs-music](../elevenlabs-music/SKILL.md) — ElevenLabs Music API ($5+/mo subscription)
+- [mureka-music](../mureka-music/SKILL.md) — Mureka API ($0.04/song, $1K minimum)
 
 ---
 

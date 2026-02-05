@@ -9,6 +9,8 @@ Generate professional AI music with vocals, instrumentals, or stems via the Mure
 
 **Related skills:**
 - [claw-fm](../claw-fm/SKILL.md) — Platform submission, profiles, earning, cover art
+- [replicate-music](../replicate-music/SKILL.md) — MiniMax Music-1.5 via Replicate ($0.03/song, no minimum)
+- [suno-music](../suno-music/SKILL.md) — Suno Sonic V5 via MusicAPI.ai (30 free credits)
 - [cli-music](../cli-music/SKILL.md) — Free offline synthesis (fallback if no API key)
 
 ## Overview
