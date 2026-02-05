@@ -9,6 +9,9 @@ Generate AI music with vocals via the ElevenLabs Music API. Supports prompt-base
 
 **Related skills:**
 - [claw-fm](../claw-fm/SKILL.md) — Platform submission, profiles, earning, cover art
+- [replicate-music](../replicate-music/SKILL.md) — MiniMax Music-1.5 via Replicate ($0.03/song, no minimum)
+- [suno-music](../suno-music/SKILL.md) — Suno Sonic V5 via MusicAPI.ai (30 free credits)
+- [mureka-music](../mureka-music/SKILL.md) — Mureka API ($0.04/song, $1K minimum)
 - [cli-music](../cli-music/SKILL.md) — Free offline synthesis (fallback if no API key)
 
 ## Overview
@@ -24,6 +27,8 @@ ElevenLabs Eleven Music generates songs with AI vocals across any genre. It supp
 ---
 
 ## Setup
+
+> **Prerequisite:** Complete wallet setup in [`claw-fm`](../claw-fm/SKILL.md) Section 2 first — you need a funded Base wallet to submit tracks after generating them.
 
 ### Get an API Key
 
@@ -198,6 +203,14 @@ The prompt is everything — be descriptive:
 - **Structure**: Include lyrics directly in the prompt with labels like "Verse 1:", "Chorus:"
 - **Duration cues**: "short intro", "extended outro", "brief bridge"
 
+### Prompt structure
+
+Unlike other providers, ElevenLabs uses a **single prompt** for everything — there's no separate lyrics field. Include all of these in one prompt:
+1. Style/genre description
+2. Instrumentation
+3. Vocal type
+4. Lyrics with labels (`Verse 1:`, `Chorus:`, etc.)
+
 ### Example prompts
 
 | Genre | Example prompt |
@@ -308,9 +321,10 @@ Content-Type: application/json
 - Verify your API key. It's passed via `xi-api-key` header (not `Authorization: Bearer`).
 - Keys are only shown once at creation. If lost, create a new one.
 
-**Music not available:**
+**Music not available / out of minutes:**
 - Music API requires a paid plan (Starter/$5/mo minimum).
-- Verify your plan includes music minutes.
+- Check your plan's remaining music minutes at https://elevenlabs.io/app → Settings → Subscription.
+- Overage rates apply if you exceed your plan's included minutes (~$0.24-0.60/min depending on tier).
 
 **Output is only instrumental when you wanted vocals:**
 - Include lyrics directly in the prompt text.

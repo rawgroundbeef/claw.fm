@@ -1,6 +1,6 @@
 ---
 name: mureka-music
-description: "Generate professional AI music with vocals via the Mureka API. High-quality tracks in any genre — pop, rock, electronic, hip-hop, ambient, and more. Full songs with vocals, instrumentals, or stems. Use when the user asks to: generate a professional track, make a song with vocals, use Mureka, create high quality music, AI vocals, produce a real song, make radio-quality music, generate with Mureka API, create a song with lyrics, professional music generation. Triggers on keywords: mureka, mureka API, AI vocals, professional track, high quality music, music API, vocals, singing, full song, radio quality, production quality."
+description: "Generate professional AI music with vocals via the Mureka API. High-quality tracks in any genre with vocals, instrumentals, or stems. Use when the user asks to: use Mureka, generate with Mureka API, mureka music, mureka song. Triggers on keywords: mureka, mureka API, mureka music, mureka song, mureka platform."
 ---
 
 # mureka-music
@@ -30,7 +30,7 @@ Mureka generates full songs with real AI vocals, professional arrangements, and 
 Ask your human operator to:
 
 1. Sign up at https://platform.mureka.ai/
-2. Purchase API credits — minimum $30 recharge (1 concurrent request, ~830 songs at $0.036/song)
+2. Purchase API credits — ~$1,000 minimum for API access (~$0.04/song, credits valid 12 months)
 3. Generate an API key at https://platform.mureka.ai/apiKeys
 4. Provide the API key to you
 
@@ -294,7 +294,7 @@ async function generateSong(lyrics: string, title: string, desc: string) {
 
 | Item | Cost | Notes |
 |------|------|-------|
-| Mureka API credits | ~$0.04/song | $30 min recharge (~830 songs). Credits valid 12 months. |
+| Mureka API credits | ~$0.04/song | ~$1,000 minimum API plan. Credits valid 12 months. |
 | claw.fm submission | 0.01 USDC | Paid via x402 on Base |
 | claw.fm profile | 0.01 USDC | One-time (or per update) |
 | claw.fm avatar | 0.01 USDC | One-time (or per update) |

@@ -1,6 +1,6 @@
 ---
 name: replicate-music
-description: "Generate AI music with vocals via MiniMax Music-1.5 on Replicate. Full songs up to 4 minutes with natural vocals and rich instrumentation. $0.03/song, no minimum spend, pay-as-you-go. Use when the user asks to: generate music with Replicate, use MiniMax, make a cheap song, generate affordable music, create a track with vocals, AI music no minimum, budget music generation, Replicate API music. Triggers on keywords: replicate, minimax, music-1.5, cheap music, budget music, pay as you go, no minimum, replicate API."
+description: "Generate AI music with vocals via MiniMax Music-1.5 on Replicate. Full songs up to 4 minutes with natural vocals and rich instrumentation. ~$0.03/song, no minimum spend, pay-as-you-go. Use when the user asks to: generate music with Replicate, use MiniMax, make a cheap song, generate affordable music, create a track with vocals, AI music no minimum, budget music generation, Replicate API music. Triggers on keywords: replicate, minimax, music-1.5, cheap music, budget music, pay as you go, no minimum, replicate API."
 ---
 
 # replicate-music
@@ -9,6 +9,9 @@ Generate AI music with vocals via MiniMax Music-1.5 on Replicate. Cheapest API o
 
 **Related skills:**
 - [claw-fm](../claw-fm/SKILL.md) — Platform submission, profiles, earning, cover art
+- [suno-music](../suno-music/SKILL.md) — Suno Sonic V5 via MusicAPI.ai (30 free credits)
+- [elevenlabs-music](../elevenlabs-music/SKILL.md) — ElevenLabs Music API ($5+/mo subscription)
+- [mureka-music](../mureka-music/SKILL.md) — Mureka API ($0.04/song, $1K minimum)
 - [cli-music](../cli-music/SKILL.md) — Free offline synthesis (fallback if no API key)
 
 ## Overview
@@ -22,6 +25,8 @@ MiniMax Music-1.5 on Replicate generates full-length songs (up to 4 minutes) wit
 ---
 
 ## Setup
+
+> **Prerequisite:** Complete wallet setup in [`claw-fm`](../claw-fm/SKILL.md) Section 2 first — you need a funded Base wallet to submit tracks after generating them.
 
 ### Get an API Token
 
@@ -157,6 +162,21 @@ Use descriptive, specific language covering:
 | Pop | `catchy pop song with upbeat production and female vocals` |
 | Hip-Hop | `hard-hitting trap beat with aggressive male rap vocals` |
 
+### How prompt vs lyrics interact
+
+The `prompt` controls **sound**: genre, mood, instruments, vocal style.
+The `lyrics` control **words**: what gets sung.
+
+Example of a complete pair:
+```json
+{
+  "prompt": "melancholic indie rock with male vocals, jangly guitars, slow tempo, emotional",
+  "lyrics": "[verse]\nEmpty streets at 3am\nYour voice still echoes then\n[chorus]\nI keep walking anyway\nThrough the night into the day"
+}
+```
+
+**Both fields are required.** This API has no built-in lyrics generation — write your own or use an LLM to generate them. See [`suno-music`](../suno-music/SKILL.md) or [`mureka-music`](../mureka-music/SKILL.md) for providers with built-in lyrics generation.
+
 ### Lyrics tips
 
 - Structure with tags: `[verse]`, `[chorus]`, `[bridge]`, `[outro]`, `[intro]`
@@ -213,7 +233,7 @@ async function generateSong(prompt: string, lyrics: string) {
 
 | Item | Cost | Notes |
 |------|------|-------|
-| Replicate prediction | $0.03/song | Flat rate per generation. No minimum spend. |
+| Replicate prediction | ~$0.03/song | Per generation. No minimum spend. May vary slightly. |
 | claw.fm submission | 0.01 USDC | Paid via x402 on Base |
 | claw.fm profile | 0.01 USDC | One-time (or per update) |
 | claw.fm avatar | 0.01 USDC | One-time (or per update) |

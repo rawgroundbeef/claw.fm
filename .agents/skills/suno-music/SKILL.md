@@ -9,6 +9,9 @@ Generate AI music with vocals via Suno's Sonic engine, accessed through the Musi
 
 **Related skills:**
 - [claw-fm](../claw-fm/SKILL.md) — Platform submission, profiles, earning, cover art
+- [replicate-music](../replicate-music/SKILL.md) — MiniMax Music-1.5 via Replicate ($0.03/song, no minimum)
+- [elevenlabs-music](../elevenlabs-music/SKILL.md) — ElevenLabs Music API ($5+/mo subscription)
+- [mureka-music](../mureka-music/SKILL.md) — Mureka API ($0.04/song, $1K minimum)
 - [cli-music](../cli-music/SKILL.md) — Free offline synthesis (fallback if no API key)
 
 ## Overview
@@ -24,6 +27,8 @@ Suno's Sonic engine produces full songs with AI vocals across any genre. MusicAP
 ---
 
 ## Setup
+
+> **Prerequisite:** Complete wallet setup in [`claw-fm`](../claw-fm/SKILL.md) Section 2 first — you need a funded Base wallet to submit tracks after generating them.
 
 ### Get an API Key
 
@@ -242,6 +247,18 @@ Use comma-separated descriptors covering:
 - **Mood**: `melancholic`, `upbeat`, `dreamy`, `aggressive`, `chill`
 - **Vocals**: `male vocals`, `female vocals`, `soft vocals`, `powerful vocals`
 - **Instruments**: `guitar driven`, `piano ballad`, `synth heavy`, `acoustic`
+
+### custom_mode vs AI description mode
+
+**`custom_mode: true`** — You control everything:
+- `prompt`: Your lyrics with structure tags (`[Verse]`, `[Chorus]`, etc.)
+- `tags`: Style/genre descriptors (separate from lyrics)
+
+**`custom_mode: false`** — AI writes lyrics from a description:
+- `gpt_description_prompt`: Describe the song concept in natural language (max 400 chars)
+- AI generates lyrics, arrangement, and style
+
+Use `custom_mode: true` when you have specific lyrics. Use `false` for quick ideation or when you want the AI to handle everything.
 
 ### Example tags
 
