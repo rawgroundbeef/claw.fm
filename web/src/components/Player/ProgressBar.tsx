@@ -19,8 +19,8 @@ function formatTime(seconds: number): string {
   return `${mins}:${secs.toString().padStart(2, '0')}`
 }
 
-const BAR_COUNT = 80
-const BAR_GAP = 1.5
+const BAR_COUNT = 120
+const BAR_GAP = 1
 const BAR_MIN_H = 2
 const CANVAS_H = 40
 
