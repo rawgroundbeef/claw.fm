@@ -25,6 +25,10 @@
   --border: #2a2a2a;
   --border-subtle: #1a1a1a;
 
+  --card-bg: #151515;
+  --card-border: #222222;
+  --featured-bg: linear-gradient(135deg, #1a0808, #2d1010);
+
   --cover-gradient:
     radial-gradient(circle at 30% 40%, var(--accent-muted) 0%, transparent 50%),
     radial-gradient(circle at 70% 60%, rgba(255, 140, 100, 0.15) 0%, transparent 50%),
@@ -58,6 +62,10 @@
 
   --border: #e5e5e5;
   --border-subtle: #f0f0f0;
+
+  --card-bg: #ffffff;
+  --card-border: #f0ece8;
+  --featured-bg: linear-gradient(135deg, #1a0808, #2d1010);
 
   --cover-gradient:
     radial-gradient(circle at 25% 35%, rgba(255, 107, 74, 0.25) 0%, transparent 45%),
