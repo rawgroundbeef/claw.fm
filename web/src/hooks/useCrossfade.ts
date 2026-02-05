@@ -254,28 +254,27 @@ export function useCrossfade(): UseCrossfadeReturn {
     await resumeAudioContext()
 
     const { active, inactive } = getActivePlayers()
-    const ctx = getAudioContext()
-    const now = ctx.currentTime
 
     // Stop active player immediately
     const activeGain = active.gainNode
     if (activeGain) {
-      activeGain.gain.cancelScheduledValues(now)
-      activeGain.gain.setValueAtTime(0, now)
+      activeGain.gain.cancelScheduledValues(0)
+      activeGain.gain.value = 0
     }
     active.pause()
     if (active.audioElement) active.audioElement.currentTime = 0
 
-    // Load and play new track at full volume from position 0
+    // Set inactive player gain to full volume before loading
+    const inactiveGain = inactive.gainNode
+    if (inactiveGain) {
+      inactiveGain.gain.cancelScheduledValues(0)
+      inactiveGain.gain.value = userVolume
+    }
+
+    // Load and play new track from position 0
     inactive.setSource(`${API_URL}${track.fileUrl}`)
     if (inactive.audioElement) {
       inactive.audioElement.currentTime = 0
-    }
-
-    const inactiveGain = inactive.gainNode
-    if (inactiveGain) {
-      inactiveGain.gain.cancelScheduledValues(now)
-      inactiveGain.gain.setValueAtTime(userVolume, now)
     }
 
     await inactive.play()
