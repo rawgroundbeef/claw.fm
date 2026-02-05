@@ -20,12 +20,13 @@ function formatTime(seconds: number): string {
   return `${mins}:${secs.toString().padStart(2, '0')}`
 }
 
-const BAR_COUNT = 120
-const BAR_GAP = 1
+const BAR_W = 2       // fixed thin bar width in CSS px
+const BAR_GAP = 1.5   // gap between bars
 const BAR_MIN_H = 2
 const CANVAS_H = 40
+const UPLOAD_BAR_COUNT = 120 // resolution for server-stored peaks
 
-/** Downsample audio buffer to peak amplitudes per bar */
+/** Downsample audio buffer to peak amplitudes */
 function extractPeaks(buffer: AudioBuffer, barCount: number): Float32Array {
   const channel = buffer.getChannelData(0)
   const peaks = new Float32Array(barCount)
@@ -42,7 +43,6 @@ function extractPeaks(buffer: AudioBuffer, barCount: number): Float32Array {
     peaks[i] = max
   }
 
-  // Normalize peaks to 0-1
   let globalMax = 0
   for (let i = 0; i < barCount; i++) {
     if (peaks[i] > globalMax) globalMax = peaks[i]
@@ -56,7 +56,17 @@ function extractPeaks(buffer: AudioBuffer, barCount: number): Float32Array {
   return peaks
 }
 
-// Cache decoded waveforms by URL
+/** Resample source peaks array to target count */
+function resamplePeaks(source: Float32Array | number[], targetCount: number): Float32Array {
+  const out = new Float32Array(targetCount)
+  const step = source.length / targetCount
+  for (let i = 0; i < targetCount; i++) {
+    out[i] = source[Math.min(Math.floor(i * step), source.length - 1)]
+  }
+  return out
+}
+
+// Cache decoded waveforms by URL (high-res source peaks)
 const waveformCache = new Map<string, Float32Array>()
 
 // Track IDs we've already uploaded peaks for (avoid duplicate PUTs)
@@ -68,32 +78,26 @@ export function ProgressBar({ currentTime, duration, analyser, isPlaying, trackI
   const propsRef = useRef({ currentTime, duration, analyser, isPlaying })
   const colorsRef = useRef({ accent: '#ff6b4a', muted: '#333333' })
   const freqData = useRef<Uint8Array | null>(null)
-  const [peaks, setPeaks] = useState<Float32Array | null>(null)
-  const peaksRef = useRef<Float32Array | null>(null)
+  // Source peaks — high resolution, resampled per-frame to fit canvas width
+  const [sourcePeaks, setSourcePeaks] = useState<Float32Array | null>(null)
+  const sourcePeaksRef = useRef<Float32Array | null>(null)
 
   propsRef.current = { currentTime, duration, analyser, isPlaying }
-  peaksRef.current = peaks
+  sourcePeaksRef.current = sourcePeaks
 
-  // Use pre-computed peaks from API or decode waveform client-side
+  // Load peaks: prefer API pre-computed, fallback to client decode
   useEffect(() => {
-    // If API provides pre-computed peaks, use them directly
     if (waveformPeaks && waveformPeaks.length > 0) {
-      const arr = new Float32Array(BAR_COUNT)
-      const step = waveformPeaks.length / BAR_COUNT
-      for (let i = 0; i < BAR_COUNT; i++) {
-        arr[i] = waveformPeaks[Math.min(Math.floor(i * step), waveformPeaks.length - 1)]
-      }
-      setPeaks(arr)
+      setSourcePeaks(new Float32Array(waveformPeaks))
       return
     }
 
-    if (!fileUrl) { setPeaks(null); return }
+    if (!fileUrl) { setSourcePeaks(null); return }
 
     const fullUrl = fileUrl.startsWith('http') ? fileUrl : `${API_URL}${fileUrl}`
 
-    // Check cache first
     if (waveformCache.has(fullUrl)) {
-      setPeaks(waveformCache.get(fullUrl)!)
+      setSourcePeaks(waveformCache.get(fullUrl)!)
       return
     }
 
@@ -108,11 +112,11 @@ export function ProgressBar({ currentTime, duration, analyser, isPlaying, trackI
       })
       .then((decoded) => {
         if (cancelled || !decoded) return
-        const p = extractPeaks(decoded, BAR_COUNT)
+        const p = extractPeaks(decoded, UPLOAD_BAR_COUNT)
         waveformCache.set(fullUrl, p)
-        setPeaks(p)
+        setSourcePeaks(p)
 
-        // Upload PCM-derived peaks to server so future loads skip client decode
+        // Upload PCM-derived peaks to server
         if (trackId && !uploadedPeaks.has(trackId)) {
           uploadedPeaks.add(trackId)
           const peaksArray = Array.from(p).map(v => Math.round(v * 100) / 100)
@@ -120,12 +124,11 @@ export function ProgressBar({ currentTime, duration, analyser, isPlaying, trackI
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ peaks: peaksArray }),
-          }).catch(() => {}) // fire-and-forget
+          }).catch(() => {})
         }
       })
       .catch(() => {
-        // Waveform decode failed — fallback to flat bars
-        if (!cancelled) setPeaks(null)
+        if (!cancelled) setSourcePeaks(null)
       })
 
     return () => { cancelled = true }
@@ -146,7 +149,7 @@ export function ProgressBar({ currentTime, duration, analyser, isPlaying, trackI
     return () => obs.disconnect()
   }, [])
 
-  // Animation loop
+  // Animation loop — bar count derived from canvas width each frame
   useEffect(() => {
     const draw = () => {
       const canvas = canvasRef.current
@@ -175,7 +178,10 @@ export function ProgressBar({ currentTime, duration, analyser, isPlaying, trackI
       const progress = dur > 0 ? Math.min(ct / dur, 1) : 0
       const progressX = progress * w
 
-      // Get live frequency data for subtle overlay
+      // Compute how many bars fit at fixed width
+      const barCount = Math.max(1, Math.floor((w + BAR_GAP) / (BAR_W + BAR_GAP)))
+
+      // Get live frequency data
       if (an) {
         if (!freqData.current || freqData.current.length !== an.frequencyBinCount) {
           freqData.current = new Uint8Array(an.frequencyBinCount)
@@ -184,21 +190,25 @@ export function ProgressBar({ currentTime, duration, analyser, isPlaying, trackI
       }
 
       const { accent, muted } = colorsRef.current
-      const barW = (w - (BAR_COUNT - 1) * BAR_GAP) / BAR_COUNT
-      const pk = peaksRef.current
+      const src = sourcePeaksRef.current
 
-      for (let i = 0; i < BAR_COUNT; i++) {
-        const x = i * (barW + BAR_GAP)
+      // Resample source peaks to current bar count
+      let pk: Float32Array | null = null
+      if (src) {
+        pk = resamplePeaks(src, barCount)
+      }
 
-        // Base height from waveform peaks (or flat if no peaks)
+      for (let i = 0; i < barCount; i++) {
+        const x = i * (BAR_W + BAR_GAP)
+
         const peakAmp = pk ? pk[i] : 0.15
 
-        // Add subtle live frequency boost to played bars
+        // Subtle live frequency boost on played bars
         let liveBoost = 0
         if (freqData.current && playing) {
-          const barCenter = x + barW / 2
+          const barCenter = x + BAR_W / 2
           if (barCenter <= progressX) {
-            const binIdx = Math.floor((i / BAR_COUNT) * freqData.current.length * 0.4)
+            const binIdx = Math.floor((i / barCount) * freqData.current.length * 0.4)
             liveBoost = (freqData.current[binIdx] / 255) * 0.15
           }
         }
@@ -207,9 +217,9 @@ export function ProgressBar({ currentTime, duration, analyser, isPlaying, trackI
         const barH = Math.max(BAR_MIN_H, totalAmp * (h - 4))
         const y = (h - barH) / 2
 
-        const barCenter = x + barW / 2
+        const barCenter = x + BAR_W / 2
         ctx.fillStyle = barCenter <= progressX ? accent : muted
-        ctx.fillRect(Math.round(x), Math.round(y), Math.ceil(barW), Math.round(barH))
+        ctx.fillRect(Math.round(x), Math.round(y), BAR_W, Math.round(barH))
       }
 
       rafRef.current = requestAnimationFrame(draw)
