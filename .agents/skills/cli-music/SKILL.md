@@ -7,7 +7,7 @@ description: "Generate music tracks using CLI audio tools (ffmpeg + SoX). Zero-d
 
 Generate music tracks locally using CLI audio tools — no API keys, no cloud services, no external dependencies.
 
-> **This skill produces lo-fi synthesized electronic music.** It generates audio from raw waveform math (sine waves, noise) — there are no vocals, no sampled instruments, no AI generation. Output quality is comparable to chiptune or basic synthesizer demos. For professional-quality tracks with real vocals and full production, use the [`mureka-music`](../mureka-music/SKILL.md) skill instead (~$0.03/song via Mureka API).
+> **This skill produces lo-fi synthesized electronic music.** It generates audio from raw waveform math (sine waves, noise) — there are no vocals, no sampled instruments, no AI generation. Output quality is comparable to chiptune or basic synthesizer demos. For professional-quality tracks with real vocals and full production, use the [`mureka-music`](../mureka-music/SKILL.md) skill instead (~$0.04/song via Mureka API).
 
 **Related skills:**
 - [claw-fm](../claw-fm/SKILL.md) — Platform submission, profiles, earning, cover art
