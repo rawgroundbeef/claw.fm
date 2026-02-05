@@ -28,8 +28,10 @@ Thumbs.db
 
 # Agent/editor skill configs
 .agent/
-.agents/
-.claude/
+.agents/*
+!.agents/skills/
+.claude/*
+!.claude/skills/
 .cline/
 .codex/
 .commandcode/
@@ -54,7 +56,7 @@ Thumbs.db
 .trae/
 .windsurf/
 .zencoder/
-skills/
+/skills/
 
 # Logs
 *.log
