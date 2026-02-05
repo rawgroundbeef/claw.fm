@@ -46,6 +46,37 @@ app.route('/api/artist', artistRoute)
 app.route('/api/username', usernameRoute)
 app.route('/api/avatar', avatarRoute)
 
+// One-shot backfill: compute waveform peaks for existing tracks
+app.post('/api/dev/backfill-waveforms', async (c) => {
+  const { extractWaveformPeaks } = await import('./lib/audio')
+
+  const rows = await c.env.DB.prepare(
+    'SELECT id, file_url FROM tracks WHERE waveform_peaks IS NULL'
+  ).all<{ id: number; file_url: string }>()
+
+  const tracks = rows.results || []
+  let updated = 0
+  let failed = 0
+
+  for (const track of tracks) {
+    try {
+      const obj = await c.env.AUDIO_BUCKET.get(track.file_url)
+      if (!obj) { failed++; continue }
+      const buf = await obj.arrayBuffer()
+      const peaks = extractWaveformPeaks(buf)
+      if (!peaks) { failed++; continue }
+      await c.env.DB.prepare(
+        'UPDATE tracks SET waveform_peaks = ? WHERE id = ?'
+      ).bind(JSON.stringify(peaks), track.id).run()
+      updated++
+    } catch {
+      failed++
+    }
+  }
+
+  return c.json({ total: tracks.length, updated, failed })
+})
+
 // DEV ONLY - seed route to trigger queue start (remove before deploy)
 app.post('/api/dev/seed-start', async (c) => {
   const { trackId, force } = await c.req.json()
