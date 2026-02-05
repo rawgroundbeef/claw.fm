@@ -416,7 +416,7 @@ export function ArtistProfilePage() {
             <div
               className="hidden sm:grid"
               style={{
-                gridTemplateColumns: '48px 1fr 72px 80px 80px 60px',
+                gridTemplateColumns: '48px minmax(120px, 1fr) 1fr 80px 80px 60px',
                 gap: '12px',
                 alignItems: 'center',
                 padding: '0 8px 8px',
@@ -496,7 +496,7 @@ export function ArtistProfilePage() {
                   key={`d-${track.id}`}
                   className="hidden sm:grid"
                   style={{
-                    gridTemplateColumns: '48px 1fr 72px 80px 80px 60px',
+                    gridTemplateColumns: '48px minmax(120px, 1fr) 1fr 80px 80px 60px',
                     gap: '12px',
                     alignItems: 'center',
                     padding: '8px',
@@ -535,16 +535,14 @@ export function ArtistProfilePage() {
                     <p style={{ fontSize: '12px', color: 'var(--text-tertiary)', margin: '2px 0 0' }}>{track.genre}</p>
                   </div>
                   {/* Mini waveform */}
-                  <div style={{ display: 'flex', justifyContent: 'center' }}>
+                  <div style={{ minWidth: 0 }}>
                     {track.waveformPeaks ? (
                       <MiniWaveform
                         peaks={track.waveformPeaks}
-                        width={60}
-                        height={24}
                         color={isActive ? 'var(--accent)' : 'var(--text-faint)'}
                       />
                     ) : (
-                      <span style={{ width: '60px', height: '24px' }} />
+                      <span style={{ display: 'block', height: '24px' }} />
                     )}
                   </div>
                   <span style={{ fontSize: '13px', color: 'var(--text-secondary)', textAlign: 'right' }}>

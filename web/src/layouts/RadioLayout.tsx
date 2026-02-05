@@ -123,7 +123,7 @@ export function RadioLayout() {
           />
         }
         centerContent={
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-4 w-full">
             <PlayButton
               isPlaying={crossfade.isPlaying}
               isLoading={crossfade.isLoading || crossfade.isBuffering}

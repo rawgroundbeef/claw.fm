@@ -1,19 +1,23 @@
 interface MiniWaveformProps {
   peaks: number[]
-  width?: number
   height?: number
   barCount?: number
   color?: string
 }
 
-export function MiniWaveform({ peaks, width = 60, height = 24, barCount = 20, color = 'var(--text-faint)' }: MiniWaveformProps) {
+export function MiniWaveform({ peaks, height = 24, barCount = 30, color = 'var(--text-faint)' }: MiniWaveformProps) {
   const step = peaks.length / barCount
-  const gap = 1
-  const barW = (width - (barCount - 1) * gap) / barCount
+  const gap = 1.5
+  const vbWidth = barCount * 3 // virtual viewBox width
+  const barW = (vbWidth - (barCount - 1) * gap) / barCount
   const minH = 1
 
   return (
-    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} style={{ display: 'block', flexShrink: 0 }}>
+    <svg
+      viewBox={`0 0 ${vbWidth} ${height}`}
+      preserveAspectRatio="none"
+      style={{ display: 'block', width: '100%', height: `${height}px` }}
+    >
       {Array.from({ length: barCount }, (_, i) => {
         const idx = Math.min(Math.floor(i * step), peaks.length - 1)
         const amp = peaks[idx] ?? 0.1
