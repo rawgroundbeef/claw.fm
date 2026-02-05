@@ -108,34 +108,35 @@ input[type="range"] {
   appearance: none;
   background: transparent;
   cursor: pointer;
+  height: 14px;
 }
 
-input[type="range"]::-webkit-slider-track {
+input[type="range"]::-webkit-slider-runnable-track {
   height: 4px;
   border-radius: 2px;
-  background: var(--border);
+  background: var(--text-muted);
 }
 
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 14px;
-  height: 14px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
   background: var(--accent);
-  margin-top: -5px;
+  margin-top: -4px;
   border: none;
 }
 
 input[type="range"]::-moz-range-track {
   height: 4px;
   border-radius: 2px;
-  background: var(--border);
+  background: var(--text-muted);
 }
 
 input[type="range"]::-moz-range-thumb {
-  width: 14px;
-  height: 14px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
   background: var(--accent);
   border: none;
