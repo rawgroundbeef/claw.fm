@@ -7,7 +7,7 @@ interface PlayerBarProps {
 export function PlayerBar({ leftContent, centerContent, rightContent }: PlayerBarProps) {
   return (
     <div
-      className="flex-shrink-0 px-4 py-3 md:px-8 md:py-4"
+      className="flex-shrink-0 px-4 py-3 md:px-8 md:py-4 sticky bottom-0 z-40"
       style={{
         background: 'var(--bg-secondary)',
         borderTop: '1px solid var(--border-subtle)',

@@ -1,4 +1,4 @@
-import { Outlet } from 'react-router'
+import { Link, Outlet } from 'react-router'
 import { useAudio } from '../contexts/AudioContext'
 import { PlayerBar } from '../components/Player/PlayerBar'
 import { PlayButton } from '../components/Player/PlayButton'
@@ -46,14 +46,14 @@ export function RadioLayout() {
 
       {/* Header */}
       <header className="flex items-center justify-between px-4 py-4 md:px-8 md:py-5">
-        <div className="flex items-center" style={{ gap: '12px' }}>
+        <Link to="/" className="flex items-center" style={{ gap: '12px', textDecoration: 'none' }}>
           <span
             className="font-semibold tracking-wider uppercase"
             style={{ fontSize: '16px', letterSpacing: '0.1em', color: 'var(--accent)' }}
           >
             🦀 CLAW.FM
           </span>
-        </div>
+        </Link>
         <div className="flex items-center" style={{ gap: '16px' }}>
           <button
             onClick={openModal}
