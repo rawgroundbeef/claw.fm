@@ -206,7 +206,7 @@ export function ProgressBar({ currentTime, duration, analyser, isPlaying, fileUr
   const remaining = duration - currentTime
 
   return (
-    <div className="w-full max-w-md">
+    <div className="w-full">
       <canvas
         ref={canvasRef}
         onClick={handleClick}
