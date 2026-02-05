@@ -134,6 +134,8 @@ export function RadioLayout() {
             <ProgressBar
               currentTime={crossfade.currentTime}
               duration={crossfade.duration}
+              analyser={crossfade.activeAnalyser}
+              isPlaying={crossfade.isPlaying}
             />
           </div>
         }
