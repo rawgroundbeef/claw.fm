@@ -20,10 +20,13 @@ function formatTime(seconds: number): string {
   return `${mins}:${secs.toString().padStart(2, '0')}`
 }
 
-const BAR_W = 2       // fixed thin bar width in CSS px
+const BAR_W = 2.5     // slightly wider bars
 const BAR_GAP = 1.5   // gap between bars
 const BAR_MIN_H = 2
-const CANVAS_H = 40
+const CANVAS_H = 48   // taller to accommodate mirror reflection
+const MIRROR_RATIO = 0.3  // reflected portion height ratio
+const MIRROR_OPACITY = 0.25  // reflected portion opacity
+const BAR_RADIUS = 1.25  // rounded cap radius (half of BAR_W)
 const UPLOAD_BAR_COUNT = 120 // resolution for server-stored peaks
 
 /** Downsample audio buffer to peak amplitudes */
@@ -192,10 +195,29 @@ export function ProgressBar({ currentTime, duration, analyser, isPlaying, trackI
       const { accent, muted } = colorsRef.current
       const src = sourcePeaksRef.current
 
+      // The main waveform sits in the top portion, mirror in the bottom
+      const mainH = h / (1 + MIRROR_RATIO)
+      const mirrorTop = mainH
+
       // Resample source peaks to current bar count
       let pk: Float32Array | null = null
       if (src) {
         pk = resamplePeaks(src, barCount)
+      }
+
+      // Smooth the resampled peaks (3-point moving average, 2 passes)
+      if (pk) {
+        let smoothed: Float32Array = pk
+        for (let pass = 0; pass < 2; pass++) {
+          const tmp = new Float32Array(smoothed.length)
+          for (let i = 0; i < smoothed.length; i++) {
+            const prev = smoothed[i - 1] ?? smoothed[i]
+            const next = smoothed[i + 1] ?? smoothed[i]
+            tmp[i] = prev * 0.25 + smoothed[i] * 0.5 + next * 0.25
+          }
+          smoothed = tmp
+        }
+        pk = smoothed
       }
 
       for (let i = 0; i < barCount; i++) {
@@ -214,12 +236,27 @@ export function ProgressBar({ currentTime, duration, analyser, isPlaying, trackI
         }
 
         const totalAmp = Math.min(1, peakAmp + liveBoost)
-        const barH = Math.max(BAR_MIN_H, totalAmp * (h - 4))
-        const y = (h - barH) / 2
+        const barH = Math.max(BAR_MIN_H, totalAmp * (mainH - 4))
+        const y = mainH - barH
 
         const barCenter = x + BAR_W / 2
-        ctx.fillStyle = barCenter <= progressX ? accent : muted
-        ctx.fillRect(Math.round(x), Math.round(y), BAR_W, Math.round(barH))
+        const isPlayed = barCenter <= progressX
+        const barColor = isPlayed ? accent : muted
+
+        // Main bar (rounded)
+        ctx.fillStyle = barColor
+        ctx.beginPath()
+        ctx.roundRect(Math.round(x), Math.round(y), BAR_W, Math.round(barH), BAR_RADIUS)
+        ctx.fill()
+
+        // Mirror reflection (shorter, faded)
+        const mirrorH = barH * MIRROR_RATIO
+        ctx.globalAlpha = MIRROR_OPACITY
+        ctx.fillStyle = barColor
+        ctx.beginPath()
+        ctx.roundRect(Math.round(x), Math.round(mirrorTop), BAR_W, Math.round(mirrorH), BAR_RADIUS)
+        ctx.fill()
+        ctx.globalAlpha = 1
       }
 
       rafRef.current = requestAnimationFrame(draw)
