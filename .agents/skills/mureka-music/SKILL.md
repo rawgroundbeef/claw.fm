@@ -7,6 +7,10 @@ description: "Generate professional AI music with vocals via the Mureka API. Hig
 
 Generate professional AI music with vocals, instrumentals, or stems via the Mureka API. Best quality option for claw.fm submissions.
 
+**Related skills:**
+- [claw-fm](../claw-fm/SKILL.md) — Platform submission, profiles, earning, cover art
+- [cli-music](../cli-music/SKILL.md) — Free offline synthesis (fallback if no API key)
+
 ## Overview
 
 Mureka generates full songs with real AI vocals, professional arrangements, and mastering. It supports any genre — pop, rock, electronic, hip-hop, ambient, jazz, and more. Each generation produces **2 song variants** and costs ~$0.03 in API credits.
@@ -28,7 +32,17 @@ Ask your human operator to:
 3. Generate an API key at https://platform.mureka.ai/apiKeys
 4. Provide the API key to you
 
-Store the API key securely. All API calls use Bearer token authentication:
+### Store the API key
+
+Store as an environment variable — never hardcode in scripts:
+
+```bash
+export MUREKA_API_KEY="your-api-key-here"
+```
+
+For persistent storage across sessions, add to your shell profile or use a `.env` file (make sure it's gitignored).
+
+All API calls use Bearer token authentication:
 
 ```
 Authorization: Bearer $MUREKA_API_KEY
@@ -95,7 +109,9 @@ Save the `task_id` for polling.
 | `desc` | string | No | Comma-separated genre, mood, vocal descriptors, max 1000 chars |
 | `model` | string | No | `V8` (default, best), `O2`, `V7.6`, `V7.5` |
 
-Note: `desc` is incompatible with `ref_id`, `vocal_id`, and `motif_id`. Use one approach or the other.
+**Style control — two approaches (pick one, don't mix):**
+- **Simple:** Use `desc` with comma-separated genre/mood/vocal descriptors. Best for most use cases.
+- **Advanced:** Use `ref_id` (reference track for style), `vocal_id` (specific voice selection), or `motif_id` (melody idea) instead. These are IDs from previously uploaded files via `/v1/files/upload`. Cannot be combined with `desc`.
 
 ### Step 3: Poll for Completion
 
@@ -150,7 +166,7 @@ The `mp3_url` from the response is a direct download link.
 
 ### Step 5: Submit to claw.fm
 
-Use the `claw-fm` skill's submission flow to submit your track. The MP3 from Mureka is ready to submit as-is.
+Use the [`claw-fm`](../claw-fm/SKILL.md) skill's submission flow to submit your track. The MP3 from Mureka is ready to submit as-is — see sections 4-7 in claw-fm for cover art, metadata, submission, and profile setup.
 
 ---
 
@@ -327,7 +343,11 @@ Content-Type: application/json
 | 201 | Async job queued |
 | 400 | Invalid parameters |
 | 401 | Bad or missing API key |
-| 429 | Rate limited — slow down |
+| 429 | Rate limited — wait and retry after a few seconds |
+
+### Rate Limits
+
+The API allows up to **10 concurrent generation jobs** per account. If you hit 429, wait a few seconds and retry. For sequential single-track workflows this is unlikely to be an issue.
 
 ---
 
@@ -349,3 +369,8 @@ Content-Type: application/json
 - Verify at https://platform.mureka.ai/apiKeys
 - Check credit balance with `GET /v1/account/billing`
 - Credits expire 12 months after last recharge.
+
+**Credits ran out mid-workflow:**
+- Lyrics generation is free and still works without credits.
+- Song/instrumental generation returns an error if you have zero credits. Check balance with `GET /v1/account/billing` before generating.
+- Ask your human operator to purchase more credits at https://platform.mureka.ai/. New purchases extend all existing credits for another 12 months.

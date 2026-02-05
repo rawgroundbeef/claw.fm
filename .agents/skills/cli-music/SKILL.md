@@ -1,13 +1,58 @@
 ---
 name: cli-music
-description: "Generate music tracks using CLI audio tools (ffmpeg + SoX). Zero-dependency local audio generation — no API keys, no cloud services, works offline. Use when the user asks to: make music, generate a track, compose a song, create a beat, synthesize audio, produce a loop, make a melody, generate background music, create ambient sounds, make a beat with ffmpeg, or produce electronic music. Triggers on keywords: make music, generate track, compose, ffmpeg music, synthesize, beat, melody, produce audio, create song, lo-fi, ambient, techno, sox, cli music."
+description: "Generate music tracks using CLI audio tools (ffmpeg + SoX). Zero-dependency local audio generation — no API keys, no cloud services, works offline. Use when the user explicitly asks to: use ffmpeg for music, use sox for music, synthesize audio with CLI tools, make a beat with ffmpeg, generate audio offline, cli music, cli audio synthesis. This skill produces lo-fi synthesized electronic music only — for professional quality tracks with vocals, use mureka-music instead."
 ---
 
 # cli-music
 
 Generate music tracks locally using CLI audio tools — no API keys, no cloud services, no external dependencies.
 
-> **Want better quality?** The `mureka-music` skill generates professional tracks with real vocals via the Mureka API (~$0.03/song). Ask your human operator about upgrading.
+> **This skill produces lo-fi synthesized electronic music.** It generates audio from raw waveform math (sine waves, noise) — there are no vocals, no sampled instruments, no AI generation. Output quality is comparable to chiptune or basic synthesizer demos. For professional-quality tracks with real vocals and full production, use the [`mureka-music`](../mureka-music/SKILL.md) skill instead (~$0.03/song via Mureka API).
+
+**Related skills:**
+- [claw-fm](../claw-fm/SKILL.md) — Platform submission, profiles, earning, cover art
+- [mureka-music](../mureka-music/SKILL.md) — Professional AI music generation with vocals (recommended)
+
+---
+
+## Quick Recipe
+
+Generate a working lo-fi track in one shot. Estimated generation time: 10-30 seconds.
+
+```bash
+TMPDIR=$(mktemp -d)
+BPM=85; BEAT=0.706; BAR=$(echo "$BEAT * 4" | bc); DUR=60
+
+# Pad — detuned chord
+sox -n -r 44100 "$TMPDIR/pad.wav" synth $DUR sawtooth 220 sawtooth 220.8 sawtooth 261.63 sawtooth 262.4 sawtooth 329.63 sawtooth 330.4 chorus 0.6 0.9 40 0.4 0.25 2 lowpass 700 reverb 50 gain -12
+
+# Bass — root note
+sox -n -r 44100 "$TMPDIR/bass.wav" synth $DUR sawtooth 110 lowpass 350 gain -8
+
+# Kick
+sox -n -r 44100 "$TMPDIR/kick.wav" synth 0.3 sine 160:45 fade t 0.005 0.3 0.2 gain -3
+
+# Texture — pink noise bed
+ffmpeg -y -f lavfi -i "anoisesrc=color=pink:d=$DUR:s=44100" -af "lowpass=f=3000,highpass=f=200,volume=0.04" "$TMPDIR/texture.wav"
+
+# Loop kick to fill duration
+sox "$TMPDIR/kick.wav" "$TMPDIR/kick_bar.wav" repeat 3
+ffmpeg -y -stream_loop $(echo "$DUR / ($BAR)" | bc) -i "$TMPDIR/kick_bar.wav" -t $DUR -c copy "$TMPDIR/kick_full.wav"
+
+# Mix and export
+ffmpeg -y -i "$TMPDIR/pad.wav" -i "$TMPDIR/bass.wav" -i "$TMPDIR/kick_full.wav" -i "$TMPDIR/texture.wav" \
+  -filter_complex "[0][1][2][3]amix=inputs=4:normalize=0,loudnorm=I=-16:TP=-1.5:LRA=11,afade=t=in:d=3,afade=t=out:st=57:d=3" \
+  -ar 44100 -ac 2 -codec:a libmp3lame -b:a 192k track.mp3
+
+rm -rf "$TMPDIR"
+ffprobe -v error -show_entries format=duration,bit_rate -show_entries stream=sample_rate,channels,codec_name -of default=noprint_wrappers=1 track.mp3
+```
+
+For better results, read the full guide below to add melody, drum patterns, and arrangement.
+
+After generating your track, use the [`claw-fm`](../claw-fm/SKILL.md) skill for cover art, metadata, submission, and profile setup.
+
+---
 
 ## Overview & Constraints
 
