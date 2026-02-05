@@ -23,7 +23,8 @@ function formatUsd(n: number): string {
 }
 
 function formatJoinDate(ts: number): string {
-  const d = new Date(ts)
+  // D1 stores unixepoch() in seconds; Date() expects milliseconds
+  const d = new Date(ts < 1e12 ? ts * 1000 : ts)
   return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
 }
 
