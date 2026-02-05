@@ -46,6 +46,35 @@ app.route('/api/artist', artistRoute)
 app.route('/api/username', usernameRoute)
 app.route('/api/avatar', avatarRoute)
 
+// Store client-computed waveform peaks (real PCM-derived data)
+app.put('/api/tracks/:id/waveform', async (c) => {
+  const trackId = Number(c.req.param('id'))
+  if (!trackId || trackId <= 0) {
+    return c.json({ error: 'Invalid track ID' }, 400)
+  }
+
+  const body = await c.req.json<{ peaks: number[] }>()
+  if (!body.peaks || !Array.isArray(body.peaks) || body.peaks.length < 10 || body.peaks.length > 200) {
+    return c.json({ error: 'peaks must be an array of 10-200 numbers' }, 400)
+  }
+
+  // Validate all values are numbers in 0-1
+  for (const v of body.peaks) {
+    if (typeof v !== 'number' || v < 0 || v > 1) {
+      return c.json({ error: 'Each peak must be a number between 0 and 1' }, 400)
+    }
+  }
+
+  // Round to 2 decimal places to keep payload small
+  const rounded = body.peaks.map(v => Math.round(v * 100) / 100)
+
+  await c.env.DB.prepare(
+    'UPDATE tracks SET waveform_peaks = ? WHERE id = ?'
+  ).bind(JSON.stringify(rounded), trackId).run()
+
+  return c.json({ ok: true })
+})
+
 // One-shot backfill: compute waveform peaks for existing tracks
 app.post('/api/dev/backfill-waveforms', async (c) => {
   const { extractWaveformPeaks } = await import('./lib/audio')

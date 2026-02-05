@@ -7,6 +7,7 @@ interface ProgressBarProps {
   duration: number
   analyser: AnalyserNode | null
   isPlaying: boolean
+  trackId?: number  // for uploading client-computed peaks
   fileUrl?: string  // track file URL for waveform decode
   waveformPeaks?: number[]  // pre-computed peaks from API (skips client-side decode)
   onSeek?: (time: number) => void
@@ -58,7 +59,10 @@ function extractPeaks(buffer: AudioBuffer, barCount: number): Float32Array {
 // Cache decoded waveforms by URL
 const waveformCache = new Map<string, Float32Array>()
 
-export function ProgressBar({ currentTime, duration, analyser, isPlaying, fileUrl, waveformPeaks, onSeek }: ProgressBarProps) {
+// Track IDs we've already uploaded peaks for (avoid duplicate PUTs)
+const uploadedPeaks = new Set<number>()
+
+export function ProgressBar({ currentTime, duration, analyser, isPlaying, trackId, fileUrl, waveformPeaks, onSeek }: ProgressBarProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const rafRef = useRef<number>(0)
   const propsRef = useRef({ currentTime, duration, analyser, isPlaying })
@@ -107,6 +111,17 @@ export function ProgressBar({ currentTime, duration, analyser, isPlaying, fileUr
         const p = extractPeaks(decoded, BAR_COUNT)
         waveformCache.set(fullUrl, p)
         setPeaks(p)
+
+        // Upload PCM-derived peaks to server so future loads skip client decode
+        if (trackId && !uploadedPeaks.has(trackId)) {
+          uploadedPeaks.add(trackId)
+          const peaksArray = Array.from(p).map(v => Math.round(v * 100) / 100)
+          fetch(`${API_URL}/api/tracks/${trackId}/waveform`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ peaks: peaksArray }),
+          }).catch(() => {}) // fire-and-forget
+        }
       })
       .catch(() => {
         // Waveform decode failed — fallback to flat bars
