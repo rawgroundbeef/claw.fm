@@ -45,7 +45,7 @@ export function RadioLayout() {
       />
 
       {/* Header */}
-      <header className="flex items-center justify-between px-4 py-4 md:px-8 md:py-5">
+      <header className="flex items-center justify-between px-4 py-4 md:px-8 md:py-5 sticky top-0 z-40" style={{ background: 'var(--bg-primary)' }}>
         <Link to="/" className="flex items-center" style={{ gap: '12px', textDecoration: 'none' }}>
           <span
             className="font-semibold tracking-wider uppercase"

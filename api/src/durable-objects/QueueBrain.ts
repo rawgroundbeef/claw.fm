@@ -406,10 +406,15 @@ export class QueueBrain extends DurableObject<Env> {
   private async recordPlay(trackId: number, wallet: string): Promise<void> {
     const now = Date.now()
 
-    // Insert play record
+    // Insert play record (local DO storage for anti-repeat logic)
     await this.ctx.storage.sql.exec(`
       INSERT INTO play_history (track_id, wallet, played_at) VALUES (?, ?, ?)
     `, trackId, wallet, now)
+
+    // Increment play_count in D1
+    await this.env.DB.prepare(
+      'UPDATE tracks SET play_count = play_count + 1 WHERE id = ?'
+    ).bind(trackId).run()
 
     // Prune old history (keep last 24 hours)
     const cutoff = now - (24 * 60 * 60 * 1000)

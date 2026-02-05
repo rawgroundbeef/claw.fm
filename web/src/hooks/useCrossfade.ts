@@ -243,7 +243,7 @@ export function useCrossfade(): UseCrossfadeReturn {
   // Keep ref in sync
   clearOverrideRef.current = clearOverride
 
-  // Play override track — crossfade to a specific track from position 0
+  // Play override track — instantly switch to a specific track from position 0
   const playOverride = useCallback(async (track: NowPlayingTrack) => {
     // No-op if same track already playing as override
     if (overrideTrackRef.current && overrideTrackRef.current.id === track.id) return
@@ -251,44 +251,37 @@ export function useCrossfade(): UseCrossfadeReturn {
     overrideTrackRef.current = track
     setOverrideTrack(track)
 
-    // Ensure AudioContext is running before scheduling gain ramps
     await resumeAudioContext()
 
     const { active, inactive } = getActivePlayers()
     const ctx = getAudioContext()
     const now = ctx.currentTime
 
-    // Load override track on inactive player from position 0
+    // Stop active player immediately
+    const activeGain = active.gainNode
+    if (activeGain) {
+      activeGain.gain.cancelScheduledValues(now)
+      activeGain.gain.setValueAtTime(0, now)
+    }
+    active.pause()
+    if (active.audioElement) active.audioElement.currentTime = 0
+
+    // Load and play new track at full volume from position 0
     inactive.setSource(`${API_URL}${track.fileUrl}`)
     if (inactive.audioElement) {
       inactive.audioElement.currentTime = 0
     }
 
-    const activeGain = active.gainNode
     const inactiveGain = inactive.gainNode
-    if (activeGain && inactiveGain) {
-      activeGain.gain.cancelScheduledValues(now)
+    if (inactiveGain) {
       inactiveGain.gain.cancelScheduledValues(now)
-      activeGain.gain.setValueAtTime(activeGain.gain.value, now)
-      activeGain.gain.linearRampToValueAtTime(0, now + CROSSFADE_DURATION_SEC)
-      inactiveGain.gain.setValueAtTime(0, now)
-      inactiveGain.gain.linearRampToValueAtTime(userVolume, now + CROSSFADE_DURATION_SEC)
+      inactiveGain.gain.setValueAtTime(userVolume, now)
     }
 
     await inactive.play()
     activePlayerRef.current = activePlayerRef.current === 'A' ? 'B' : 'A'
     setCurrentTrack(track)
     setIsPlaying(true)
-
-    setTimeout(() => {
-      active.pause()
-      if (active.audioElement) active.audioElement.currentTime = 0
-      // Safety: ensure gain is at target in case ramp didn't fully complete
-      if (inactiveGain) {
-        inactiveGain.gain.cancelScheduledValues(ctx.currentTime)
-        inactiveGain.gain.setValueAtTime(userVolume, ctx.currentTime)
-      }
-    }, CROSSFADE_DURATION_SEC * 1000 + 100)
   }, [getActivePlayers, userVolume])
 
   // Play function - starts playback
