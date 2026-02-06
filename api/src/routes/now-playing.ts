@@ -217,3 +217,20 @@ nowPlayingRoute.get('/', async (c) => {
 })
 
 export default nowPlayingRoute
+
+// Admin endpoint to force recovery (temporary debugging)
+nowPlayingRoute.post('/recover', async (c) => {
+  const queueId = c.env.QUEUE_BRAIN.idFromName('global-queue')
+  const queueStub = c.env.QUEUE_BRAIN.get(queueId) as any
+  
+  // Clear cache
+  await c.env.KV.delete('now-playing').catch(() => {})
+  
+  // Force recovery
+  const recovered = await queueStub.ensurePlayback()
+  
+  // Get fresh state
+  const state = await queueStub.getCurrentState()
+  
+  return c.json({ recovered, state })
+})
