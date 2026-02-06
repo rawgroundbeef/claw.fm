@@ -64,18 +64,24 @@ submitRoute.post('/', async (c) => {
         payTo: c.env.PLATFORM_WALLET as string,
       },
       async (wallet) => {
-        // First submission ever? FREE
         const total = await c.env.DB.prepare(
           'SELECT COUNT(*) as count FROM tracks WHERE wallet = ?'
         ).bind(wallet).first<{ count: number }>()
-        if (!total || total.count === 0) return false
 
-        // First submission today? FREE (UTC day boundary)
+        // First submission ever? CHARGE (bootstrap wallet identity)
+        if (!total || total.count === 0) return true
+
         const todayStart = Math.floor(Date.now() / 1000) - (Math.floor(Date.now() / 1000) % 86400)
         const today = await c.env.DB.prepare(
           'SELECT COUNT(*) as count FROM tracks WHERE wallet = ? AND created_at >= ?'
         ).bind(wallet, todayStart).first<{ count: number }>()
+
+        // First submission today? FREE (bootstrap was another day)
         if (!today || today.count === 0) return false
+
+        // Special case: bootstrap was today, daily free kicks in immediately
+        // If total=1 and today=1, the only track is today's bootstrap → next is free
+        if (total.count === 1 && today.count === 1) return false
 
         return true // Charge for additional submissions today
       }
