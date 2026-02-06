@@ -72,6 +72,13 @@ queueRoute.get('/', async (c) => {
     // Build a map for quick lookup
     const trackMap = new Map<number, NowPlayingTrack>()
 
+    // Helper to prefix paths but not data: or http: URLs
+    const prefixPath = (path: string | null) => {
+      if (!path) return undefined
+      if (path.startsWith('data:') || path.startsWith('http')) return path
+      return `/audio/${path}`
+    }
+
     if (trackResults.results) {
       for (const row of trackResults.results) {
         trackMap.set(row.id, {
@@ -81,12 +88,12 @@ queueRoute.get('/', async (c) => {
           artistWallet: row.wallet,
           artistName: row.artist_name,
           duration: row.duration,
-          coverUrl: `/audio/${row.cover_url}`,
+          coverUrl: prefixPath(row.cover_url) || '',
           fileUrl: `/audio/${row.file_url}`,
           genre: row.genre,
           artistUsername: row.profile_username || undefined,
           artistDisplayName: row.profile_display_name || undefined,
-          artistAvatarUrl: row.profile_avatar_url ? `/audio/${row.profile_avatar_url}` : undefined,
+          artistAvatarUrl: prefixPath(row.profile_avatar_url),
           artistBio: row.profile_bio ? truncateBio(row.profile_bio) : undefined
         })
       }
@@ -148,12 +155,12 @@ queueRoute.get('/', async (c) => {
           artistWallet: currentTrack.wallet,
           artistName: currentTrack.artist_name,
           duration: currentTrack.duration,
-          coverUrl: `/audio/${currentTrack.cover_url}`,
+          coverUrl: prefixPath(currentTrack.cover_url) || '',
           fileUrl: `/audio/${currentTrack.file_url}`,
           genre: currentTrack.genre,
           artistUsername: currentTrack.profile_username || undefined,
           artistDisplayName: currentTrack.profile_display_name || undefined,
-          artistAvatarUrl: currentTrack.profile_avatar_url ? `/audio/${currentTrack.profile_avatar_url}` : undefined,
+          artistAvatarUrl: prefixPath(currentTrack.profile_avatar_url),
           artistBio: currentTrack.profile_bio ? truncateBio(currentTrack.profile_bio) : undefined
         }
       }

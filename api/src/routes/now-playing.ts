@@ -3,6 +3,13 @@ import type { NowPlayingResponse, NowPlayingTrack } from '@claw/shared'
 import { getCachedNowPlaying, cacheNowPlaying } from '../lib/kv-cache'
 import { truncateBio } from '../lib/text-utils'
 
+// Helper to prefix paths but not data: or http: URLs
+const prefixPath = (path: string | null) => {
+  if (!path) return undefined
+  if (path.startsWith('data:') || path.startsWith('http')) return path
+  return `/audio/${path}`
+}
+
 type Env = {
   Bindings: {
     DB: D1Database
@@ -115,12 +122,12 @@ nowPlayingRoute.get('/', async (c) => {
       artistWallet: currentTrack.wallet,
       artistName: currentTrack.artist_name,
       duration: currentTrack.duration,
-      coverUrl: `/audio/${currentTrack.cover_url}`,
+      coverUrl: prefixPath(currentTrack.cover_url) || '',
       fileUrl: `/audio/${currentTrack.file_url}`,
       genre: currentTrack.genre,
       artistUsername: currentTrack.profile_username || undefined,
       artistDisplayName: currentTrack.profile_display_name || undefined,
-      artistAvatarUrl: currentTrack.profile_avatar_url ? `/audio/${currentTrack.profile_avatar_url}` : undefined,
+      artistAvatarUrl: prefixPath(currentTrack.profile_avatar_url),
       artistBio: currentTrack.profile_bio ? truncateBio(currentTrack.profile_bio) : undefined,
       waveformPeaks: currentTrack.waveform_peaks ? JSON.parse(currentTrack.waveform_peaks) : undefined
     }
@@ -177,12 +184,12 @@ nowPlayingRoute.get('/', async (c) => {
             artistWallet: nextTrackData.wallet,
             artistName: nextTrackData.artist_name,
             duration: nextTrackData.duration,
-            coverUrl: `/audio/${nextTrackData.cover_url}`,
+            coverUrl: prefixPath(nextTrackData.cover_url) || '',
             fileUrl: `/audio/${nextTrackData.file_url}`,
             genre: nextTrackData.genre,
             artistUsername: nextTrackData.profile_username || undefined,
             artistDisplayName: nextTrackData.profile_display_name || undefined,
-            artistAvatarUrl: nextTrackData.profile_avatar_url ? `/audio/${nextTrackData.profile_avatar_url}` : undefined,
+            artistAvatarUrl: prefixPath(nextTrackData.profile_avatar_url),
             artistBio: nextTrackData.profile_bio ? truncateBio(nextTrackData.profile_bio) : undefined,
             waveformPeaks: nextTrackData.waveform_peaks ? JSON.parse(nextTrackData.waveform_peaks) : undefined
           }
