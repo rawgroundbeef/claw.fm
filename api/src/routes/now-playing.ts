@@ -20,7 +20,14 @@ nowPlayingRoute.get('/', async (c) => {
     // Step 1: Try KV cache first (fast path)
     const cached = await getCachedNowPlaying(c.env.KV)
     if (cached) {
-      return c.json(cached)
+      // Check if cached response is stale (track should have ended)
+      if (cached.state === 'playing' && cached.endsAt && cached.endsAt < Date.now()) {
+        // Stale cache - track ended but cache wasn't invalidated
+        // Invalidate and fall through to DO for recovery
+        await c.env.KV.delete('now-playing').catch(() => {})
+      } else {
+        return c.json(cached)
+      }
     }
 
     // Step 2: Cache miss -- query QueueBrain DO
