@@ -129,6 +129,61 @@ export class QueueBrain extends DurableObject<Env> {
   }
 
   /**
+   * Ensure playback is active and alarm is scheduled.
+   * Self-healing: recovers from lost alarms, stale state, or cold starts.
+   * Safe to call on every request - idempotent and fast when healthy.
+   * @returns True if recovery was needed, false if already healthy
+   */
+  async ensurePlayback(): Promise<boolean> {
+    const now = Date.now()
+    
+    // Check current state
+    const currentTrackIdStr = await this.getState('current_track_id')
+    const currentEndsAtStr = await this.getState('current_ends_at')
+    const alarmTime = await this.ctx.storage.getAlarm()
+    
+    // Case 1: No current track - start fresh
+    if (!currentTrackIdStr) {
+      const tracks = await this.fetchAllTracks()
+      if (tracks.length === 0) {
+        return false // No tracks to play
+      }
+      
+      // Select and start first track
+      const recentTrackIds = await this.getRecentTrackIds(10)
+      const recentWallets = await this.getRecentWallets(3)
+      const selected = selectTrackWeighted(tracks, recentTrackIds, recentWallets)
+      
+      if (selected) {
+        await this.forceStart(selected.id)
+        console.log('QueueBrain: Started fresh playback with track', selected.id)
+        return true
+      }
+      return false
+    }
+    
+    // Case 2: Track exists but endsAt is in the past (stale state)
+    const currentEndsAt = currentEndsAtStr ? parseInt(currentEndsAtStr, 10) : 0
+    if (currentEndsAt > 0 && currentEndsAt < now) {
+      // Track should have ended - trigger advancement
+      console.log('QueueBrain: Recovering from stale state, endsAt was', new Date(currentEndsAt).toISOString())
+      await this.alarm()
+      return true
+    }
+    
+    // Case 3: Track exists, endsAt is future, but no alarm scheduled
+    if (currentEndsAt > now && !alarmTime) {
+      // Re-schedule the alarm
+      await this.ctx.storage.setAlarm(currentEndsAt)
+      console.log('QueueBrain: Re-scheduled missing alarm for', new Date(currentEndsAt).toISOString())
+      return true
+    }
+    
+    // Healthy state - nothing to do
+    return false
+  }
+
+  /**
    * Force-start a track, replacing whatever is currently playing.
    * DEV ONLY — used to skip the queue and play a specific track immediately.
    */

@@ -26,6 +26,15 @@ nowPlayingRoute.get('/', async (c) => {
     // Step 2: Cache miss -- query QueueBrain DO
     const queueId = c.env.QUEUE_BRAIN.idFromName('global-queue')
     const queueStub = c.env.QUEUE_BRAIN.get(queueId) as any
+    
+    // Step 2.5: Self-healing - ensure playback is active
+    // This recovers from lost alarms, DO eviction, or stale state
+    const recovered = await queueStub.ensurePlayback()
+    if (recovered) {
+      // State changed, invalidate any stale cache
+      await c.env.KV.delete('now-playing').catch(() => {})
+    }
+    
     const state = await queueStub.getCurrentState()
 
     // Step 3: If no current track, return waiting state
