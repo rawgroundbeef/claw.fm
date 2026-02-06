@@ -197,14 +197,27 @@ export class QueueBrain extends DurableObject<Env> {
       console.log('QueueBrain: Recovering from stale state, endsAt was', new Date(currentEndsAt).toISOString())
       
       // Select next track
-      const nextTrackId = await this.selectNext()
+      let nextTrackId = await this.selectNext()
+      
+      // Fallback: if weighted selection fails, just pick any track
+      if (!nextTrackId) {
+        const allTracks = await this.fetchAllTracks()
+        if (allTracks.length > 0) {
+          // Pick a random track that's not the current one
+          const currentId = parseInt(currentTrackIdStr!, 10)
+          const otherTracks = allTracks.filter(t => t.id !== currentId)
+          const pool = otherTracks.length > 0 ? otherTracks : allTracks
+          nextTrackId = pool[Math.floor(Math.random() * pool.length)].id
+        }
+      }
+      
       if (nextTrackId) {
         await this.forceStart(nextTrackId)
         console.log('QueueBrain: Recovery started track', nextTrackId)
         return true
       }
       
-      // Fallback: no tracks available
+      // No tracks at all
       return false
     }
     
