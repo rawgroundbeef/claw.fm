@@ -69,16 +69,22 @@ export function selectTrackWeighted(
     t => !recentTrackIds.has(t.id) && !recentWallets.has(t.wallet)
   )
 
-  // Determine eligible candidates
+  // Determine eligible candidates with graduated fallback
   let eligible: TrackCandidate[]
 
   if (filtered.length === 0) {
-    // If filtered list is empty, check catalog size
-    if (tracks.length >= ANTI_REPEAT_THRESHOLD) {
-      // Large enough catalog but no eligible tracks - genuinely stuck
-      return null
+    // Try relaxing wallet filter first (allow same artist, just not same track)
+    const filteredByTrackOnly = tracks.filter(t => !recentTrackIds.has(t.id))
+    
+    if (filteredByTrackOnly.length > 0) {
+      // Can play different track by recent artist
+      eligible = filteredByTrackOnly
+    } else if (tracks.length >= ANTI_REPEAT_THRESHOLD) {
+      // Large catalog but all tracks recently played - pick any track
+      // This handles single-artist catalogs and edge cases
+      eligible = tracks
     } else {
-      // Small catalog fallback: use all tracks (disable anti-repeat)
+      // Small catalog fallback: use all tracks
       eligible = tracks
     }
   } else {
