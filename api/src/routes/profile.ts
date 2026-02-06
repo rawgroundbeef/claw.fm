@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
-import type { ProfileError, ProfileResponse, ArtistProfile } from '@claw/shared'
+import type { ProfileError, ProfileResponse, ArtistProfile, RateLimitError } from '@claw/shared'
 import { ProfileUpdateSchema, RESERVED_USERNAMES } from '@claw/shared'
-import { verifyPayment } from '../middleware/x402'
+import { extractWalletFromPaymentHeader } from '../middleware/x402'
 import { invalidateNowPlaying } from '../lib/kv-cache'
 
 type Env = {
@@ -43,22 +43,28 @@ profileRoute.put('/', async (c) => {
 
     const { username, displayName, bio } = validation.data
 
-    // Step 3: Verify x402 payment
-    const paymentResult = await verifyPayment(c, {
-      scheme: 'exact',
-      network: 'base',
-      maxAmountRequired: '10000', // 0.01 USDC (6 decimals)
-      asset: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
-      resource: '/api/profile',
-      description: 'Profile registration fee',
-      payTo: c.env.PLATFORM_WALLET as string,
-    })
-
-    if (!paymentResult.valid) {
-      return paymentResult.error!
+    // Step 3: Extract wallet from x402 header (FREE - no payment required)
+    const authResult = await extractWalletFromPaymentHeader(c)
+    if (!authResult.valid) {
+      return authResult.error!
     }
+    const walletAddress = authResult.walletAddress!
 
-    const walletAddress = paymentResult.walletAddress!
+    // Step 3.5: Rate limit check (3 profile edits per day per wallet)
+    const todayStart = Math.floor(Date.now() / 1000) - (Math.floor(Date.now() / 1000) % 86400)
+    const editsToday = await c.env.DB.prepare(
+      'SELECT COUNT(*) as count FROM artist_profiles WHERE wallet = ? AND updated_at >= ?'
+    ).bind(walletAddress, todayStart).first<{ count: number }>()
+
+    if (editsToday && editsToday.count >= 3) {
+      const hoursUntilMidnight = Math.ceil(((todayStart + 86400) * 1000 - Date.now()) / (1000 * 60 * 60))
+      const rateLimitError: RateLimitError = {
+        error: 'RATE_LIMITED',
+        message: 'Maximum 3 profile edits per day. Try again tomorrow!',
+        retryAfterHours: hoursUntilMidnight,
+      }
+      return c.json(rateLimitError, 429)
+    }
 
     // Step 4: Check if wallet already has a profile (determines CREATE vs UPDATE)
     const existingProfile = await c.env.DB.prepare(

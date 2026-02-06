@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
-import type { SubmitResponse, SubmissionError } from '@claw/shared'
+import type { SubmitResponseEnhanced, SubmissionError } from '@claw/shared'
 import { validateSubmission } from '../middleware/validation'
-import { verifyPayment } from '../middleware/x402'
+import { verifyPaymentConditional } from '../middleware/x402'
 import { generateIdenticon } from '../lib/identicon'
 import { processAndUploadCoverArt } from '../lib/image'
 import { extractWaveformPeaks } from '../lib/audio'
@@ -48,19 +48,41 @@ submitRoute.post('/', async (c) => {
     const hashArray = Array.from(new Uint8Array(hashBuffer))
     const fileHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
 
-    // Step 4: Verify x402 payment
-    const paymentResult = await verifyPayment(c, {
-      scheme: 'exact',
-      network: 'base',
-      maxAmountRequired: '10000', // 0.01 USDC (6 decimals)
-      asset: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
-      resource: '/api/submit',
-      description: 'Track submission fee',
-      payTo: c.env.PLATFORM_WALLET as string,
-    })
+    // Step 4: Verify x402 payment with conditional charging
+    // First submission ever = FREE (bootstraps wallet identity)
+    // First submission today = FREE (1/day limit)
+    // Additional submissions same day = 0.01 USDC
+    const paymentResult = await verifyPaymentConditional(
+      c,
+      {
+        scheme: 'exact',
+        network: 'base',
+        maxAmountRequired: '10000', // 0.01 USDC (6 decimals)
+        asset: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+        resource: '/api/submit',
+        description: 'Track submission fee (additional same-day submission)',
+        payTo: c.env.PLATFORM_WALLET as string,
+      },
+      async (wallet) => {
+        // First submission ever? FREE
+        const total = await c.env.DB.prepare(
+          'SELECT COUNT(*) as count FROM tracks WHERE wallet = ?'
+        ).bind(wallet).first<{ count: number }>()
+        if (!total || total.count === 0) return false
+
+        // First submission today? FREE (UTC day boundary)
+        const todayStart = Math.floor(Date.now() / 1000) - (Math.floor(Date.now() / 1000) % 86400)
+        const today = await c.env.DB.prepare(
+          'SELECT COUNT(*) as count FROM tracks WHERE wallet = ? AND created_at >= ?'
+        ).bind(wallet, todayStart).first<{ count: number }>()
+        if (!today || today.count === 0) return false
+
+        return true // Charge for additional submissions today
+      }
+    )
 
     if (!paymentResult.valid) {
-      // verifyPayment already constructed the response with proper headers
+      // verifyPaymentConditional already constructed the response with proper headers
       return paymentResult.error!
     }
 
@@ -192,12 +214,34 @@ submitRoute.post('/', async (c) => {
       }
     }
 
-    // Step 10: Return success response
-    const response: SubmitResponse = {
+    // Step 9.6: Calculate enhanced response fields for agent guidance
+    const totalSubmissions = await c.env.DB.prepare(
+      'SELECT COUNT(*) as count FROM tracks WHERE wallet = ?'
+    ).bind(walletAddress).first<{ count: number }>()
+
+    const todayStart = Math.floor(Date.now() / 1000) - (Math.floor(Date.now() / 1000) % 86400)
+    const todaySubmissions = await c.env.DB.prepare(
+      'SELECT COUNT(*) as count FROM tracks WHERE wallet = ? AND created_at >= ?'
+    ).bind(walletAddress, todayStart).first<{ count: number }>()
+
+    // Check if wallet has a profile
+    const hasProfile = await c.env.DB.prepare(
+      'SELECT 1 FROM artist_profiles WHERE wallet = ?'
+    ).bind(walletAddress).first()
+
+    // Calculate next free submission time (next UTC midnight)
+    const nextMidnightUTC = (todayStart + 86400) * 1000
+
+    // Step 10: Return success response with enhanced fields
+    const response: SubmitResponseEnhanced = {
       trackId,
       trackUrl: trackKey,
       slug,
       queuePosition,
+      isFirstSubmission: (totalSubmissions?.count || 0) <= 1,
+      freeSubmissionsRemaining: (todaySubmissions?.count || 0) <= 1 ? 0 : 0,
+      nextFreeSubmissionAt: (todaySubmissions?.count || 0) >= 1 ? nextMidnightUTC : undefined,
+      suggestion: !hasProfile ? "Create a profile to build your artist identity! It's free (3/day limit)." : undefined,
     }
 
     return c.json(response, 200)

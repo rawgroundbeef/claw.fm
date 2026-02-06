@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
-import type { ProfileError } from '@claw/shared'
-import { verifyPayment } from '../middleware/x402'
+import type { ProfileError, RateLimitError } from '@claw/shared'
+import { extractWalletFromPaymentHeader } from '../middleware/x402'
 import { fileTypeFromBlob } from 'file-type'
 import { invalidateNowPlaying } from '../lib/kv-cache'
 
@@ -56,22 +56,37 @@ avatarRoute.post('/', async (c) => {
       return c.json(errorResponse, 400)
     }
 
-    // Step 3: Verify x402 payment
-    const paymentResult = await verifyPayment(c, {
-      scheme: 'exact',
-      network: 'base',
-      maxAmountRequired: '10000', // 0.01 USDC (6 decimals)
-      asset: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
-      resource: '/api/avatar',
-      description: 'Avatar upload fee',
-      payTo: c.env.PLATFORM_WALLET as string,
-    })
-
-    if (!paymentResult.valid) {
-      return paymentResult.error!
+    // Step 3: Extract wallet from x402 header (FREE - no payment required)
+    const authResult = await extractWalletFromPaymentHeader(c)
+    if (!authResult.valid) {
+      return authResult.error!
     }
+    const walletAddress = authResult.walletAddress!
 
-    const walletAddress = paymentResult.walletAddress!
+    // Step 3.5: Rate limit check (3 avatar uploads per day per wallet)
+    // We track this by counting recent avatar updates in the profile table
+    const todayStart = Math.floor(Date.now() / 1000) - (Math.floor(Date.now() / 1000) % 86400)
+    const profile = await c.env.DB.prepare(
+      'SELECT avatar_url, updated_at FROM artist_profiles WHERE wallet = ?'
+    ).bind(walletAddress).first<{ avatar_url: string | null; updated_at: number }>()
+
+    // Count avatar uploads today by checking how many times updated_at changed today
+    // Since we don't have a separate avatar_uploads table, we'll use a simple approach:
+    // Check if there's an avatar and if updated_at is today, count it
+    // For a more robust solution, we'd add an avatar_upload_count column or separate table
+    // For now, we'll use a KV-based counter
+    const avatarCountKey = `avatar_uploads:${walletAddress}:${todayStart}`
+    const uploadsToday = parseInt(await c.env.KV.get(avatarCountKey) || '0', 10)
+
+    if (uploadsToday >= 3) {
+      const hoursUntilMidnight = Math.ceil(((todayStart + 86400) * 1000 - Date.now()) / (1000 * 60 * 60))
+      const rateLimitError: RateLimitError = {
+        error: 'RATE_LIMITED',
+        message: 'Maximum 3 avatar uploads per day. Try again tomorrow!',
+        retryAfterHours: hoursUntilMidnight,
+      }
+      return c.json(rateLimitError, 429)
+    }
 
     // Step 4: Check wallet has a profile
     const profileCheck = await c.env.DB.prepare(
@@ -136,6 +151,11 @@ avatarRoute.post('/', async (c) => {
 
     // Invalidate now-playing cache so avatar appears in player
     await invalidateNowPlaying(c.env.KV)
+
+    // Step 6.5: Increment avatar upload counter for rate limiting
+    await c.env.KV.put(avatarCountKey, String(uploadsToday + 1), {
+      expirationTtl: 86400, // Expires after 24 hours
+    })
 
     // Step 7: Return success
     return c.json({ avatarUrl: avatarKey }, 200)

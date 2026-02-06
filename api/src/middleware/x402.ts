@@ -12,8 +12,218 @@ export interface PaymentVerificationResult {
   error?: Response
 }
 
+export interface WalletExtractionResult {
+  valid: boolean
+  walletAddress?: string
+  error?: Response
+}
+
 export interface PaymentGateOptions {
   getRequirements: (c: Context, body?: unknown) => Promise<PaymentRequirementsV1>
+}
+
+/**
+ * Extract wallet address from x402 payment header WITHOUT settling.
+ * This allows us to identify the wallet before deciding whether to charge.
+ * Returns 401 Unauthorized if no payment header (not 402 — payment may not be required).
+ */
+export async function extractWalletFromPaymentHeader(c: Context): Promise<WalletExtractionResult> {
+  const paymentHeader =
+    c.req.header('X-PAYMENT') || c.req.header('PAYMENT-SIGNATURE')
+
+  if (!paymentHeader) {
+    const errorResponse = c.json(
+      {
+        error: 'UNAUTHORIZED',
+        message: 'X-PAYMENT or PAYMENT-SIGNATURE header required for wallet identification',
+      },
+      401,
+    )
+    return { valid: false, error: errorResponse }
+  }
+
+  try {
+    const paymentPayload: PaymentPayload = JSON.parse(atob(paymentHeader))
+
+    // Extract wallet from the authorization.from field
+    // Handle both v1 and v2 payload structures
+    let walletAddress: string | undefined
+
+    if (paymentPayload.x402Version === 2) {
+      // v2: payload.authorization.from
+      walletAddress = (paymentPayload as any).payload?.authorization?.from
+    } else {
+      // v1: authorization.from directly
+      walletAddress = (paymentPayload as any).authorization?.from
+    }
+
+    if (!walletAddress) {
+      const errorResponse = c.json(
+        {
+          error: 'INVALID_PAYMENT_HEADER',
+          message: 'Could not extract wallet address from payment header',
+        },
+        400,
+      )
+      return { valid: false, error: errorResponse }
+    }
+
+    return { valid: true, walletAddress }
+  } catch (error) {
+    console.error('[x402] Failed to extract wallet from header:', error)
+    const errorResponse = c.json(
+      {
+        error: 'INVALID_PAYMENT_HEADER',
+        message: 'Malformed payment header',
+      },
+      400,
+    )
+    return { valid: false, error: errorResponse }
+  }
+}
+
+/**
+ * Conditionally verify and settle x402 payment based on business logic.
+ * Extracts wallet first, then calls shouldCharge() to determine if payment is needed.
+ * Only settles if shouldCharge returns true.
+ */
+export async function verifyPaymentConditional(
+  c: Context,
+  requirements: PaymentRequirementsV1,
+  shouldCharge: (wallet: string) => Promise<boolean>,
+): Promise<PaymentVerificationResult> {
+  const paymentHeader =
+    c.req.header('X-PAYMENT') || c.req.header('PAYMENT-SIGNATURE')
+
+  if (!paymentHeader) {
+    // v1 header: raw requirements for agent clients
+    const v1Base64 = btoa(JSON.stringify(requirements))
+
+    // v2 header: wrapped in PaymentRequired envelope for @x402/fetch clients
+    const v2Payload = {
+      x402Version: 2,
+      accepts: [{
+        scheme: requirements.scheme,
+        network: 'eip155:8453',
+        asset: requirements.asset,
+        payTo: requirements.payTo,
+        amount: requirements.maxAmountRequired,
+        maxTimeoutSeconds: 300,
+        extra: {
+          name: 'USD Coin',
+          version: '2',
+        },
+      }],
+      resource: {
+        url: requirements.resource || c.req.path,
+      },
+    }
+    const v2Base64 = btoa(JSON.stringify(v2Payload))
+
+    const errorResponse = c.json(
+      {
+        error: 'PAYMENT_REQUIRED',
+        message: `Payment of ${requirements.description || 'USDC'} required`,
+        paymentRequirements: requirements,
+        x402Version: 1,
+      },
+      402,
+      {
+        'X-PAYMENT-REQUIRED': v1Base64,
+        'PAYMENT-REQUIRED': v2Base64,
+      },
+    )
+
+    return { valid: false, error: errorResponse }
+  }
+
+  try {
+    const paymentPayload: PaymentPayload = JSON.parse(atob(paymentHeader))
+    console.log('[x402] Payment payload version:', paymentPayload.x402Version)
+
+    // Extract wallet address first
+    let walletAddress: string | undefined
+    if (paymentPayload.x402Version === 2) {
+      walletAddress = (paymentPayload as any).payload?.authorization?.from
+    } else {
+      walletAddress = (paymentPayload as any).authorization?.from
+    }
+
+    if (!walletAddress) {
+      const errorResponse = c.json(
+        {
+          error: 'INVALID_PAYMENT_HEADER',
+          message: 'Could not extract wallet address from payment header',
+        },
+        400,
+      )
+      return { valid: false, error: errorResponse }
+    }
+
+    // Check if we should charge this wallet
+    const needsPayment = await shouldCharge(walletAddress)
+
+    if (!needsPayment) {
+      // FREE! Skip settlement, return valid with wallet
+      console.log('[x402] Conditional: FREE for wallet', walletAddress)
+      return { valid: true, walletAddress }
+    }
+
+    // Need to charge — verify and settle
+    console.log('[x402] Conditional: Charging wallet', walletAddress)
+    const facilitator = new OpenFacilitator()
+
+    const verifyResult = await facilitator.verify(paymentPayload, requirements)
+    console.log('[x402] Verify:', verifyResult.isValid, verifyResult.invalidReason || '')
+
+    if (!verifyResult.isValid) {
+      const errorResponse = c.json(
+        {
+          error: 'PAYMENT_INVALID',
+          message: verifyResult.invalidReason || 'Payment verification failed',
+        },
+        402,
+      )
+      return { valid: false, error: errorResponse }
+    }
+
+    const settleResult = await facilitator.settle(paymentPayload, requirements)
+    console.log('[x402] Settle:', settleResult.success, settleResult.transaction || settleResult.errorReason || '')
+
+    if (!settleResult.success) {
+      const errorResponse = c.json(
+        {
+          error: 'PAYMENT_SETTLEMENT_FAILED',
+          message: settleResult.errorReason || 'Payment settlement failed',
+        },
+        402,
+      )
+      return { valid: false, error: errorResponse }
+    }
+
+    return { valid: true, walletAddress: settleResult.payer }
+  } catch (error) {
+    console.error('[x402] Exception:', error)
+    if (error instanceof FacilitatorError) {
+      const errorResponse = c.json(
+        {
+          error: 'FACILITATOR_ERROR',
+          message: `Facilitator error: ${error.message}`,
+        },
+        502,
+      )
+      return { valid: false, error: errorResponse }
+    }
+
+    const errorResponse = c.json(
+      {
+        error: 'PAYMENT_VERIFICATION_ERROR',
+        message: `Payment verification error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      },
+      500,
+    )
+    return { valid: false, error: errorResponse }
+  }
 }
 
 /**

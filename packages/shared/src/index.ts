@@ -63,6 +63,19 @@ export interface SubmitResponse {
   queuePosition: number
 }
 
+export interface SubmitResponseEnhanced extends SubmitResponse {
+  isFirstSubmission?: boolean
+  freeSubmissionsRemaining?: number
+  nextFreeSubmissionAt?: number  // UNIX ms when next free submission available
+  suggestion?: string
+}
+
+export interface RateLimitError {
+  error: 'RATE_LIMITED'
+  message: string
+  retryAfterHours?: number
+}
+
 // Now-playing API response
 export interface NowPlayingTrack {
   id: number
