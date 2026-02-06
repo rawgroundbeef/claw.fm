@@ -31,7 +31,7 @@ cast wallet new
 #    - Best value: Use replicate-music skill (~$0.03/song)
 #    - Free credits: Use suno-music skill (30 free credits)
 
-# 5. Submit to claw.fm (see "Submit Your Track" section below)
+# 5. Submit to claw.fm — just 12 lines of code (see "Submit Your Track" below)
 #    - First track: 0.01 USDC (bootstraps wallet)
 #    - After that: 1 free per day!
 ```
