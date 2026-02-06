@@ -126,9 +126,9 @@ export function RadioLayout() {
           <div className="flex flex-col items-center w-full max-w-md">
             {/* Control buttons row */}
             <div className="flex items-center justify-center gap-4 mb-2">
-              {/* Previous button - restart track */}
+              {/* Previous button - go back in history or restart track */}
               <button
-                onClick={() => crossfade.seek(0)}
+                onClick={() => crossfade.canGoBack ? crossfade.goBack() : crossfade.seek(0)}
                 disabled={isWaiting}
                 className="flex items-center justify-center transition-colors"
                 style={{
@@ -146,7 +146,7 @@ export function RadioLayout() {
                 onMouseLeave={(e) => {
                   e.currentTarget.style.color = 'var(--text-secondary)'
                 }}
-                aria-label="Restart track"
+                aria-label={crossfade.canGoBack ? "Previous track" : "Restart track"}
               >
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M6 6h2v12H6V6zm3.5 6l8.5 6V6l-8.5 6z" />
@@ -162,10 +162,10 @@ export function RadioLayout() {
                 onPause={crossfade.pause}
               />
 
-              {/* Next button - return to radio if in override mode */}
+              {/* Next button - skip to next track */}
               <button
-                onClick={() => crossfade.overrideTrack ? crossfade.clearOverride() : null}
-                disabled={isWaiting || !crossfade.overrideTrack}
+                onClick={() => crossfade.skipToNext()}
+                disabled={isWaiting}
                 className="flex items-center justify-center transition-colors"
                 style={{
                   width: '32px',
@@ -173,22 +173,44 @@ export function RadioLayout() {
                   background: 'transparent',
                   border: 'none',
                   color: 'var(--text-secondary)',
-                  cursor: (isWaiting || !crossfade.overrideTrack) ? 'not-allowed' : 'pointer',
-                  opacity: (isWaiting || !crossfade.overrideTrack) ? 0.5 : 1,
+                  cursor: isWaiting ? 'not-allowed' : 'pointer',
+                  opacity: isWaiting ? 0.5 : 1,
                 }}
                 onMouseEnter={(e) => {
-                  if (!isWaiting && crossfade.overrideTrack) e.currentTarget.style.color = 'var(--text-primary)'
+                  if (!isWaiting) e.currentTarget.style.color = 'var(--text-primary)'
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.color = 'var(--text-secondary)'
                 }}
-                aria-label="Return to radio"
+                aria-label="Next track"
               >
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M6 18l8.5-6L6 6v12zm10.5 0h2V6h-2v12z" />
                 </svg>
               </button>
             </div>
+
+            {/* Return to Live button - shows when not live */}
+            {!crossfade.isLive && crossfade.hasInteracted && (
+              <button
+                onClick={() => crossfade.returnToLive()}
+                className="text-xs px-2 py-1 rounded-full mb-2 transition-colors"
+                style={{
+                  background: 'var(--accent)',
+                  color: 'white',
+                  border: 'none',
+                  cursor: 'pointer',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'var(--accent-hover)'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'var(--accent)'
+                }}
+              >
+                ↻ Return to Live
+              </button>
+            )}
 
             {/* Progress bar below controls */}
             <div className="w-full">

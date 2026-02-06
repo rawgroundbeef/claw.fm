@@ -12,10 +12,15 @@ interface UseCrossfadeReturn {
   pause: () => void
   setVolume: (volume: number) => void
   seek: (time: number) => void
+  skipToNext: () => Promise<void>  // Skip to next track (breaks from live)
+  goBack: () => void              // Go back to previous track
+  returnToLive: () => void        // Return to live radio stream
   isPlaying: boolean
   isLoading: boolean
   isBuffering: boolean
   hasInteracted: boolean     // User has clicked play at least once
+  isLive: boolean            // True when synced with live radio
+  canGoBack: boolean         // True when there's history to go back to
   currentTrack: NowPlayingTrack | null
   activeAnalyser: AnalyserNode | null  // For visualizer to consume
   currentTime: number        // Current playback position in seconds
@@ -45,6 +50,10 @@ export function useCrossfade(): UseCrossfadeReturn {
   const [overrideTrack, setOverrideTrack] = useState<NowPlayingTrack | null>(null)
   const overrideTrackRef = useRef<NowPlayingTrack | null>(null)
   const clearOverrideRef = useRef<() => void>(() => {})
+  
+  // Personal playback history for back button
+  const [playHistory, setPlayHistory] = useState<NowPlayingTrack[]>([])
+  const playHistoryRef = useRef<NowPlayingTrack[]>([])
 
   // Handler called when either player's audio element fires 'ended'
   const handlePlayerEnded = useCallback(() => {
@@ -289,6 +298,57 @@ export function useCrossfade(): UseCrossfadeReturn {
     setIsPlaying(true)
   }, [getActivePlayers, userVolume])
 
+  // Skip to next track - fetches from queue and plays as override
+  const skipToNext = useCallback(async () => {
+    setHasInteracted(true)
+    
+    // Save current track to history before skipping
+    if (currentTrack) {
+      const newHistory = [...playHistoryRef.current, currentTrack].slice(-20) // Keep last 20
+      playHistoryRef.current = newHistory
+      setPlayHistory(newHistory)
+    }
+    
+    try {
+      // Fetch queue from API
+      const response = await fetch(`${API_URL}/api/queue`)
+      const data = await response.json()
+      
+      if (data.tracks && data.tracks.length > 0) {
+        // Play first track from queue
+        await playOverride(data.tracks[0])
+      }
+    } catch (error) {
+      console.error('Failed to fetch queue for skip:', error)
+    }
+  }, [currentTrack, playOverride])
+
+  // Go back to previous track from history
+  const goBack = useCallback(() => {
+    if (playHistoryRef.current.length === 0) return
+    
+    // Pop last track from history
+    const newHistory = [...playHistoryRef.current]
+    const prevTrack = newHistory.pop()
+    
+    if (prevTrack) {
+      playHistoryRef.current = newHistory
+      setPlayHistory(newHistory)
+      playOverride(prevTrack)
+    }
+  }, [playOverride])
+
+  // Return to live radio (alias for clearOverride with history handling)
+  const returnToLive = useCallback(() => {
+    // Save current track to history before returning to live
+    if (currentTrack) {
+      const newHistory = [...playHistoryRef.current, currentTrack].slice(-20)
+      playHistoryRef.current = newHistory
+      setPlayHistory(newHistory)
+    }
+    clearOverride()
+  }, [currentTrack, clearOverride])
+
   // Play function - starts playback
   const play = useCallback(async () => {
     setHasInteracted(true)  // User has clicked play
@@ -367,10 +427,15 @@ export function useCrossfade(): UseCrossfadeReturn {
     pause,
     setVolume,
     seek,
+    skipToNext,
+    goBack,
+    returnToLive,
     isPlaying,
     isLoading: active.isLoading,
     isBuffering: active.isBuffering,
     hasInteracted,  // True after user clicks play - use to gate loading spinner
+    isLive: !overrideTrack,  // True when synced with live radio
+    canGoBack: playHistory.length > 0,  // True when there's history
     currentTrack,
     activeAnalyser: active.analyserNode,
     currentTime: active.currentTime,
