@@ -25,6 +25,7 @@ type TrackRow = {
   play_count: number
   tip_weight: number
   waveform_peaks: string | null
+  like_count: number
   profile_username: string | null
   profile_display_name: string | null
   profile_bio: string | null
@@ -56,6 +57,7 @@ async function fetchTrackBySlug(db: D1Database, slug: string, username?: string)
         t.play_count,
         t.tip_weight,
         t.waveform_peaks,
+        t.like_count,
         ap.username AS profile_username,
         ap.display_name AS profile_display_name,
         ap.bio AS profile_bio,
@@ -84,6 +86,7 @@ async function fetchTrackBySlug(db: D1Database, slug: string, username?: string)
         t.play_count,
         t.tip_weight,
         t.waveform_peaks,
+        t.like_count,
         ap.username AS profile_username,
         ap.display_name AS profile_display_name,
         ap.bio AS profile_bio,
@@ -106,6 +109,7 @@ async function fetchTrackBySlug(db: D1Database, slug: string, username?: string)
 async function buildTrackResponse(c: Context<Env>, trackRow: TrackRow) {
   const db = c.env.DB
   const kv = c.env.KV
+  const walletAddress = c.req.header('X-Wallet-Address')
 
   // Step 2: Compute tip total from transactions
   const tipSumRow = await db.prepare(`
@@ -231,6 +235,15 @@ async function buildTrackResponse(c: Context<Env>, trackRow: TrackRow) {
     createdAt: row.created_at
   }))
 
+  // Step 6c: Check if user has liked this track
+  let liked = false
+  if (walletAddress && walletAddress.startsWith('0x') && walletAddress.length === 42) {
+    const likeRow = await db.prepare(
+      'SELECT 1 FROM likes WHERE track_id = ? AND wallet_address = ?'
+    ).bind(trackRow.id, walletAddress).first()
+    liked = !!likeRow
+  }
+
   // Step 7: Build artist profile object (if exists)
   const artistProfile: ArtistPublicProfile | null = trackRow.profile_username
     ? {
@@ -279,7 +292,9 @@ async function buildTrackResponse(c: Context<Env>, trackRow: TrackRow) {
     tips,
     relatedTracks,
     isLive,
-    comments
+    comments,
+    liked,
+    likeCount: trackRow.like_count || 0
   }
 
   return c.json(response, 200)

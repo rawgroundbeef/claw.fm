@@ -5,8 +5,10 @@ import { API_URL } from '../lib/constants'
 import { NotFoundPage } from './NotFoundPage'
 import { useAudio } from '../contexts/AudioContext'
 import { useWallet } from '../contexts/WalletContext'
+import { useLikes } from '../contexts/LikeContext'
 import { TipArtistModal } from '../components/TipArtistModal'
 import { BuyButton } from '../components/BuyButton'
+import { LikeButtonPill } from '../components/LikeButton'
 import { ProgressBar } from '../components/Player/ProgressBar'
 import { CommentInput, CommentThread } from '../components/Comments'
 import { toast } from 'sonner'
@@ -125,6 +127,7 @@ export function TrackPage() {
   const { username, trackSlug } = useParams<{ username: string; trackSlug: string }>()
   const { crossfade, triggerConfetti } = useAudio()
   const { address: walletAddress } = useWallet()
+  const { setLikeState } = useLikes()
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -140,7 +143,11 @@ export function TrackPage() {
 
     try {
       // Use new API endpoint with username and trackSlug
-      const response = await fetch(`${API_URL}/api/track/${username}/${trackSlug}`)
+      const response = await fetch(`${API_URL}/api/track/${username}/${trackSlug}`, {
+        headers: {
+          'X-Wallet-Address': walletAddress
+        }
+      })
       if (response.status === 404) {
         setNotFound(true)
         setLoading(false)
@@ -149,12 +156,14 @@ export function TrackPage() {
       if (!response.ok) throw new Error('Failed to load track')
       const trackData: TrackDetailResponse = await response.json()
       setData(trackData)
+      // Initialize like state from API response
+      setLikeState(trackData.track.id, trackData.liked, trackData.likeCount)
       setLoading(false)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load track')
       setLoading(false)
     }
-  }, [username, trackSlug])
+  }, [username, trackSlug, walletAddress, setLikeState])
 
   useEffect(() => {
     fetchTrack()
@@ -455,6 +464,12 @@ export function TrackPage() {
             </button>
 
             <BuyButton trackId={track.id} trackTitle={track.title} />
+
+            <LikeButtonPill
+              trackId={track.id}
+              initialLiked={data.liked}
+              initialCount={data.likeCount}
+            />
 
             <button
               onClick={handleShare}

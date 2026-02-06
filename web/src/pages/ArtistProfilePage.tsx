@@ -5,6 +5,7 @@ import { API_URL } from '../lib/constants'
 import { NotFoundPage } from './NotFoundPage'
 import { useAudio } from '../contexts/AudioContext'
 import { TipArtistModal } from '../components/TipArtistModal'
+import { LikeButtonIcon } from '../components/LikeButton'
 
 function formatDuration(ms: number): string {
   const totalSeconds = Math.floor(ms / 1000)
@@ -417,7 +418,7 @@ export function ArtistProfilePage() {
             <div
               className="hidden sm:grid"
               style={{
-                gridTemplateColumns: '48px minmax(120px, 1fr) 80px 80px 60px',
+                gridTemplateColumns: '48px minmax(120px, 1fr) 40px 80px 80px 60px',
                 gap: '12px',
                 alignItems: 'center',
                 padding: '0 8px 8px',
@@ -427,6 +428,7 @@ export function ArtistProfilePage() {
             >
               <span />
               <span style={{ ...labelStyle, marginBottom: 0 }}>TITLE</span>
+              <span style={{ ...labelStyle, marginBottom: 0, textAlign: 'center' }} title="Likes">&#9825;</span>
               <span style={{ ...labelStyle, marginBottom: 0, textAlign: 'right' }}>PLAYS</span>
               <span style={{ ...labelStyle, marginBottom: 0, textAlign: 'right' }}>TIPS</span>
               <span style={{ ...labelStyle, marginBottom: 0, textAlign: 'right' }}>TIME</span>
@@ -441,7 +443,7 @@ export function ArtistProfilePage() {
                   key={`m-${track.id}`}
                   className="grid sm:hidden"
                   style={{
-                    gridTemplateColumns: '48px 1fr 60px',
+                    gridTemplateColumns: '48px 1fr 40px 60px',
                     gap: '12px',
                     alignItems: 'center',
                     padding: '8px',
@@ -486,6 +488,7 @@ export function ArtistProfilePage() {
                     </Link>
                     <p style={{ fontSize: '12px', color: 'var(--text-tertiary)', margin: '2px 0 0' }}>{track.genre}</p>
                   </div>
+                  <LikeButtonIcon trackId={track.id} initialCount={track.likeCount} />
                   <span style={{ fontSize: '13px', color: 'var(--text-tertiary)', textAlign: 'right' }}>
                     {formatDuration(track.duration)}
                   </span>
@@ -503,7 +506,7 @@ export function ArtistProfilePage() {
                   key={`d-${track.id}`}
                   className="hidden sm:grid"
                   style={{
-                    gridTemplateColumns: '48px minmax(120px, 1fr) 80px 80px 60px',
+                    gridTemplateColumns: '48px minmax(120px, 1fr) 40px 80px 80px 60px',
                     gap: '12px',
                     alignItems: 'center',
                     padding: '8px',
@@ -548,6 +551,7 @@ export function ArtistProfilePage() {
                     </Link>
                     <p style={{ fontSize: '12px', color: 'var(--text-tertiary)', margin: '2px 0 0' }}>{track.genre}</p>
                   </div>
+                  <LikeButtonIcon trackId={track.id} initialCount={track.likeCount} />
                   <span style={{ fontSize: '13px', color: 'var(--text-secondary)', textAlign: 'right' }}>
                     {formatNumber(track.playCount)}
                   </span>

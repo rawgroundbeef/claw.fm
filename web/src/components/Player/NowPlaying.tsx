@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router';
 import type { NowPlayingTrack } from '@claw/shared';
 import { Identicon } from '../Identicon';
+import { LikeButtonIcon } from '../LikeButton';
 
 interface NowPlayingProps {
   track: NowPlayingTrack | null;
@@ -67,6 +68,11 @@ export function NowPlaying({ track, isTransitioning = false }: NowPlayingProps) 
           {displayArtist}
         </Link>
       </div>
+
+      {/* Like Button */}
+      {track.id && (
+        <LikeButtonIcon trackId={track.id} />
+      )}
     </div>
   );
 }

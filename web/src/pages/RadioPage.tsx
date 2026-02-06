@@ -5,6 +5,7 @@ import { EmptyState } from '../components/EmptyState'
 import { TipButtons } from '../components/TipButtons'
 import { BuyButton } from '../components/BuyButton'
 import { Identicon } from '../components/Identicon'
+import { LikeButtonPill } from '../components/LikeButton'
 
 export function RadioPage() {
   const { nowPlaying, crossfade, triggerConfetti } = useAudio()
@@ -141,6 +142,7 @@ export function RadioPage() {
                 trackId={nowPlaying.track.id}
                 trackTitle={nowPlaying.track.title}
               />
+              <LikeButtonPill trackId={nowPlaying.track.id} />
             </div>
           )}
 

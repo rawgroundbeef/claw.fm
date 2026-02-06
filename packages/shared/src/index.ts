@@ -38,6 +38,7 @@ export interface Track {
   playCount: number
   tipWeight: number
   waveformPeaks?: number[]
+  likeCount?: number
 }
 
 export interface ApiResponse<T> {
@@ -261,6 +262,15 @@ export interface TrackDetailResponse {
   relatedTracks: Track[]
   isLive: boolean
   comments: TrackComment[]
+  liked: boolean
+  likeCount: number
+}
+
+// Like toggle response
+export interface LikeToggleResponse {
+  success: boolean
+  liked: boolean
+  likeCount: number
 }
 
 // Comment types

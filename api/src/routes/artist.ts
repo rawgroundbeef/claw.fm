@@ -30,7 +30,7 @@ artistRoute.get('/by-wallet/:wallet', async (c) => {
 
     // Query track catalog for this wallet (always include)
     const trackResults = await c.env.DB.prepare(
-      'SELECT id, title, slug, wallet, artist_name, duration, file_url, cover_url, genre, description, tags, file_hash, created_at, play_count, tip_weight, waveform_peaks FROM tracks WHERE wallet = ? ORDER BY created_at DESC'
+      'SELECT id, title, slug, wallet, artist_name, duration, file_url, cover_url, genre, description, tags, file_hash, created_at, play_count, tip_weight, waveform_peaks, like_count FROM tracks WHERE wallet = ? ORDER BY created_at DESC'
     ).bind(wallet).all()
 
     const tracks = (trackResults.results || []).map(t => ({
@@ -55,7 +55,8 @@ artistRoute.get('/by-wallet/:wallet', async (c) => {
       createdAt: t.created_at as number,
       playCount: t.play_count as number,
       tipWeight: t.tip_weight as number,
-      waveformPeaks: t.waveform_peaks ? JSON.parse(t.waveform_peaks as string) : undefined
+      waveformPeaks: t.waveform_peaks ? JSON.parse(t.waveform_peaks as string) : undefined,
+      likeCount: (t.like_count as number) || 0
     }))
 
     // If no profile and no tracks, return 404
@@ -107,7 +108,7 @@ artistRoute.get('/:username', async (c) => {
 
     // Query track catalog for this artist
     const trackResults = await c.env.DB.prepare(
-      'SELECT id, title, slug, wallet, artist_name, duration, file_url, cover_url, genre, description, tags, file_hash, created_at, play_count, tip_weight, waveform_peaks FROM tracks WHERE wallet = ? ORDER BY created_at DESC'
+      'SELECT id, title, slug, wallet, artist_name, duration, file_url, cover_url, genre, description, tags, file_hash, created_at, play_count, tip_weight, waveform_peaks, like_count FROM tracks WHERE wallet = ? ORDER BY created_at DESC'
     ).bind(profile.wallet).all()
 
     const tracks = (trackResults.results || []).map(t => ({
@@ -132,7 +133,8 @@ artistRoute.get('/:username', async (c) => {
       createdAt: t.created_at as number,
       playCount: t.play_count as number,
       tipWeight: t.tip_weight as number,
-      waveformPeaks: t.waveform_peaks ? JSON.parse(t.waveform_peaks as string) : undefined
+      waveformPeaks: t.waveform_peaks ? JSON.parse(t.waveform_peaks as string) : undefined,
+      likeCount: (t.like_count as number) || 0
     }))
 
     // Build response with profile and tracks
