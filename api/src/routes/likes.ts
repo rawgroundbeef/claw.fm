@@ -27,6 +27,37 @@ async function checkRateLimit(kv: KVNamespace, wallet: string): Promise<{ allowe
   return { allowed: true, remaining: RATE_LIMIT_MAX - count - 1 }
 }
 
+// GET /api/tracks/:trackId/like - Get like status
+likesRoute.get('/:trackId/like', async (c) => {
+  const trackId = parseInt(c.req.param('trackId'), 10)
+  if (isNaN(trackId) || trackId <= 0) {
+    return c.json({ error: 'INVALID_TRACK_ID', message: 'Invalid track ID' }, 400)
+  }
+
+  const walletAddress = c.req.header('X-Wallet-Address')
+  if (!walletAddress || !walletAddress.startsWith('0x') || walletAddress.length !== 42) {
+    return c.json({ liked: false, likeCount: 0 }, 200)
+  }
+
+  const db = c.env.DB
+
+  // Get track like count
+  const track = await db.prepare('SELECT like_count FROM tracks WHERE id = ?').bind(trackId).first<{ like_count: number }>()
+  if (!track) {
+    return c.json({ liked: false, likeCount: 0 }, 200)
+  }
+
+  // Check if user liked
+  const existing = await db.prepare(
+    'SELECT id FROM likes WHERE track_id = ? AND wallet_address = ?'
+  ).bind(trackId, walletAddress).first()
+
+  return c.json({
+    liked: !!existing,
+    likeCount: track.like_count || 0
+  }, 200)
+})
+
 // POST /api/tracks/:trackId/like - Toggle like
 likesRoute.post('/:trackId/like', async (c) => {
   const trackId = parseInt(c.req.param('trackId'), 10)

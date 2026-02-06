@@ -25,18 +25,21 @@ function HeartIcon({ filled, size = 16 }: { filled: boolean; size?: number }) {
 
 // Pill variant (homepage, song page) - Heart icon + count
 export function LikeButtonPill({ trackId, initialLiked, initialCount }: LikeButtonProps) {
-  const { getLikeState, setLikeState, toggleLike } = useLikes()
+  const { getLikeState, setLikeState, toggleLike, fetchLikeStatus } = useLikes()
   const [animating, setAnimating] = useState(false)
 
-  // Initialize state from props if provided and not already set
+  // Initialize state from props or fetch from API
   useEffect(() => {
     if (initialLiked !== undefined && initialCount !== undefined) {
       const current = getLikeState(trackId)
       if (!current) {
         setLikeState(trackId, initialLiked, initialCount)
       }
+    } else {
+      // No initial state provided, fetch from API
+      fetchLikeStatus(trackId)
     }
-  }, [trackId, initialLiked, initialCount, getLikeState, setLikeState])
+  }, [trackId, initialLiked, initialCount, getLikeState, setLikeState, fetchLikeStatus])
 
   const state = getLikeState(trackId)
   const liked = state?.liked ?? initialLiked ?? false
@@ -98,18 +101,21 @@ export function LikeButtonPill({ trackId, initialLiked, initialCount }: LikeButt
 
 // Icon-only variant (track list, player bar)
 export function LikeButtonIcon({ trackId, initialLiked, initialCount }: LikeButtonProps) {
-  const { getLikeState, setLikeState, toggleLike } = useLikes()
+  const { getLikeState, setLikeState, toggleLike, fetchLikeStatus } = useLikes()
   const [animating, setAnimating] = useState(false)
 
-  // Initialize state from props if provided and not already set
+  // Initialize state from props or fetch from API
   useEffect(() => {
     if (initialLiked !== undefined && initialCount !== undefined) {
       const current = getLikeState(trackId)
       if (!current) {
         setLikeState(trackId, initialLiked, initialCount)
       }
+    } else {
+      // No initial state provided, fetch from API
+      fetchLikeStatus(trackId)
     }
-  }, [trackId, initialLiked, initialCount, getLikeState, setLikeState])
+  }, [trackId, initialLiked, initialCount, getLikeState, setLikeState, fetchLikeStatus])
 
   const state = getLikeState(trackId)
   const liked = state?.liked ?? initialLiked ?? false

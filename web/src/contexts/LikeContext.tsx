@@ -13,6 +13,7 @@ interface LikeContextValue {
   getLikeState: (trackId: number) => LikeState | undefined
   setLikeState: (trackId: number, liked: boolean, likeCount: number) => void
   toggleLike: (trackId: number) => Promise<void>
+  fetchLikeStatus: (trackId: number) => Promise<void>
 }
 
 const LikeContext = createContext<LikeContextValue | null>(null)
@@ -31,6 +32,29 @@ export function LikeProvider({ children }: { children: ReactNode }) {
       [trackId]: { liked, likeCount }
     }))
   }, [])
+
+  const fetchLikeStatus = useCallback(async (trackId: number) => {
+    // Skip if already fetched
+    if (likeStates[trackId]) return
+
+    try {
+      const response = await fetch(`${API_URL}/api/tracks/${trackId}/like`, {
+        headers: {
+          'X-Wallet-Address': address
+        }
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setLikeStates(prev => ({
+          ...prev,
+          [trackId]: { liked: data.liked, likeCount: data.likeCount }
+        }))
+      }
+    } catch {
+      // Ignore fetch errors
+    }
+  }, [address, likeStates])
 
   const toggleLike = useCallback(async (trackId: number) => {
     const current = likeStates[trackId]
@@ -79,8 +103,8 @@ export function LikeProvider({ children }: { children: ReactNode }) {
   }, [address, likeStates])
 
   const value = useMemo<LikeContextValue>(
-    () => ({ getLikeState, setLikeState, toggleLike }),
-    [getLikeState, setLikeState, toggleLike]
+    () => ({ getLikeState, setLikeState, toggleLike, fetchLikeStatus }),
+    [getLikeState, setLikeState, toggleLike, fetchLikeStatus]
   )
 
   return <LikeContext.Provider value={value}>{children}</LikeContext.Provider>
