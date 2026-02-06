@@ -67,7 +67,7 @@ export function PlayButton({ isPlaying, isLoading, disabled, onPlay, onPause }: 
           <rect x="14" y="4" width="4" height="16" rx="1" />
         </svg>
       ) : (
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style={{ marginLeft: '2px' }}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" className="mr-[1px]">
           <path d="M8 5v14l11-7z" />
         </svg>
       )}

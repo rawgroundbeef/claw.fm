@@ -5,6 +5,7 @@ import { verifyPayment } from '../middleware/x402'
 import { generateIdenticon } from '../lib/identicon'
 import { processAndUploadCoverArt } from '../lib/image'
 import { extractWaveformPeaks } from '../lib/audio'
+import { generateUniqueSlug } from '../lib/slugify'
 
 type Env = {
   Bindings: {
@@ -134,12 +135,16 @@ submitRoute.post('/', async (c) => {
       coverUrl = generateIdenticon(walletAddress)
     }
 
+    // Step 7.5: Generate unique slug
+    const slug = await generateUniqueSlug(c.env.DB, title)
+
     // Step 8: Persist metadata in D1
     const tagsJson = tags ? JSON.stringify(tags) : null
 
     const insertResult = await c.env.DB.prepare(`
       INSERT INTO tracks (
         title,
+        slug,
         genre,
         description,
         tags,
@@ -151,10 +156,11 @@ submitRoute.post('/', async (c) => {
         cover_url,
         waveform_peaks,
         created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, unixepoch())
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, unixepoch())
     `)
       .bind(
         title,
+        slug,
         genre,
         description || null,
         tagsJson,
@@ -190,6 +196,7 @@ submitRoute.post('/', async (c) => {
     const response: SubmitResponse = {
       trackId,
       trackUrl: trackKey,
+      slug,
       queuePosition,
     }
 

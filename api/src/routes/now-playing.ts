@@ -46,6 +46,7 @@ nowPlayingRoute.get('/', async (c) => {
       SELECT
         t.id,
         t.title,
+        t.slug,
         t.wallet,
         t.artist_name,
         t.duration,
@@ -63,6 +64,7 @@ nowPlayingRoute.get('/', async (c) => {
     `).bind(state.currentTrackId).first<{
       id: number
       title: string
+      slug: string
       wallet: string
       artist_name: string
       duration: number
@@ -93,6 +95,7 @@ nowPlayingRoute.get('/', async (c) => {
     const track: NowPlayingTrack = {
       id: currentTrack.id,
       title: currentTrack.title,
+      slug: currentTrack.slug || '',
       artistWallet: currentTrack.wallet,
       artistName: currentTrack.artist_name,
       duration: currentTrack.duration,
@@ -118,6 +121,7 @@ nowPlayingRoute.get('/', async (c) => {
           SELECT
             t.id,
             t.title,
+            t.slug,
             t.wallet,
             t.artist_name,
             t.duration,
@@ -135,6 +139,7 @@ nowPlayingRoute.get('/', async (c) => {
         `).bind(state.nextTrackId).first<{
           id: number
           title: string
+          slug: string
           wallet: string
           artist_name: string
           duration: number
@@ -152,6 +157,7 @@ nowPlayingRoute.get('/', async (c) => {
           nextTrack = {
             id: nextTrackData.id,
             title: nextTrackData.title,
+            slug: nextTrackData.slug || '',
             artistWallet: nextTrackData.wallet,
             artistName: nextTrackData.artist_name,
             duration: nextTrackData.duration,

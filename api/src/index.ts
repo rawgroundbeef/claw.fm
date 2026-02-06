@@ -12,6 +12,7 @@ import profileRoute from './routes/profile'
 import artistRoute from './routes/artist'
 import usernameRoute from './routes/username'
 import avatarRoute from './routes/avatar'
+import trackRoute from './routes/track'
 
 type Bindings = {
   DB: D1Database
@@ -45,6 +46,21 @@ app.route('/api/profile', profileRoute)
 app.route('/api/artist', artistRoute)
 app.route('/api/username', usernameRoute)
 app.route('/api/avatar', avatarRoute)
+app.route('/api/track', trackRoute)
+
+// Record a play for a track (called by client on override/direct plays)
+app.post('/api/tracks/:id/play', async (c) => {
+  const trackId = Number(c.req.param('id'))
+  if (!trackId || trackId <= 0) {
+    return c.json({ error: 'Invalid track ID' }, 400)
+  }
+
+  await c.env.DB.prepare(
+    'UPDATE tracks SET play_count = play_count + 1 WHERE id = ?'
+  ).bind(trackId).run()
+
+  return c.json({ ok: true })
+})
 
 // Store client-computed waveform peaks (real PCM-derived data)
 app.put('/api/tracks/:id/waveform', async (c) => {
@@ -115,6 +131,55 @@ app.post('/api/dev/seed-start', async (c) => {
     ? await queueStub.forceStart(trackId)
     : await queueStub.startImmediately(trackId)
   return c.json({ started, trackId })
+})
+
+// Admin endpoint to backfill slugs for existing tracks
+app.post('/api/admin/backfill-slugs', async (c) => {
+  // Simple secret header protection
+  const secret = c.req.header('X-Admin-Secret')
+  if (secret !== 'backfill-slugs-2024') {
+    return c.json({ error: 'Unauthorized' }, 401)
+  }
+
+  const { slugify } = await import('./lib/slugify')
+
+  // Get all tracks without slugs
+  const rows = await c.env.DB.prepare(
+    'SELECT id, title FROM tracks WHERE slug IS NULL'
+  ).all<{ id: number; title: string }>()
+
+  const tracks = rows.results || []
+  let updated = 0
+  let failed = 0
+
+  for (const track of tracks) {
+    try {
+      const base = slugify(track.title)
+      let candidate = base
+      let suffix = 1
+
+      // Find unique slug
+      while (true) {
+        const existing = await c.env.DB.prepare(
+          'SELECT 1 FROM tracks WHERE slug = ? AND id != ?'
+        ).bind(candidate, track.id).first()
+
+        if (!existing) break
+        suffix++
+        candidate = `${base}-${suffix}`
+      }
+
+      await c.env.DB.prepare(
+        'UPDATE tracks SET slug = ? WHERE id = ?'
+      ).bind(candidate, track.id).run()
+
+      updated++
+    } catch {
+      failed++
+    }
+  }
+
+  return c.json({ total: tracks.length, updated, failed })
 })
 
 export default app

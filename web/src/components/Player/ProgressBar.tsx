@@ -11,6 +11,7 @@ interface ProgressBarProps {
   fileUrl?: string  // track file URL for waveform decode
   waveformPeaks?: number[]  // pre-computed peaks from API (skips client-side decode)
   onSeek?: (time: number) => void
+  height?: number  // canvas height in px (default 48)
 }
 
 function formatTime(seconds: number): string {
@@ -20,43 +21,44 @@ function formatTime(seconds: number): string {
   return `${mins}:${secs.toString().padStart(2, '0')}`
 }
 
-const BAR_W = 2.5     // slightly wider bars
-const BAR_GAP = 1.5   // gap between bars
-const BAR_MIN_H = 2
+const BAR_W = 2       // thin bars
+const BAR_GAP = 2     // gap between bars
+const BAR_MIN_H = 3
 const CANVAS_H = 48   // taller to accommodate mirror reflection
-const MIRROR_RATIO = 0.3  // reflected portion height ratio
-const MIRROR_OPACITY = 0.25  // reflected portion opacity
-const BAR_RADIUS = 1.25  // rounded cap radius (half of BAR_W)
+const MIRROR_RATIO = 0.25  // reflected portion height ratio
+const MIRROR_OPACITY = 0.2  // reflected portion opacity
+const BAR_RADIUS = 1  // rounded cap radius
 const UPLOAD_BAR_COUNT = 120 // resolution for server-stored peaks
 
-/** Downsample audio buffer to peak amplitudes */
+/** Downsample audio buffer to RMS energy (shows more dynamic variation than peak) */
 function extractPeaks(buffer: AudioBuffer, barCount: number): Float32Array {
   const channel = buffer.getChannelData(0)
-  const peaks = new Float32Array(barCount)
+  const rms = new Float32Array(barCount)
   const samplesPerBar = Math.floor(channel.length / barCount)
 
   for (let i = 0; i < barCount; i++) {
-    let max = 0
+    let sumSquares = 0
     const start = i * samplesPerBar
     const end = Math.min(start + samplesPerBar, channel.length)
+    const count = end - start
     for (let j = start; j < end; j++) {
-      const abs = Math.abs(channel[j])
-      if (abs > max) max = abs
+      sumSquares += channel[j] * channel[j]
     }
-    peaks[i] = max
+    rms[i] = Math.sqrt(sumSquares / count)
   }
 
-  let globalMax = 0
+  // Normalize to 0-1 range
+  let maxRms = 0
   for (let i = 0; i < barCount; i++) {
-    if (peaks[i] > globalMax) globalMax = peaks[i]
+    if (rms[i] > maxRms) maxRms = rms[i]
   }
-  if (globalMax > 0) {
+  if (maxRms > 0) {
     for (let i = 0; i < barCount; i++) {
-      peaks[i] /= globalMax
+      rms[i] /= maxRms
     }
   }
 
-  return peaks
+  return rms
 }
 
 /** Resample source peaks array to target count */
@@ -75,7 +77,7 @@ const waveformCache = new Map<string, Float32Array>()
 // Track IDs we've already uploaded peaks for (avoid duplicate PUTs)
 const uploadedPeaks = new Set<number>()
 
-export function ProgressBar({ currentTime, duration, analyser, isPlaying, trackId, fileUrl, waveformPeaks, onSeek }: ProgressBarProps) {
+export function ProgressBar({ currentTime, duration, analyser, isPlaying, trackId, fileUrl, waveformPeaks, onSeek, height = CANVAS_H }: ProgressBarProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const rafRef = useRef<number>(0)
   const propsRef = useRef({ currentTime, duration, analyser, isPlaying })
@@ -88,12 +90,9 @@ export function ProgressBar({ currentTime, duration, analyser, isPlaying, trackI
   propsRef.current = { currentTime, duration, analyser, isPlaying }
   sourcePeaksRef.current = sourcePeaks
 
-  // Load peaks: prefer API pre-computed, fallback to client decode
+  // Load peaks: prefer client-side RMS extraction for better waveforms
+  // Server peaks use peak amplitude which looks flat on compressed music
   useEffect(() => {
-    if (waveformPeaks && waveformPeaks.length > 0) {
-      setSourcePeaks(new Float32Array(waveformPeaks))
-      return
-    }
 
     if (!fileUrl) { setSourcePeaks(null); return }
 
@@ -152,6 +151,10 @@ export function ProgressBar({ currentTime, duration, analyser, isPlaying, trackI
     return () => obs.disconnect()
   }, [])
 
+  // Store height in ref for animation loop
+  const heightRef = useRef(height)
+  heightRef.current = height
+
   // Animation loop — bar count derived from canvas width each frame
   useEffect(() => {
     const draw = () => {
@@ -163,7 +166,7 @@ export function ProgressBar({ currentTime, duration, analyser, isPlaying, trackI
 
       const dpr = window.devicePixelRatio || 1
       const w = canvas.clientWidth
-      const h = CANVAS_H
+      const h = heightRef.current
 
       if (w === 0) { rafRef.current = requestAnimationFrame(draw); return }
 
@@ -205,20 +208,7 @@ export function ProgressBar({ currentTime, duration, analyser, isPlaying, trackI
         pk = resamplePeaks(src, barCount)
       }
 
-      // Smooth the resampled peaks (3-point moving average, 2 passes)
-      if (pk) {
-        let smoothed: Float32Array = pk
-        for (let pass = 0; pass < 2; pass++) {
-          const tmp = new Float32Array(smoothed.length)
-          for (let i = 0; i < smoothed.length; i++) {
-            const prev = smoothed[i - 1] ?? smoothed[i]
-            const next = smoothed[i + 1] ?? smoothed[i]
-            tmp[i] = prev * 0.25 + smoothed[i] * 0.5 + next * 0.25
-          }
-          smoothed = tmp
-        }
-        pk = smoothed
-      }
+      // RMS values are already normalized 0-1 with good variation
 
       for (let i = 0; i < barCount; i++) {
         const x = i * (BAR_W + BAR_GAP)
@@ -286,7 +276,7 @@ export function ProgressBar({ currentTime, duration, analyser, isPlaying, trackI
         onClick={handleClick}
         style={{
           width: '100%',
-          height: `${CANVAS_H}px`,
+          height: `${height}px`,
           display: 'block',
           cursor: onSeek ? 'pointer' : 'default',
         }}

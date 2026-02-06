@@ -70,18 +70,12 @@ tip.post('/', async (c) => {
     // Invalidate KV cache (rotation weights changed)
     await c.env.KV.delete('now-playing')
 
-    // Record artist share (95%) for later settlement
+    // Log transaction for tip history
     const artistWallet = trackResult.wallet as string
-    const artistShare = Math.floor(body.amount * 0.95 * 1e6) // atomic USDC
-    try {
-      await c.env.DB.prepare(
-        `INSERT INTO artist_earnings (artist_wallet, track_id, amount_usdc, payer_wallet, created_at)
-         VALUES (?, ?, ?, ?, unixepoch())`
-      ).bind(artistWallet, body.trackId, artistShare, paymentResult.walletAddress).run()
-    } catch {
-      // Table may not exist yet — log but don't fail the tip
-      console.warn('artist_earnings insert failed (table may not exist yet)')
-    }
+    await c.env.DB.prepare(
+      `INSERT INTO transactions (track_id, type, amount_usdc, payer_wallet, artist_wallet, created_at)
+       VALUES (?, 'tip', ?, ?, ?, unixepoch())`
+    ).bind(body.trackId, body.amount, paymentResult.walletAddress, artistWallet).run()
 
     const response: TipResponse = {
       success: true,

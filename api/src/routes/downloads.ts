@@ -45,17 +45,12 @@ downloads.post('/:trackId', async (c) => {
       return paymentResult.error!
     }
 
-    // Record artist share (95%) for later settlement
+    // Log transaction for purchase history
     const artistWallet = track.wallet as string
-    const artistShare = Math.floor(2 * 0.95 * 1e6) // $1.90 in atomic USDC
-    try {
-      await c.env.DB.prepare(
-        `INSERT INTO artist_earnings (artist_wallet, track_id, amount_usdc, payer_wallet, created_at)
-         VALUES (?, ?, ?, ?, unixepoch())`
-      ).bind(artistWallet, trackId, artistShare, paymentResult.walletAddress).run()
-    } catch {
-      console.warn('artist_earnings insert failed (table may not exist yet)')
-    }
+    await c.env.DB.prepare(
+      `INSERT INTO transactions (track_id, type, amount_usdc, payer_wallet, artist_wallet, created_at)
+       VALUES (?, 'buy', 2, ?, ?, unixepoch())`
+    ).bind(trackId, paymentResult.walletAddress, artistWallet).run()
 
     // Generate download URL
     const fileUrl = track.file_url as string

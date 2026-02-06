@@ -24,6 +24,7 @@ export type Genre = typeof GENRES[number]
 export interface Track {
   id: number
   title: string
+  slug: string
   wallet: string
   duration: number
   fileUrl: string
@@ -58,6 +59,7 @@ export interface SubmissionError {
 export interface SubmitResponse {
   trackId: number
   trackUrl: string
+  slug: string
   queuePosition: number
 }
 
@@ -65,6 +67,7 @@ export interface SubmitResponse {
 export interface NowPlayingTrack {
   id: number
   title: string
+  slug: string
   artistWallet: string
   artistName?: string
   duration: number   // milliseconds
@@ -142,6 +145,7 @@ export const RESERVED_USERNAMES = [
   'submit',
   'support',
   'tip',
+  'track',
   'verified'
 ] as const
 
@@ -213,4 +217,34 @@ export interface ArtistPublicProfile {
 export interface ArtistProfileWithTracks {
   profile: ArtistPublicProfile
   tracks: Track[]
+}
+
+// Transaction type (for tip history)
+export interface Transaction {
+  id: number
+  trackId: number
+  type: 'tip' | 'buy'
+  amountUsdc: number
+  payerWallet: string
+  artistWallet: string
+  createdAt: number
+}
+
+// Track detail page response
+export interface TrackDetailResponse {
+  track: Track & {
+    artistProfile: ArtistPublicProfile | null
+  }
+  stats: {
+    playCount: number
+    tipTotal: number
+    rank: number
+  }
+  tips: Array<{
+    payerWallet: string
+    amountUsdc: number
+    createdAt: number
+  }>
+  relatedTracks: Track[]
+  isLive: boolean
 }

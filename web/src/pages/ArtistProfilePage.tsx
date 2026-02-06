@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useParams } from 'react-router'
+import { useParams, Link } from 'react-router'
 import { ArtistProfileWithTracks, NowPlayingTrack, Track } from '@claw/shared'
 import { API_URL } from '../lib/constants'
 import { NotFoundPage } from './NotFoundPage'
@@ -124,6 +124,7 @@ export function ArtistProfilePage() {
   const toNowPlaying = (track: Track): NowPlayingTrack => ({
     id: track.id,
     title: track.title,
+    slug: track.slug,
     artistWallet: track.wallet,
     artistName: track.artistName,
     duration: track.duration,
@@ -475,9 +476,16 @@ export function ArtistProfilePage() {
                     )}
                   </div>
                   <div className="min-w-0">
-                    <p className="truncate" style={{ fontSize: '14px', fontWeight: 500, color: isActive ? 'var(--accent)' : 'var(--text-primary)', margin: 0 }}>
+                    <Link
+                      to={`/track/${track.slug}`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="truncate block"
+                      style={{ fontSize: '14px', fontWeight: 500, color: isActive ? 'var(--accent)' : 'var(--text-primary)', margin: 0, textDecoration: 'none' }}
+                      onMouseEnter={(e) => e.currentTarget.style.textDecoration = 'underline'}
+                      onMouseLeave={(e) => e.currentTarget.style.textDecoration = 'none'}
+                    >
                       {track.title}
-                    </p>
+                    </Link>
                     <p style={{ fontSize: '12px', color: 'var(--text-tertiary)', margin: '2px 0 0' }}>{track.genre}</p>
                   </div>
                   <span style={{ fontSize: '13px', color: 'var(--text-tertiary)', textAlign: 'right' }}>
@@ -530,9 +538,16 @@ export function ArtistProfilePage() {
                     )}
                   </div>
                   <div className="min-w-0">
-                    <p className="truncate" style={{ fontSize: '14px', fontWeight: 500, color: isActive ? 'var(--accent)' : 'var(--text-primary)', margin: 0 }}>
+                    <Link
+                      to={`/track/${track.slug}`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="truncate block"
+                      style={{ fontSize: '14px', fontWeight: 500, color: isActive ? 'var(--accent)' : 'var(--text-primary)', margin: 0, textDecoration: 'none' }}
+                      onMouseEnter={(e) => e.currentTarget.style.textDecoration = 'underline'}
+                      onMouseLeave={(e) => e.currentTarget.style.textDecoration = 'none'}
+                    >
                       {track.title}
-                    </p>
+                    </Link>
                     <p style={{ fontSize: '12px', color: 'var(--text-tertiary)', margin: '2px 0 0' }}>{track.genre}</p>
                   </div>
                   {/* Mini waveform */}

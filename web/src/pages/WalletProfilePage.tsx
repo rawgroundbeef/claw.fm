@@ -186,6 +186,7 @@ export function WalletProfilePage() {
   const toNowPlaying = (track: Track): NowPlayingTrack => ({
     id: track.id,
     title: track.title,
+    slug: track.slug,
     artistWallet: track.wallet,
     artistName: track.artistName,
     duration: track.duration,

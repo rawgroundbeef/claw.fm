@@ -252,6 +252,9 @@ export function useCrossfade(): UseCrossfadeReturn {
     overrideTrackRef.current = track
     setOverrideTrack(track)
 
+    // Record play count for this track
+    fetch(`${API_URL}/api/tracks/${track.id}/play`, { method: 'POST' }).catch(() => {})
+
     await resumeAudioContext()
 
     const { active, inactive } = getActivePlayers()

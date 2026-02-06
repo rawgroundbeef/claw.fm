@@ -39,6 +39,7 @@ queueRoute.get('/', async (c) => {
       SELECT
         t.id,
         t.title,
+        t.slug,
         t.wallet,
         t.artist_name,
         t.duration,
@@ -55,6 +56,7 @@ queueRoute.get('/', async (c) => {
     `).bind(...trackIds).all<{
       id: number
       title: string
+      slug: string
       wallet: string
       artist_name: string
       duration: number
@@ -75,6 +77,7 @@ queueRoute.get('/', async (c) => {
         trackMap.set(row.id, {
           id: row.id,
           title: row.title,
+          slug: row.slug || '',
           artistWallet: row.wallet,
           artistName: row.artist_name,
           duration: row.duration,
@@ -107,6 +110,7 @@ queueRoute.get('/', async (c) => {
         SELECT
           t.id,
           t.title,
+          t.slug,
           t.wallet,
           t.artist_name,
           t.duration,
@@ -123,6 +127,7 @@ queueRoute.get('/', async (c) => {
       `).bind(state.currentTrackId).first<{
         id: number
         title: string
+        slug: string
         wallet: string
         artist_name: string
         duration: number
@@ -139,6 +144,7 @@ queueRoute.get('/', async (c) => {
         currentlyPlaying = {
           id: currentTrack.id,
           title: currentTrack.title,
+          slug: currentTrack.slug || '',
           artistWallet: currentTrack.wallet,
           artistName: currentTrack.artist_name,
           duration: currentTrack.duration,

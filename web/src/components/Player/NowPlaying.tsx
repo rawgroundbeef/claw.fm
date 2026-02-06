@@ -49,12 +49,15 @@ export function NowPlaying({ track, isTransitioning = false }: NowPlayingProps) 
 
       {/* Track Info */}
       <div className="flex-1 min-w-0">
-        <div
-          className="font-medium truncate"
-          style={{ fontSize: '14px', color: 'var(--text-primary)' }}
+        <Link
+          to={track.slug ? `/track/${track.slug}` : '#'}
+          className="font-medium truncate transition-colors block"
+          style={{ fontSize: '14px', color: 'var(--text-primary)', textDecoration: 'none' }}
+          onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
+          onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-primary)')}
         >
           {track.title}
-        </div>
+        </Link>
         <Link
           to={artistPath}
           className="truncate transition-colors"

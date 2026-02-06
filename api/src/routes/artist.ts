@@ -30,12 +30,13 @@ artistRoute.get('/by-wallet/:wallet', async (c) => {
 
     // Query track catalog for this wallet (always include)
     const trackResults = await c.env.DB.prepare(
-      'SELECT id, title, wallet, artist_name, duration, file_url, cover_url, genre, description, tags, file_hash, created_at, play_count, tip_weight, waveform_peaks FROM tracks WHERE wallet = ? ORDER BY created_at DESC'
+      'SELECT id, title, slug, wallet, artist_name, duration, file_url, cover_url, genre, description, tags, file_hash, created_at, play_count, tip_weight, waveform_peaks FROM tracks WHERE wallet = ? ORDER BY created_at DESC'
     ).bind(wallet).all()
 
     const tracks = (trackResults.results || []).map(t => ({
       id: t.id as number,
       title: t.title as string,
+      slug: (t.slug as string) || '',
       wallet: t.wallet as string,
       duration: t.duration as number,
       // Map R2 keys to /audio/ streaming route
@@ -106,12 +107,13 @@ artistRoute.get('/:username', async (c) => {
 
     // Query track catalog for this artist
     const trackResults = await c.env.DB.prepare(
-      'SELECT id, title, wallet, artist_name, duration, file_url, cover_url, genre, description, tags, file_hash, created_at, play_count, tip_weight, waveform_peaks FROM tracks WHERE wallet = ? ORDER BY created_at DESC'
+      'SELECT id, title, slug, wallet, artist_name, duration, file_url, cover_url, genre, description, tags, file_hash, created_at, play_count, tip_weight, waveform_peaks FROM tracks WHERE wallet = ? ORDER BY created_at DESC'
     ).bind(profile.wallet).all()
 
     const tracks = (trackResults.results || []).map(t => ({
       id: t.id as number,
       title: t.title as string,
+      slug: (t.slug as string) || '',
       wallet: t.wallet as string,
       duration: t.duration as number,
       // Map R2 keys to /audio/ streaming route

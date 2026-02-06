@@ -237,18 +237,20 @@ export function extractWaveformPeaks(buffer: ArrayBuffer, barCount = 80): number
 
   if (frameEnergies.length === 0) return null
 
-  // Downsample frame energies to barCount bars
+  // Downsample frame energies to barCount bars using RMS for better dynamic range
   const peaks: number[] = new Array(barCount)
   const framesPerBar = frameEnergies.length / barCount
 
   for (let i = 0; i < barCount; i++) {
     const start = Math.floor(i * framesPerBar)
     const end = Math.floor((i + 1) * framesPerBar)
-    let max = 0
+    let sumSquares = 0
+    let count = 0
     for (let j = start; j < end && j < frameEnergies.length; j++) {
-      if (frameEnergies[j] > max) max = frameEnergies[j]
+      sumSquares += frameEnergies[j] * frameEnergies[j]
+      count++
     }
-    peaks[i] = max
+    peaks[i] = count > 0 ? Math.sqrt(sumSquares / count) : 0
   }
 
   // Normalize to 0-1

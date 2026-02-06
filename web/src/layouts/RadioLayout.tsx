@@ -4,7 +4,7 @@ import { PlayerBar } from '../components/Player/PlayerBar'
 import { PlayButton } from '../components/Player/PlayButton'
 import { VolumeControl } from '../components/Player/VolumeControl'
 import { NowPlaying } from '../components/Player/NowPlaying'
-import { ProgressBar } from '../components/Player/ProgressBar'
+import { SimpleProgressBar } from '../components/Player/SimpleProgressBar'
 import { ReconnectingIndicator } from '../components/ReconnectingIndicator'
 import { WalletButton } from '../components/WalletButton'
 import { ConfettiCelebration } from '../components/ConfettiCelebration'
@@ -123,24 +123,81 @@ export function RadioLayout() {
           />
         }
         centerContent={
-          <div className="flex items-center space-x-4 w-full">
-            <PlayButton
-              isPlaying={crossfade.isPlaying}
-              isLoading={crossfade.isLoading || crossfade.isBuffering}
-              disabled={isWaiting}
-              onPlay={crossfade.play}
-              onPause={crossfade.pause}
-            />
-            <ProgressBar
-              currentTime={crossfade.currentTime}
-              duration={crossfade.duration}
-              analyser={crossfade.activeAnalyser}
-              isPlaying={crossfade.isPlaying}
-              trackId={crossfade.currentTrack?.id}
-              fileUrl={crossfade.currentTrack?.fileUrl}
-              waveformPeaks={crossfade.currentTrack?.waveformPeaks}
-              onSeek={crossfade.seek}
-            />
+          <div className="flex flex-col items-center w-full max-w-md">
+            {/* Control buttons row */}
+            <div className="flex items-center justify-center gap-4 mb-2">
+              {/* Previous button - restart track */}
+              <button
+                onClick={() => crossfade.seek(0)}
+                disabled={isWaiting}
+                className="flex items-center justify-center transition-colors"
+                style={{
+                  width: '32px',
+                  height: '32px',
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--text-secondary)',
+                  cursor: isWaiting ? 'not-allowed' : 'pointer',
+                  opacity: isWaiting ? 0.5 : 1,
+                }}
+                onMouseEnter={(e) => {
+                  if (!isWaiting) e.currentTarget.style.color = 'var(--text-primary)'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = 'var(--text-secondary)'
+                }}
+                aria-label="Restart track"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M6 6h2v12H6V6zm3.5 6l8.5 6V6l-8.5 6z" />
+                </svg>
+              </button>
+
+              {/* Play/Pause button */}
+              <PlayButton
+                isPlaying={crossfade.isPlaying}
+                isLoading={crossfade.isLoading || crossfade.isBuffering}
+                disabled={isWaiting}
+                onPlay={crossfade.play}
+                onPause={crossfade.pause}
+              />
+
+              {/* Next button - return to radio if in override mode */}
+              <button
+                onClick={() => crossfade.overrideTrack ? crossfade.clearOverride() : null}
+                disabled={isWaiting || !crossfade.overrideTrack}
+                className="flex items-center justify-center transition-colors"
+                style={{
+                  width: '32px',
+                  height: '32px',
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--text-secondary)',
+                  cursor: (isWaiting || !crossfade.overrideTrack) ? 'not-allowed' : 'pointer',
+                  opacity: (isWaiting || !crossfade.overrideTrack) ? 0.5 : 1,
+                }}
+                onMouseEnter={(e) => {
+                  if (!isWaiting && crossfade.overrideTrack) e.currentTarget.style.color = 'var(--text-primary)'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = 'var(--text-secondary)'
+                }}
+                aria-label="Return to radio"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M6 18l8.5-6L6 6v12zm10.5 0h2V6h-2v12z" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Progress bar below controls */}
+            <div className="w-full">
+              <SimpleProgressBar
+                currentTime={crossfade.currentTime}
+                duration={crossfade.duration}
+                onSeek={crossfade.seek}
+              />
+            </div>
           </div>
         }
         rightContent={
