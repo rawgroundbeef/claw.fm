@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import { Link } from 'react-router';
 import type { NowPlayingTrack } from '@claw/shared';
+import { Identicon } from '../Identicon';
 
 interface NowPlayingProps {
   track: NowPlayingTrack | null;
@@ -7,6 +9,8 @@ interface NowPlayingProps {
 }
 
 export function NowPlaying({ track, isTransitioning = false }: NowPlayingProps) {
+  const [imgError, setImgError] = useState(false);
+  
   if (!track) {
     return null;
   }
@@ -29,21 +33,16 @@ export function NowPlaying({ track, isTransitioning = false }: NowPlayingProps) 
     >
       {/* Cover Art */}
       <div className="flex-shrink-0">
-        {track.coverUrl ? (
+        {track.coverUrl && !imgError ? (
           <img
             src={track.coverUrl}
             alt={`${track.title} cover`}
             className="w-12 h-12 object-cover"
             style={{ borderRadius: '4px' }}
+            onError={() => setImgError(true)}
           />
         ) : (
-          <div
-            className="w-12 h-12"
-            style={{
-              borderRadius: '4px',
-              background: 'var(--cover-gradient)',
-            }}
-          />
+          <Identicon seed={`${track.id}-${track.title}`} size={48} />
         )}
       </div>
 

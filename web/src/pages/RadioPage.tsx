@@ -1,11 +1,19 @@
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router'
 import { useAudio } from '../contexts/AudioContext'
 import { EmptyState } from '../components/EmptyState'
 import { TipButtons } from '../components/TipButtons'
 import { BuyButton } from '../components/BuyButton'
+import { Identicon } from '../components/Identicon'
 
 export function RadioPage() {
   const { nowPlaying, crossfade, triggerConfetti } = useAudio()
+  const [coverError, setCoverError] = useState(false)
+  
+  // Reset cover error when track changes
+  useEffect(() => {
+    setCoverError(false)
+  }, [crossfade.currentTrack?.id])
 
   // Determine state machine
   const isWaiting = nowPlaying.state === 'waiting'
@@ -61,19 +69,23 @@ export function RadioPage() {
             style={{
               width: 'min(320px, 80vw)',
               height: 'min(320px, 80vw)',
-              background: crossfade.currentTrack?.coverUrl
-                ? undefined
-                : 'var(--cover-gradient)',
               boxShadow: 'var(--cover-shadow)',
             }}
           >
-            {crossfade.currentTrack?.coverUrl && (
+            {crossfade.currentTrack?.coverUrl && !coverError ? (
               <img
                 src={crossfade.currentTrack.coverUrl}
                 alt={`${crossfade.currentTrack.title} cover`}
                 className="absolute inset-0 w-full h-full object-cover"
+                onError={() => setCoverError(true)}
               />
-            )}
+            ) : crossfade.currentTrack ? (
+              <Identicon 
+                seed={`${crossfade.currentTrack.id}-${crossfade.currentTrack.title}`} 
+                size={320} 
+                className="absolute inset-0 w-full h-full"
+              />
+            ) : null}
             {/* Animated waveform bars */}
             {crossfade.isPlaying && (
               <div className="relative flex items-end justify-center gap-1 pb-6 z-10">
