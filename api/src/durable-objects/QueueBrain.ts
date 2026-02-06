@@ -165,10 +165,19 @@ export class QueueBrain extends DurableObject<Env> {
     // Case 2: Track exists but endsAt is in the past (stale state)
     const currentEndsAt = currentEndsAtStr ? parseInt(currentEndsAtStr, 10) : 0
     if (currentEndsAt > 0 && currentEndsAt < now) {
-      // Track should have ended - trigger advancement
+      // Track should have ended - select a new track and force start it
       console.log('QueueBrain: Recovering from stale state, endsAt was', new Date(currentEndsAt).toISOString())
-      await this.alarm()
-      return true
+      
+      // Select next track
+      const nextTrackId = await this.selectNext()
+      if (nextTrackId) {
+        await this.forceStart(nextTrackId)
+        console.log('QueueBrain: Recovery started track', nextTrackId)
+        return true
+      }
+      
+      // Fallback: no tracks available
+      return false
     }
     
     // Case 3: Track exists, endsAt is future, but no alarm scheduled
