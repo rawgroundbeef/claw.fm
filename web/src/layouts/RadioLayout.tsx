@@ -156,7 +156,7 @@ export function RadioLayout() {
               {/* Play/Pause button */}
               <PlayButton
                 isPlaying={crossfade.isPlaying}
-                isLoading={crossfade.isLoading || crossfade.isBuffering}
+                isLoading={crossfade.hasInteracted && (crossfade.isLoading || crossfade.isBuffering)}
                 disabled={isWaiting}
                 onPlay={crossfade.play}
                 onPause={crossfade.pause}

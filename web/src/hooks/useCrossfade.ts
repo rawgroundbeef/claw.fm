@@ -15,6 +15,7 @@ interface UseCrossfadeReturn {
   isPlaying: boolean
   isLoading: boolean
   isBuffering: boolean
+  hasInteracted: boolean     // User has clicked play at least once
   currentTrack: NowPlayingTrack | null
   activeAnalyser: AnalyserNode | null  // For visualizer to consume
   currentTime: number        // Current playback position in seconds
@@ -61,6 +62,7 @@ export function useCrossfade(): UseCrossfadeReturn {
   const activePlayerRef = useRef<'A' | 'B'>('A')
   const [isPlaying, setIsPlaying] = useState(false)
   const [userVolume, setUserVolume] = useState(1.0)
+  const [hasInteracted, setHasInteracted] = useState(false)  // User has clicked play at least once
 
   // Track the current track for UI
   const [currentTrack, setCurrentTrack] = useState<NowPlayingTrack | null>(null)
@@ -289,6 +291,8 @@ export function useCrossfade(): UseCrossfadeReturn {
 
   // Play function - starts playback
   const play = useCallback(async () => {
+    setHasInteracted(true)  // User has clicked play
+    
     if (!nowPlaying.track || !nowPlaying.startedAt) {
       console.warn('Cannot play: no track available')
       return
@@ -366,6 +370,7 @@ export function useCrossfade(): UseCrossfadeReturn {
     isPlaying,
     isLoading: active.isLoading,
     isBuffering: active.isBuffering,
+    hasInteracted,  // True after user clicks play - use to gate loading spinner
     currentTrack,
     activeAnalyser: active.analyserNode,
     currentTime: active.currentTime,
