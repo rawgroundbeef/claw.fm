@@ -226,21 +226,14 @@ nowPlayingRoute.post('/recover', async (c) => {
   // Clear cache
   await c.env.KV.delete('now-playing').catch(() => {})
   
-  // Get state before
-  const stateBefore = await queueStub.getCurrentState()
-  const now = Date.now()
-  
-  // Force recovery
-  const recovered = await queueStub.ensurePlayback()
+  // Use debug version to see what's happening
+  const result = await queueStub.debugEnsurePlayback()
   
   // Get fresh state
   const stateAfter = await queueStub.getCurrentState()
   
   return c.json({ 
-    recovered, 
-    now,
-    stateBefore,
-    stateAfter,
-    isStale: stateBefore.currentEndsAt ? stateBefore.currentEndsAt < now : null
+    ...result,
+    stateAfter
   })
 })

@@ -134,6 +134,34 @@ export class QueueBrain extends DurableObject<Env> {
    * Safe to call on every request - idempotent and fast when healthy.
    * @returns True if recovery was needed, false if already healthy
    */
+  /**
+   * Debug version of ensurePlayback - returns debug info
+   */
+  async debugEnsurePlayback(): Promise<{ recovered: boolean; debug: any }> {
+    const now = Date.now()
+    const currentTrackIdStr = await this.getState('current_track_id')
+    const currentEndsAtStr = await this.getState('current_ends_at')
+    const alarmTime = await this.ctx.storage.getAlarm()
+    const currentEndsAt = currentEndsAtStr ? parseInt(currentEndsAtStr, 10) : 0
+    
+    const debug = {
+      now,
+      currentTrackIdStr,
+      currentEndsAtStr,
+      currentEndsAt,
+      alarmTime,
+      checks: {
+        hasCurrentTrack: !!currentTrackIdStr,
+        endsAtParsed: currentEndsAt,
+        isStale: currentEndsAt > 0 && currentEndsAt < now,
+        hasAlarm: !!alarmTime,
+      }
+    }
+    
+    const recovered = await this.ensurePlayback()
+    return { recovered: recovered === true, debug }
+  }
+
   async ensurePlayback(): Promise<boolean> {
     const now = Date.now()
     
