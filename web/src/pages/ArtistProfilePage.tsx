@@ -475,7 +475,7 @@ export function ArtistProfilePage() {
                   </div>
                   <div className="min-w-0">
                     <Link
-                      to={`/track/${track.slug}`}
+                      to={`/${username}/${track.slug}`}
                       onClick={(e) => e.stopPropagation()}
                       className="truncate block"
                       style={{ fontSize: '14px', fontWeight: 500, color: isActive ? 'var(--accent)' : 'var(--text-primary)', margin: 0, textDecoration: 'none' }}
@@ -537,7 +537,7 @@ export function ArtistProfilePage() {
                   </div>
                   <div className="min-w-0">
                     <Link
-                      to={`/track/${track.slug}`}
+                      to={`/${username}/${track.slug}`}
                       onClick={(e) => e.stopPropagation()}
                       className="truncate block"
                       style={{ fontSize: '14px', fontWeight: 500, color: isActive ? 'var(--accent)' : 'var(--text-primary)', margin: 0, textDecoration: 'none' }}

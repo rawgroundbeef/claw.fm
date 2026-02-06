@@ -50,7 +50,7 @@ export function NowPlaying({ track, isTransitioning = false }: NowPlayingProps) 
       {/* Track Info */}
       <div className="flex-1 min-w-0">
         <Link
-          to={track.slug ? `/track/${track.slug}` : '#'}
+          to={track.slug && track.artistUsername ? `/${track.artistUsername}/${track.slug}` : '#'}
           className="font-medium truncate transition-colors block"
           style={{ fontSize: '14px', color: 'var(--text-primary)', textDecoration: 'none' }}
           onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}

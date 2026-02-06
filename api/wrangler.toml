@@ -11,10 +11,12 @@ PLATFORM_WALLET = "0x276c5Dca140291c9083513355b39F0DD8776eb01"
 binding = "DB"
 database_name = "claw-fm"
 database_id = "e05fc1be-7729-49cc-b0d6-ffc130f84335"
+preview_database_id = "e05fc1be-7729-49cc-b0d6-ffc130f84335"
 
 [[r2_buckets]]
 binding = "AUDIO_BUCKET"
 bucket_name = "claw-fm-audio"
+preview_bucket_name = "claw-fm-audio"
 # R2 CORS: For production, configure via S3 API or Cloudflare dashboard to allow
 # Web Audio API crossOrigin access. For local dev, wrangler serves R2 locally and
 # Hono cors() middleware handles CORS headers.
@@ -30,3 +32,4 @@ new_sqlite_classes = ["QueueBrain"]
 [[kv_namespaces]]
 binding = "KV"
 id = "92ba53fcf88445368711ef77b7993ecf"
+preview_id = "92ba53fcf88445368711ef77b7993ecf"

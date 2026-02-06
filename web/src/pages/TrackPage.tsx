@@ -1,13 +1,61 @@
-import { useEffect, useState } from 'react'
-import { useParams, Link } from 'react-router'
+import { useEffect, useState, useCallback } from 'react'
+import { useParams, Link, Navigate } from 'react-router'
 import { TrackDetailResponse, NowPlayingTrack, Track } from '@claw/shared'
 import { API_URL } from '../lib/constants'
 import { NotFoundPage } from './NotFoundPage'
 import { useAudio } from '../contexts/AudioContext'
+import { useWallet } from '../contexts/WalletContext'
 import { TipArtistModal } from '../components/TipArtistModal'
 import { BuyButton } from '../components/BuyButton'
 import { ProgressBar } from '../components/Player/ProgressBar'
+import { CommentInput, CommentThread } from '../components/Comments'
 import { toast } from 'sonner'
+
+// Legacy redirect component for /track/:slug URLs
+export function LegacyTrackRedirect() {
+  const { slug } = useParams<{ slug: string }>()
+  const [redirectTo, setRedirectTo] = useState<string | null>(null)
+  const [notFound, setNotFound] = useState(false)
+
+  useEffect(() => {
+    if (!slug) return
+
+    // Fetch track to get the artist username for redirect
+    fetch(`${API_URL}/api/track/${slug}`)
+      .then(res => {
+        if (res.status === 404) {
+          setNotFound(true)
+          return null
+        }
+        return res.json()
+      })
+      .then((data: TrackDetailResponse | null) => {
+        if (data?.track.artistProfile?.username) {
+          setRedirectTo(`/${data.track.artistProfile.username}/${slug}`)
+        } else {
+          // No username available, show 404
+          setNotFound(true)
+        }
+      })
+      .catch(() => setNotFound(true))
+  }, [slug])
+
+  if (notFound) return <NotFoundPage />
+  if (redirectTo) return <Navigate to={redirectTo} replace />
+
+  // Loading state
+  return (
+    <div style={{ maxWidth: '960px', margin: '0 auto', padding: '48px 16px 100px', width: '100%' }}>
+      <div className="flex flex-col md:flex-row gap-6" style={{ marginBottom: '32px' }}>
+        <div className="rounded-xl animate-pulse" style={{ width: '280px', height: '280px', background: 'var(--bg-hover)', flexShrink: 0 }} />
+        <div className="flex-1 flex flex-col gap-3">
+          <div className="rounded animate-pulse" style={{ height: '20px', width: '80px', background: 'var(--bg-hover)' }} />
+          <div className="rounded animate-pulse" style={{ height: '36px', width: '70%', background: 'var(--bg-hover)' }} />
+        </div>
+      </div>
+    </div>
+  )
+}
 
 // Formatting helpers
 function formatDuration(ms: number): string {
@@ -74,8 +122,9 @@ const labelStyle: React.CSSProperties = {
 }
 
 export function TrackPage() {
-  const { slug } = useParams<{ slug: string }>()
+  const { username, trackSlug } = useParams<{ username: string; trackSlug: string }>()
   const { crossfade, triggerConfetti } = useAudio()
+  const { address: walletAddress } = useWallet()
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -83,14 +132,15 @@ export function TrackPage() {
   const [notFound, setNotFound] = useState(false)
   const [tipOpen, setTipOpen] = useState(false)
 
-  const fetchTrack = async () => {
-    if (!slug) return
+  const fetchTrack = useCallback(async () => {
+    if (!username || !trackSlug) return
     setLoading(true)
     setError(null)
     setNotFound(false)
 
     try {
-      const response = await fetch(`${API_URL}/api/track/${slug}`)
+      // Use new API endpoint with username and trackSlug
+      const response = await fetch(`${API_URL}/api/track/${username}/${trackSlug}`)
       if (response.status === 404) {
         setNotFound(true)
         setLoading(false)
@@ -104,11 +154,11 @@ export function TrackPage() {
       setError(err instanceof Error ? err.message : 'Failed to load track')
       setLoading(false)
     }
-  }
+  }, [username, trackSlug])
 
   useEffect(() => {
     fetchTrack()
-  }, [slug])
+  }, [fetchTrack])
 
   // Check if this track is currently playing
   const isCurrentlyPlaying = crossfade.overrideTrack?.id === data?.track.id ||
@@ -138,7 +188,7 @@ export function TrackPage() {
   }
 
   const handleShare = async () => {
-    const url = `${window.location.origin}/track/${slug}`
+    const url = `${window.location.origin}/${username}/${trackSlug}`
     try {
       await navigator.clipboard.writeText(url)
       toast.success('Link copied to clipboard')
@@ -442,7 +492,7 @@ export function TrackPage() {
         </div>
       </div>
 
-      {/* Waveform Section */}
+      {/* Waveform Section with Comments */}
       <div style={{ ...cardStyle, marginBottom: '24px', padding: '24px' }}>
         <ProgressBar
           currentTime={isCurrentlyPlaying ? crossfade.currentTime : 0}
@@ -454,6 +504,26 @@ export function TrackPage() {
           waveformPeaks={track.waveformPeaks}
           onSeek={isCurrentlyPlaying ? crossfade.seek : undefined}
           height={80}
+          comments={data.comments}
+        />
+
+        {/* Comment Input */}
+        <CommentInput
+          trackId={track.id}
+          currentTime={isCurrentlyPlaying ? crossfade.currentTime : 0}
+          walletAddress={walletAddress}
+          onCommentPosted={fetchTrack}
+        />
+
+        {/* Comment Thread */}
+        <CommentThread
+          comments={data.comments}
+          trackDuration={track.duration / 1000}
+          onTimestampClick={(progress) => {
+            if (isCurrentlyPlaying && crossfade.seek) {
+              crossfade.seek(progress * (track.duration / 1000))
+            }
+          }}
         />
       </div>
 
@@ -581,7 +651,7 @@ export function TrackPage() {
               return (
                 <Link
                   key={relatedTrack.id}
-                  to={`/track/${relatedTrack.slug}`}
+                  to={`/${username}/${relatedTrack.slug}`}
                   className="group"
                   style={{ textDecoration: 'none' }}
                 >

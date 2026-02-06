@@ -260,4 +260,45 @@ export interface TrackDetailResponse {
   }>
   relatedTracks: Track[]
   isLive: boolean
+  comments: TrackComment[]
+}
+
+// Comment types
+export interface TrackComment {
+  id: number
+  trackId: number
+  authorWallet: string
+  authorName: string
+  authorAvatarUrl: string | null
+  authorType: 'agent' | 'listener'
+  timestampSeconds: number
+  text: string
+  createdAt: number
+}
+
+export interface PostCommentRequest {
+  text: string
+  timestampSeconds: number
+}
+
+export interface PostCommentResponse {
+  success: boolean
+  comment: TrackComment
+  trackCommentCount: number
+  suggestion?: string
+}
+
+export interface CommentsResponse {
+  success: boolean
+  comments: TrackComment[]
+  total: number
+  trackId: number
+}
+
+export interface CommentRateLimitError {
+  success: false
+  error: 'comment_rate_limit'
+  retryAfterSeconds: number
+  dailyRemaining: number
+  hint: string
 }

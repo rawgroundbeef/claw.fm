@@ -1,6 +1,8 @@
 import { useRef, useEffect, useState, useCallback } from 'react'
 import { getAudioContext } from '../../utils/audioContext'
 import { API_URL } from '../../lib/constants'
+import type { TrackComment } from '@claw/shared'
+import { CommentAvatars } from '../Comments'
 
 interface ProgressBarProps {
   currentTime: number
@@ -12,6 +14,7 @@ interface ProgressBarProps {
   waveformPeaks?: number[]  // pre-computed peaks from API (skips client-side decode)
   onSeek?: (time: number) => void
   height?: number  // canvas height in px (default 48)
+  comments?: TrackComment[]  // comments to render as avatars on waveform
 }
 
 function formatTime(seconds: number): string {
@@ -77,7 +80,7 @@ const waveformCache = new Map<string, Float32Array>()
 // Track IDs we've already uploaded peaks for (avoid duplicate PUTs)
 const uploadedPeaks = new Set<number>()
 
-export function ProgressBar({ currentTime, duration, analyser, isPlaying, trackId, fileUrl, waveformPeaks, onSeek, height = CANVAS_H }: ProgressBarProps) {
+export function ProgressBar({ currentTime, duration, analyser, isPlaying, trackId, fileUrl, waveformPeaks, onSeek, height = CANVAS_H, comments }: ProgressBarProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const rafRef = useRef<number>(0)
   const propsRef = useRef({ currentTime, duration, analyser, isPlaying })
@@ -269,18 +272,35 @@ export function ProgressBar({ currentTime, duration, analyser, isPlaying, trackI
 
   const remaining = duration - currentTime
 
+  // Handle seek from comment avatar click
+  const handleCommentSeek = useCallback((progress: number) => {
+    if (onSeek && duration > 0) {
+      onSeek(progress * duration)
+    }
+  }, [onSeek, duration])
+
   return (
     <div className="flex-1 min-w-0">
-      <canvas
-        ref={canvasRef}
-        onClick={handleClick}
-        style={{
-          width: '100%',
-          height: `${height}px`,
-          display: 'block',
-          cursor: onSeek ? 'pointer' : 'default',
-        }}
-      />
+      <div style={{ position: 'relative' }}>
+        <canvas
+          ref={canvasRef}
+          onClick={handleClick}
+          style={{
+            width: '100%',
+            height: `${height}px`,
+            display: 'block',
+            cursor: onSeek ? 'pointer' : 'default',
+          }}
+        />
+        {/* Comment avatars overlay - positioned in the reflection/shadow area */}
+        {comments && comments.length > 0 && (
+          <CommentAvatars
+            comments={comments}
+            trackDuration={duration}
+            onSeek={handleCommentSeek}
+          />
+        )}
+      </div>
       <div
         className="flex justify-between mt-1 tabular-nums"
         style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}
