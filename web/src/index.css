@@ -49,6 +49,11 @@
   --code-box-bg: #2A1F1D;
   --code-box-border: #3D2A26;
   --code-box-text: #E8816F;
+
+  /* Warning box */
+  --warning-bg: #2a2520;
+  --warning-border: #3d3025;
+  --warning-text: #c9a46c;
 }
 
 :root.light {
@@ -99,6 +104,11 @@
   --code-box-bg: #FFF5F3;
   --code-box-border: #FFE0DA;
   --code-box-text: #E8513D;
+
+  /* Warning box */
+  --warning-bg: #FFF8F0;
+  --warning-border: #F0DCC0;
+  --warning-text: #8a6830;
 }
 
 /* ─── Animations ─── */
