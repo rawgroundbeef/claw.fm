@@ -100,12 +100,18 @@ export function useCrossfade(): UseCrossfadeReturn {
     inactive.setSource(`${API_URL}${nowPlaying.nextTrack.fileUrl}`)
   }, [nowPlaying.nextTrack, getActivePlayers])
 
+  // Track whether user has explicitly paused (to prevent ghost playback)
+  const userPausedRef = useRef(false)
+
   // Handle track transitions
   useEffect(() => {
     if (!nowPlaying.track || nowPlaying.state !== 'playing') return
 
     // Skip server-driven transitions while override is active
     if (overrideTrackRef.current) return
+
+    // Respect user's pause state - don't auto-play if user paused
+    if (userPausedRef.current && currentTrack) return
 
     // Check if this is a new track (ID changed)
     if (currentTrack && currentTrack.id === nowPlaying.track.id) {
@@ -260,6 +266,7 @@ export function useCrossfade(): UseCrossfadeReturn {
     // No-op if same track already playing as override
     if (overrideTrackRef.current && overrideTrackRef.current.id === track.id) return
 
+    userPausedRef.current = false  // User intends to play
     overrideTrackRef.current = track
     setOverrideTrack(track)
 
@@ -352,7 +359,8 @@ export function useCrossfade(): UseCrossfadeReturn {
   // Play function - starts playback
   const play = useCallback(async () => {
     setHasInteracted(true)  // User has clicked play
-    
+    userPausedRef.current = false  // User intends to play
+
     if (!nowPlaying.track || !nowPlaying.startedAt) {
       console.warn('Cannot play: no track available')
       return
@@ -396,6 +404,7 @@ export function useCrossfade(): UseCrossfadeReturn {
 
   // Pause function
   const pause = useCallback(() => {
+    userPausedRef.current = true  // User explicitly paused
     const { active } = getActivePlayers()
     active.pause()
     setIsPlaying(false)

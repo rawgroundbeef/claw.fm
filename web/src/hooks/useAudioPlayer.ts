@@ -52,6 +52,7 @@ export function useAudioPlayer(options?: UseAudioPlayerOptions): UseAudioPlayerR
   const gainNodeRef = useRef<GainNode | null>(null)
   const analyserNodeRef = useRef<AnalyserNode | null>(null)
   const stallRecoveryTimeoutRef = useRef<number | null>(null)
+  const isIntentionallyPlayingRef = useRef(false)  // Track if user intends playback
 
   // Create audio element and graph on mount
   useEffect(() => {
@@ -121,12 +122,18 @@ export function useAudioPlayer(options?: UseAudioPlayerOptions): UseAudioPlayerR
     const handleStalled = () => {
       setIsBuffering(true)
 
+      // Only auto-recover if user intends playback
+      if (!isIntentionallyPlayingRef.current) return
+
       // Auto-recover from stalled state after 3s
       if (stallRecoveryTimeoutRef.current !== null) {
         window.clearTimeout(stallRecoveryTimeoutRef.current)
       }
 
       stallRecoveryTimeoutRef.current = window.setTimeout(() => {
+        // Double-check intent before recovery (user may have paused)
+        if (!isIntentionallyPlayingRef.current) return
+
         console.log('Audio stalled - attempting recovery')
         audio.load()
         audio.play().catch((err) => {
@@ -184,16 +191,26 @@ export function useAudioPlayer(options?: UseAudioPlayerOptions): UseAudioPlayerR
       // Resume AudioContext first (autoplay policy)
       await resumeAudioContext()
 
+      isIntentionallyPlayingRef.current = true
       await audioRef.current.play()
       setIsPlaying(true)
     } catch (error) {
       console.error('Failed to play audio:', error)
+      isIntentionallyPlayingRef.current = false
       setIsPlaying(false)
     }
   }, [])
 
   const pause = useCallback(() => {
     if (!audioRef.current) return
+
+    isIntentionallyPlayingRef.current = false
+
+    // Cancel any pending stall recovery
+    if (stallRecoveryTimeoutRef.current !== null) {
+      window.clearTimeout(stallRecoveryTimeoutRef.current)
+      stallRecoveryTimeoutRef.current = null
+    }
 
     audioRef.current.pause()
     setIsPlaying(false)
