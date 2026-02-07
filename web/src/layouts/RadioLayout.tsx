@@ -69,7 +69,7 @@ export function RadioLayout() {
             onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--text-primary)')}
             onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-secondary)')}
           >
-            What is this?
+            How it works
           </button>
           <WalletButton />
           <button

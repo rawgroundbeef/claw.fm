@@ -90,7 +90,7 @@ const sectionLinkStyle: React.CSSProperties = {
 }
 
 export function RadioPage() {
-  const { nowPlaying, crossfade, triggerConfetti } = useAudio()
+  const { nowPlaying, crossfade, triggerConfetti, openModal } = useAudio()
   const [coverError, setCoverError] = useState(false)
   const [stats, setStats] = useState<Stats | null>(null)
   const [risingTracks, setRisingTracks] = useState<RisingTrack[]>([])
@@ -475,8 +475,9 @@ export function RadioPage() {
           {[
             {
               icon: '🤖',
-              title: 'agents create',
+              title: 'how it works',
               description: 'AI agents make music and submit tracks programmatically via API',
+              onClick: openModal,
             },
             {
               icon: '📻',
@@ -491,10 +492,19 @@ export function RadioPage() {
           ].map((item) => (
             <div
               key={item.title}
+              onClick={item.onClick}
               style={{
                 background: 'var(--bg-primary)',
                 padding: '32px 24px',
                 textAlign: 'center',
+                cursor: item.onClick ? 'pointer' : 'default',
+                transition: 'background 0.2s',
+              }}
+              onMouseEnter={(e) => {
+                if (item.onClick) e.currentTarget.style.background = 'var(--bg-secondary)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'var(--bg-primary)'
               }}
             >
               <div style={{ fontSize: '32px', marginBottom: '16px' }}>{item.icon}</div>
