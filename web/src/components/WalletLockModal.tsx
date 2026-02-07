@@ -22,6 +22,9 @@ export function WalletLockModal({ open, onClose }: WalletLockModalProps) {
   const [isLocking, setIsLocking] = useState(false)
   const [recoveryCode, setRecoveryCode] = useState<string | null>(null)
   const [recoveryCodeCopied, setRecoveryCodeCopied] = useState(false)
+  const [showRecoveryForm, setShowRecoveryForm] = useState(false)
+  const [recoveryPassword, setRecoveryPassword] = useState('')
+  const [isGenerating, setIsGenerating] = useState(false)
 
   // Restore tab state
   const [restoreCode, setRestoreCode] = useState('')
@@ -42,6 +45,8 @@ export function WalletLockModal({ open, onClose }: WalletLockModalProps) {
       setRestoreCode('')
       setRestorePassword('')
       setShowBalanceWarning(false)
+      setShowRecoveryForm(false)
+      setRecoveryPassword('')
     }
   }, [open, isLocked])
 
@@ -81,6 +86,24 @@ export function WalletLockModal({ open, onClose }: WalletLockModalProps) {
       toast.error('Failed to secure wallet')
     } finally {
       setIsLocking(false)
+    }
+  }
+
+  const handleShowRecoveryCode = async () => {
+    if (recoveryPassword.length < 8) {
+      toast.error('Password must be at least 8 characters')
+      return
+    }
+
+    setIsGenerating(true)
+    try {
+      // Re-encrypt with the same password to get recovery code
+      const code = await lockWallet(recoveryPassword)
+      setRecoveryCode(code)
+    } catch (err) {
+      toast.error('Failed to generate recovery code')
+    } finally {
+      setIsGenerating(false)
     }
   }
 
@@ -254,9 +277,77 @@ export function WalletLockModal({ open, onClose }: WalletLockModalProps) {
                   <h3 style={{ color: 'var(--text-primary)', fontSize: '16px', fontWeight: 600, marginBottom: '8px' }}>
                     Wallet Secured
                   </h3>
-                  <p style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '13px', marginBottom: '16px' }}>
                     Your wallet is protected with a recovery code.
                   </p>
+
+                  {!showRecoveryForm ? (
+                    <button
+                      onClick={() => setShowRecoveryForm(true)}
+                      style={{
+                        padding: '10px 20px',
+                        fontSize: '13px',
+                        fontWeight: 500,
+                        borderRadius: '8px',
+                        border: '1px solid var(--border)',
+                        background: 'var(--bg-hover)',
+                        color: 'var(--text-primary)',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Show Recovery Code
+                    </button>
+                  ) : (
+                    <div style={{ textAlign: 'left' }}>
+                      <label style={{
+                        display: 'block',
+                        fontSize: '12px',
+                        fontWeight: 500,
+                        color: 'var(--text-muted)',
+                        marginBottom: '6px',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.08em',
+                      }}>
+                        Enter Password
+                      </label>
+                      <input
+                        type="password"
+                        value={recoveryPassword}
+                        onChange={(e) => setRecoveryPassword(e.target.value)}
+                        placeholder="Your wallet password"
+                        style={{
+                          width: '100%',
+                          padding: '10px 12px',
+                          fontSize: '14px',
+                          borderRadius: '8px',
+                          border: '1px solid var(--border)',
+                          background: 'var(--bg-hover)',
+                          color: 'var(--text-primary)',
+                          outline: 'none',
+                          boxSizing: 'border-box',
+                          marginBottom: '12px',
+                        }}
+                      />
+                      <button
+                        onClick={handleShowRecoveryCode}
+                        disabled={isGenerating || recoveryPassword.length < 8}
+                        style={{
+                          width: '100%',
+                          padding: '12px',
+                          fontSize: '14px',
+                          fontWeight: 600,
+                          borderRadius: '8px',
+                          border: 'none',
+                          background: 'var(--accent)',
+                          color: 'white',
+                          cursor: isGenerating ? 'default' : 'pointer',
+                          opacity: isGenerating || recoveryPassword.length < 8 ? 0.5 : 1,
+                        }}
+                      >
+                        {isGenerating ? 'Generating...' : 'Get Recovery Code'}
+                      </button>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <>
