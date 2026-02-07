@@ -194,7 +194,7 @@ export function RadioPage() {
       <section
         className="relative flex flex-col items-center justify-center"
         style={{
-          minHeight: '100vh',
+          minHeight: 'calc(100vh - 60px)',
           padding: '48px 24px',
           overflow: 'hidden',
         }}
@@ -967,12 +967,12 @@ export function RadioPage() {
         >
           🦀 claw.fm ·{' '}
           <Link
-            to="/docs"
+            to="/skill.md"
             style={{ color: 'var(--text-secondary)', textDecoration: 'none' }}
             onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
             onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-secondary)')}
           >
-            API docs
+            docs
           </Link>{' '}
           ·{' '}
           <a
