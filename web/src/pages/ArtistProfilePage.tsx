@@ -162,32 +162,42 @@ export function ArtistProfilePage() {
     return (
       <div style={{ maxWidth: '960px', margin: '0 auto', padding: '48px 16px 100px' }}>
         {/* Header skeleton */}
-        <div className="flex flex-col sm:flex-row items-center sm:items-center gap-4" style={{ marginBottom: '24px' }}>
-          <div className="rounded-2xl animate-pulse" style={{ width: '72px', height: '72px', background: 'var(--bg-hover)', flexShrink: 0 }} />
-          <div className="flex-1 flex flex-col gap-2 w-full" style={{ minWidth: 0 }}>
-            <div className="rounded animate-pulse" style={{ height: '24px', width: '50%', background: 'var(--bg-hover)' }} />
-            <div className="rounded animate-pulse" style={{ height: '16px', width: '35%', background: 'var(--bg-hover)' }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '24px' }}>
+          <div style={{ width: '72px', height: '72px', borderRadius: '16px', background: 'var(--bg-hover)', flexShrink: 0 }} className="animate-pulse" />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ height: '24px', width: '140px', maxWidth: '60%', borderRadius: '6px', background: 'var(--bg-hover)', marginBottom: '8px' }} className="animate-pulse" />
+            <div style={{ height: '16px', width: '100px', maxWidth: '40%', borderRadius: '4px', background: 'var(--bg-hover)' }} className="animate-pulse" />
           </div>
         </div>
 
         {/* Stats skeleton */}
-        <div className="grid grid-cols-1 sm:grid-cols-3" style={{ gap: '12px', marginBottom: '12px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px', marginBottom: '12px' }}>
           {[0, 1, 2].map((i) => (
-            <div key={i} className="rounded-xl animate-pulse" style={{ height: '80px', background: 'var(--bg-hover)' }} />
+            <div key={i} style={{ height: '80px', borderRadius: '12px', background: 'var(--bg-hover)' }} className="animate-pulse" />
           ))}
         </div>
 
         {/* About + Top Track skeleton */}
-        <div className="grid grid-cols-1 md:grid-cols-2" style={{ gap: '12px', marginBottom: '12px' }}>
-          <div className="rounded-xl animate-pulse" style={{ height: '160px', background: 'var(--bg-hover)' }} />
-          <div className="rounded-xl animate-pulse" style={{ height: '160px', background: 'var(--bg-hover)' }} />
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '12px', marginBottom: '12px' }}>
+          <div style={{ height: '160px', borderRadius: '12px', background: 'var(--bg-hover)' }} className="animate-pulse" />
+          <div style={{ height: '160px', borderRadius: '12px', background: 'var(--bg-hover)' }} className="animate-pulse" />
         </div>
 
         {/* Track list skeleton */}
-        <div className="rounded-xl animate-pulse" style={{ height: '300px', background: 'var(--bg-hover)', marginBottom: '12px' }} />
+        <div style={{ borderRadius: '12px', background: 'var(--bg-hover)', marginBottom: '12px', padding: '20px' }} className="animate-pulse">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: i < 3 ? '16px' : 0 }}>
+              <div style={{ width: '48px', height: '48px', borderRadius: '8px', background: 'var(--bg-hover-strong)', flexShrink: 0 }} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ height: '14px', width: '60%', maxWidth: '200px', borderRadius: '4px', background: 'var(--bg-hover-strong)', marginBottom: '6px' }} />
+                <div style={{ height: '12px', width: '30%', maxWidth: '80px', borderRadius: '4px', background: 'var(--bg-hover-strong)' }} />
+              </div>
+            </div>
+          ))}
+        </div>
 
         {/* Footer skeleton */}
-        <div className="rounded-xl animate-pulse" style={{ height: '64px', background: 'var(--bg-hover)' }} />
+        <div style={{ height: '56px', borderRadius: '12px', background: 'var(--bg-hover)' }} className="animate-pulse" />
       </div>
     )
   }
