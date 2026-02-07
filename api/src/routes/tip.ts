@@ -77,6 +77,24 @@ tip.post('/', async (c) => {
        VALUES (?, 'tip', ?, ?, ?, unixepoch())`
     ).bind(body.trackId, body.amount, paymentResult.walletAddress, artistWallet).run()
 
+    // Contribute % to royalty pool
+    const poolRow = await c.env.DB.prepare(
+      'SELECT contribution_rate FROM royalty_pool WHERE id = 1'
+    ).first<{ contribution_rate: number }>()
+    
+    const contributionRate = poolRow?.contribution_rate || 15
+    const poolContribution = Math.floor(body.amount * 1_000_000 * contributionRate / 100)
+    
+    if (poolContribution > 0) {
+      await c.env.DB.prepare(
+        'UPDATE royalty_pool SET balance_usdc = balance_usdc + ? WHERE id = 1'
+      ).bind(poolContribution).run()
+      
+      await c.env.DB.prepare(
+        'INSERT INTO pool_contributions (source_type, source_id, amount_usdc) VALUES (?, ?, ?)'
+      ).bind('tip', body.trackId, poolContribution).run()
+    }
+
     const response: TipResponse = {
       success: true,
       newTipWeight: updatedTrack?.tip_weight as number || 0

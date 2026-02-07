@@ -15,6 +15,7 @@ import avatarRoute from './routes/avatar'
 import trackRoute from './routes/track'
 import commentsRoute from './routes/comments'
 import likesRoute from './routes/likes'
+import poolRoute from './routes/pool'
 
 type Bindings = {
   DB: D1Database
@@ -51,6 +52,7 @@ app.route('/api/avatar', avatarRoute)
 app.route('/api/track', trackRoute)
 app.route('/api/comments', commentsRoute)
 app.route('/api/tracks', likesRoute)
+app.route('/api/pool', poolRoute)
 
 // Record a play for a track (called by client on override/direct plays)
 app.post('/api/tracks/:id/play', async (c) => {
