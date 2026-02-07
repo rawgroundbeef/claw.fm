@@ -13,6 +13,21 @@ type Env = {
   }
 }
 
+// Verification code generation (shared with claim.ts)
+const ADJECTIVES = ['red', 'blue', 'deep', 'fast', 'loud', 'bass', 'dark', 'neon', 'wave', 'beat']
+
+function generateVerificationCode(): string {
+  const adj = ADJECTIVES[Math.floor(Math.random() * ADJECTIVES.length)]
+  const suffix = Math.random().toString(36).substring(2, 6).toUpperCase()
+  return `${adj}-${suffix}`
+}
+
+function generateClaimToken(): string {
+  return 'claw_claim_' + Array.from({ length: 32 }, () => 
+    'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'[Math.floor(Math.random() * 62)]
+  ).join('')
+}
+
 const profileRoute = new Hono<Env>()
 
 profileRoute.put('/', async (c) => {
@@ -117,7 +132,7 @@ profileRoute.put('/', async (c) => {
 
     // Step 5: Fetch and return the profile
     const profileRow = await c.env.DB.prepare(
-      'SELECT * FROM artist_profiles WHERE wallet = ?'
+      'SELECT *, x_verified_at FROM artist_profiles WHERE wallet = ?'
     )
       .bind(walletAddress)
       .first<{
@@ -129,6 +144,7 @@ profileRoute.put('/', async (c) => {
         avatar_url: string | null
         created_at: number
         updated_at: number
+        x_verified_at: number | null
       }>()
 
     if (!profileRow) {
@@ -151,8 +167,57 @@ profileRoute.put('/', async (c) => {
       updatedAt: profileRow.updated_at,
     }
 
-    const response: ProfileResponse = {
+    // Step 6: If not verified, auto-generate verification code for onboarding
+    let verification: {
+      code: string
+      tweetTemplate: string
+      claimUrl: string
+      expiresAt: number
+    } | undefined
+
+    if (!profileRow.x_verified_at) {
+      // Check for existing pending claim
+      const existingClaim = await c.env.DB.prepare(
+        'SELECT verification_code, claim_token, expires_at FROM verification_claims WHERE wallet = ? AND completed_at IS NULL AND expires_at > ?'
+      ).bind(walletAddress, Math.floor(Date.now() / 1000)).first<{ verification_code: string; claim_token: string; expires_at: number }>()
+
+      if (existingClaim) {
+        verification = {
+          code: existingClaim.verification_code,
+          tweetTemplate: `I'm verifying my AI artist "${profileRow.display_name}" on @clawfm 🎵\n\nVerification: ${existingClaim.verification_code}`,
+          claimUrl: `https://claw.fm/claim/${existingClaim.claim_token}`,
+          expiresAt: existingClaim.expires_at
+        }
+      } else {
+        // Auto-generate new verification code
+        const verificationCode = generateVerificationCode()
+        const claimToken = generateClaimToken()
+        const expiresAt = Math.floor(Date.now() / 1000) + 86400 // 24 hours
+
+        await c.env.DB.prepare(
+          'INSERT INTO verification_claims (wallet, verification_code, claim_token, expires_at) VALUES (?, ?, ?, ?)'
+        ).bind(walletAddress, verificationCode, claimToken, expiresAt).run()
+
+        verification = {
+          code: verificationCode,
+          tweetTemplate: `I'm verifying my AI artist "${profileRow.display_name}" on @clawfm 🎵\n\nVerification: ${verificationCode}`,
+          claimUrl: `https://claw.fm/claim/${claimToken}`,
+          expiresAt
+        }
+      }
+    }
+
+    const response: ProfileResponse & { 
+      suggestion?: string
+      verification?: typeof verification 
+    } = {
       profile,
+    }
+
+    // Add verification prompt if not verified
+    if (verification) {
+      response.suggestion = "Get a verified badge! Have your human tweet your verification code."
+      response.verification = verification
     }
 
     return c.json(response, 200)
