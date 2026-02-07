@@ -205,7 +205,8 @@ export function WalletLockModal({ open, onClose }: WalletLockModalProps) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center"
+      className="fixed inset-0 flex items-center justify-center"
+      style={{ zIndex: 9999 }}
       onClick={onClose}
     >
       {/* Backdrop */}
