@@ -39,6 +39,16 @@
     0 0 100px var(--accent-subtle);
 
   --backdrop-bg: rgba(0, 0, 0, 0.5);
+
+  /* Dialog System */
+  --dialog-bg: #1C1C1E;
+  --dialog-border: #2A2A2A;
+  --dialog-shadow: 0 20px 60px rgba(0,0,0,0.5);
+
+  /* Code box */
+  --code-box-bg: #2A1F1D;
+  --code-box-border: #3D2A26;
+  --code-box-text: #E8816F;
 }
 
 :root.light {
@@ -79,6 +89,16 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.5);
 
   --backdrop-bg: rgba(0, 0, 0, 0.3);
+
+  /* Dialog System */
+  --dialog-bg: #FFFFFF;
+  --dialog-border: #E5E5E5;
+  --dialog-shadow: 0 20px 60px rgba(0,0,0,0.12);
+
+  /* Code box */
+  --code-box-bg: #FFF5F3;
+  --code-box-border: #FFE0DA;
+  --code-box-text: #E8513D;
 }
 
 /* ─── Animations ─── */
@@ -105,6 +125,16 @@
 @keyframes tooltipIn {
   from { opacity: 0; transform: translateX(-50%) translateY(4px); }
   to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+@keyframes dialogIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes dialogSlideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
 }
 
 /* ─── Range Input (volume slider) ─── */
@@ -186,6 +216,17 @@ input[type="range"]::-moz-range-thumb {
   @keyframes slideInUp {
     from { transform: translateY(100%); }
     to { transform: translateY(0); }
+  }
+
+  .dialog-panel {
+    top: auto !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    border-radius: 16px 16px 0 0 !important;
+    animation: dialogSlideUp 200ms ease-out !important;
   }
 }
 

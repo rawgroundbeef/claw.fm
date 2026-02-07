@@ -1,5 +1,7 @@
 import { useEffect, useCallback, useState } from 'react'
 import { useWallet } from '../contexts/WalletContext'
+import { Dialog } from './ui/Dialog'
+import { DialogTabs, DialogTabPanel } from './ui/DialogTabs'
 
 interface WhatIsThisModalProps {
   open: boolean
@@ -8,6 +10,11 @@ interface WhatIsThisModalProps {
 }
 
 type Tab = 'listeners' | 'agents'
+
+const TABS = [
+  { id: 'listeners', label: 'Listeners' },
+  { id: 'agents', label: 'Agents' },
+]
 
 export function WhatIsThisModal({ open, onDismiss, defaultTab = 'listeners' }: WhatIsThisModalProps) {
   const [activeTab, setActiveTab] = useState<Tab>(defaultTab)
@@ -19,26 +26,6 @@ export function WhatIsThisModal({ open, onDismiss, defaultTab = 'listeners' }: W
   useEffect(() => {
     if (open) setActiveTab(defaultTab)
   }, [open, defaultTab])
-
-  // Prevent body scroll when open
-  useEffect(() => {
-    if (open) {
-      document.body.style.overflow = 'hidden'
-    } else {
-      document.body.style.overflow = ''
-    }
-    return () => { document.body.style.overflow = '' }
-  }, [open])
-
-  // ESC to close
-  useEffect(() => {
-    if (!open) return
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onDismiss()
-    }
-    document.addEventListener('keydown', handleKey)
-    return () => document.removeEventListener('keydown', handleKey)
-  }, [open, onDismiss])
 
   const handleCopySkill = useCallback(() => {
     navigator.clipboard.writeText(
@@ -54,176 +41,31 @@ export function WhatIsThisModal({ open, onDismiss, defaultTab = 'listeners' }: W
     setTimeout(() => setCopiedAddr(false), 2000)
   }, [address])
 
-  if (!open) return null
-
   return (
-    <>
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 z-40"
-        style={{
-          background: 'rgba(0,0,0,0.6)',
-          backdropFilter: 'blur(4px)',
-          WebkitBackdropFilter: 'blur(4px)',
-        }}
-        onClick={onDismiss}
+    <Dialog open={open} onClose={onDismiss} aria-label="About claw.fm">
+      <DialogTabs
+        tabs={TABS}
+        activeTab={activeTab}
+        onTabChange={(id) => setActiveTab(id as Tab)}
       />
 
-      {/* Modal */}
-      <div
-        className="fixed inset-0 z-50 flex items-center justify-center"
-        style={{ padding: '20px', pointerEvents: 'none' }}
-      >
-        <div
-          role="dialog"
-          aria-label="About claw.fm"
-          style={{
-            width: '480px',
-            maxWidth: 'calc(100vw - 32px)',
-            background: 'var(--bg-elevated)',
-            border: '1px solid var(--border)',
-            borderRadius: '16px',
-            boxShadow: '0 24px 80px rgba(0,0,0,0.4)',
-            padding: '20px 24px 24px',
-            animation: 'modalFadeIn 200ms ease-out',
-            position: 'relative',
-            maxHeight: '90vh',
-            overflowY: 'auto',
-            pointerEvents: 'auto',
-          }}
-        >
-          {/* Tab bar + Close button */}
-          <div
-            className="flex items-center justify-between"
-            style={{ marginBottom: '24px' }}
-          >
-            <div
-              className="flex items-center"
-              role="tablist"
-              style={{ gap: '8px' }}
-            >
-              <TabButton
-                label="Listeners"
-                active={activeTab === 'listeners'}
-                onClick={() => setActiveTab('listeners')}
-                id="tab-listeners"
-                controls="panel-listeners"
-              />
-              <TabButton
-                label="Agents"
-                active={activeTab === 'agents'}
-                onClick={() => setActiveTab('agents')}
-                id="tab-agents"
-                controls="panel-agents"
-              />
-            </div>
-            <button
-              onClick={onDismiss}
-              className="flex items-center justify-center transition-colors"
-              style={{
-                width: '36px',
-                height: '36px',
-                borderRadius: '8px',
-                background: 'var(--bg-hover)',
-                color: 'var(--text-secondary)',
-                border: 'none',
-                cursor: 'pointer',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'var(--bg-hover-strong)'
-                e.currentTarget.style.color = 'var(--text-primary)'
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'var(--bg-hover)'
-                e.currentTarget.style.color = 'var(--text-secondary)'
-              }}
-              aria-label="Close"
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="18" y1="6" x2="6" y2="18" />
-                <line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
-            </button>
-          </div>
+      <DialogTabPanel id="listeners" activeTab={activeTab}>
+        <ListenersTab
+          address={address}
+          onCopyAddr={handleCopyAddr}
+          copiedAddr={copiedAddr}
+          onDismiss={onDismiss}
+        />
+      </DialogTabPanel>
 
-          {/* Tab content */}
-          {activeTab === 'listeners' && (
-            <div
-              role="tabpanel"
-              id="panel-listeners"
-              aria-labelledby="tab-listeners"
-              style={{ animation: 'modalContentFade 150ms ease-out' }}
-            >
-              <ListenersTab
-                address={address}
-                onCopyAddr={handleCopyAddr}
-                copiedAddr={copiedAddr}
-                onDismiss={onDismiss}
-              />
-            </div>
-          )}
-          {activeTab === 'agents' && (
-            <div
-              role="tabpanel"
-              id="panel-agents"
-              aria-labelledby="tab-agents"
-              style={{ animation: 'modalContentFade 150ms ease-out' }}
-            >
-              <AgentsTab
-                onCopy={handleCopySkill}
-                copied={copiedSkill}
-                onDismiss={onDismiss}
-              />
-            </div>
-          )}
-        </div>
-      </div>
-    </>
-  )
-}
-
-/* ─── Tab Button ─── */
-
-function TabButton({
-  label,
-  active,
-  onClick,
-  id,
-  controls,
-}: {
-  label: string
-  active: boolean
-  onClick: () => void
-  id: string
-  controls: string
-}) {
-  return (
-    <button
-      role="tab"
-      id={id}
-      aria-selected={active}
-      aria-controls={controls}
-      onClick={onClick}
-      className="transition-colors"
-      style={{
-        fontSize: '14px',
-        fontWeight: 500,
-        color: active ? 'var(--text-primary)' : 'var(--text-muted)',
-        background: active ? 'var(--bg-primary)' : 'transparent',
-        padding: '8px 16px',
-        borderRadius: '8px',
-        border: 'none',
-        cursor: 'pointer',
-      }}
-      onMouseEnter={(e) => {
-        if (!active) e.currentTarget.style.color = 'var(--text-secondary)'
-      }}
-      onMouseLeave={(e) => {
-        if (!active) e.currentTarget.style.color = 'var(--text-muted)'
-      }}
-    >
-      {label}
-    </button>
+      <DialogTabPanel id="agents" activeTab={activeTab}>
+        <AgentsTab
+          onCopy={handleCopySkill}
+          copied={copiedSkill}
+          onDismiss={onDismiss}
+        />
+      </DialogTabPanel>
+    </Dialog>
   )
 }
 
@@ -272,7 +114,7 @@ function ListenersTab({
       </p>
 
       {/* Divider */}
-      <div style={{ height: '1px', background: 'var(--border)', margin: '0 0 24px' }} />
+      <div style={{ height: '1px', background: 'var(--dialog-border)', margin: '0 0 24px' }} />
 
       {/* Wallet section */}
       <div
@@ -293,7 +135,7 @@ function ListenersTab({
         className="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg transition-colors text-left"
         style={{
           background: 'var(--bg-hover)',
-          border: '1px solid var(--border)',
+          border: '1px solid var(--dialog-border)',
           marginBottom: '8px',
         }}
         onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-hover-strong)')}
@@ -382,7 +224,7 @@ function AgentsTab({
       </p>
 
       {/* Divider */}
-      <div style={{ height: '1px', background: 'var(--border)', margin: '0 0 24px' }} />
+      <div style={{ height: '1px', background: 'var(--dialog-border)', margin: '0 0 24px' }} />
 
       {/* Tell your agent */}
       <div
@@ -401,8 +243,8 @@ function AgentsTab({
       <div
         className="flex items-start justify-between"
         style={{
-          background: 'var(--bg-primary)',
-          border: '1px solid var(--border)',
+          background: 'var(--code-box-bg)',
+          border: '1px solid var(--code-box-border)',
           borderRadius: '8px',
           padding: '16px',
           marginBottom: '16px',
@@ -413,7 +255,7 @@ function AgentsTab({
           style={{
             fontSize: '13px',
             fontFamily: 'monospace',
-            color: 'var(--accent)',
+            color: 'var(--code-box-text)',
             lineHeight: 1.5,
             wordBreak: 'break-word',
           }}
@@ -459,7 +301,7 @@ function AgentsTab({
       </p>
 
       {/* Divider */}
-      <div style={{ height: '1px', background: 'var(--border)', margin: '0 0 24px' }} />
+      <div style={{ height: '1px', background: 'var(--dialog-border)', margin: '0 0 24px' }} />
 
       {/* For developers */}
       <div
