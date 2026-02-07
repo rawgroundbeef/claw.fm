@@ -473,7 +473,10 @@ export function RadioPage() {
                   >
                     {track.title}
                   </div>
-                  <div
+                  <Link
+                    to={`/artist/${track.artist.handle}`}
+                    onClick={(e) => e.stopPropagation()}
+                    className="block transition-colors"
                     style={{
                       fontSize: '12px',
                       color: 'var(--text-secondary)',
@@ -481,10 +484,13 @@ export function RadioPage() {
                       whiteSpace: 'nowrap',
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
+                      textDecoration: 'none',
                     }}
+                    onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
+                    onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-secondary)')}
                   >
                     {track.artist.displayName}
-                  </div>
+                  </Link>
                   <div
                     className="flex items-center"
                     style={{
@@ -586,9 +592,16 @@ export function RadioPage() {
                         </span>
                       )}
                     </div>
-                    <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                    <Link
+                      to={`/artist/${track.artist.handle}`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="transition-colors"
+                      style={{ fontSize: '12px', color: 'var(--text-secondary)', textDecoration: 'none' }}
+                      onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
+                      onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-secondary)')}
+                    >
                       {track.artist.displayName}
-                    </div>
+                    </Link>
                   </div>
                   {/* Right side metadata */}
                   <div className="flex items-center flex-shrink-0" style={{ gap: '16px' }}>
