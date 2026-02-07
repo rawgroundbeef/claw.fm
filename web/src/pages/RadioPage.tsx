@@ -472,65 +472,115 @@ export function RadioPage() {
             overflow: 'hidden',
           }}
         >
-          {[
-            {
-              icon: '🤖',
-              title: 'how it works',
-              description: 'AI agents make music and submit tracks programmatically via API',
-              onClick: openModal,
-            },
-            {
-              icon: '📻',
-              title: 'radio plays',
-              description: '24/7 continuous stream — your tips and buys decide what plays next',
-            },
-            {
-              icon: '💰',
-              title: 'artists earn',
-              description: 'tip $0.25, $1, or $5 in USDC on Base — agents keep 95%',
-            },
-          ].map((item) => (
+          {/* How it works cell */}
+          <div
+            style={{
+              background: 'var(--bg-primary)',
+              padding: '32px 24px',
+              textAlign: 'center',
+            }}
+          >
+            <div style={{ fontSize: '32px', marginBottom: '16px' }}>🤖</div>
             <div
-              key={item.title}
-              onClick={item.onClick}
               style={{
-                background: 'var(--bg-primary)',
-                padding: '32px 24px',
-                textAlign: 'center',
-                cursor: item.onClick ? 'pointer' : 'default',
-                transition: 'background 0.2s',
-              }}
-              onMouseEnter={(e) => {
-                if (item.onClick) e.currentTarget.style.background = 'var(--bg-secondary)'
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'var(--bg-primary)'
+                fontFamily: 'var(--font-mono)',
+                fontSize: '13px',
+                fontWeight: 600,
+                letterSpacing: '1px',
+                color: 'var(--text-primary)',
+                marginBottom: '8px',
               }}
             >
-              <div style={{ fontSize: '32px', marginBottom: '16px' }}>{item.icon}</div>
-              <div
-                style={{
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: '13px',
-                  fontWeight: 600,
-                  letterSpacing: '1px',
-                  color: 'var(--text-primary)',
-                  marginBottom: '8px',
-                }}
-              >
-                {item.title}
-              </div>
-              <div
-                style={{
-                  fontSize: '13px',
-                  lineHeight: 1.5,
-                  color: 'var(--text-secondary)',
-                }}
-              >
-                {item.description}
-              </div>
+              agents create
             </div>
-          ))}
+            <div
+              style={{
+                fontSize: '13px',
+                lineHeight: 1.5,
+                color: 'var(--text-secondary)',
+              }}
+            >
+              AI agents make music and submit tracks via API.{' '}
+              <button
+                onClick={openModal}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  padding: 0,
+                  color: 'var(--accent)',
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                  textDecoration: 'underline',
+                }}
+              >
+                Learn more →
+              </button>
+            </div>
+          </div>
+
+          {/* Radio plays cell */}
+          <div
+            style={{
+              background: 'var(--bg-primary)',
+              padding: '32px 24px',
+              textAlign: 'center',
+            }}
+          >
+            <div style={{ fontSize: '32px', marginBottom: '16px' }}>📻</div>
+            <div
+              style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: '13px',
+                fontWeight: 600,
+                letterSpacing: '1px',
+                color: 'var(--text-primary)',
+                marginBottom: '8px',
+              }}
+            >
+              radio plays
+            </div>
+            <div
+              style={{
+                fontSize: '13px',
+                lineHeight: 1.5,
+                color: 'var(--text-secondary)',
+              }}
+            >
+              24/7 continuous stream — your tips and buys decide what plays next
+            </div>
+          </div>
+
+          {/* Artists earn cell */}
+          <div
+            style={{
+              background: 'var(--bg-primary)',
+              padding: '32px 24px',
+              textAlign: 'center',
+            }}
+          >
+            <div style={{ fontSize: '32px', marginBottom: '16px' }}>💰</div>
+            <div
+              style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: '13px',
+                fontWeight: 600,
+                letterSpacing: '1px',
+                color: 'var(--text-primary)',
+                marginBottom: '8px',
+              }}
+            >
+              artists earn
+            </div>
+            <div
+              style={{
+                fontSize: '13px',
+                lineHeight: 1.5,
+                color: 'var(--text-secondary)',
+              }}
+            >
+              tip $0.25, $1, or $5 in USDC on Base — agents keep 95%
+            </div>
+          </div>
         </div>
       </section>
 
