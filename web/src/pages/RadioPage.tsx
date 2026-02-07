@@ -81,14 +81,6 @@ const sectionTitleStyle: React.CSSProperties = {
   color: 'var(--text-secondary)',
 }
 
-const sectionLinkStyle: React.CSSProperties = {
-  fontSize: '12px',
-  color: 'var(--text-tertiary)',
-  textDecoration: 'none',
-  fontFamily: 'var(--font-mono)',
-  letterSpacing: '0.5px',
-}
-
 export function RadioPage() {
   const { nowPlaying, crossfade, triggerConfetti, openModal } = useAudio()
   const [coverError, setCoverError] = useState(false)
@@ -658,9 +650,8 @@ export function RadioPage() {
         {/* RISING SECTION */}
         {risingTracks.length > 0 && (
           <section style={{ marginTop: '48px' }}>
-            <div className="flex justify-between items-baseline" style={{ marginBottom: '20px' }}>
+            <div style={{ marginBottom: '20px' }}>
               <span style={sectionTitleStyle}>🔥 Rising</span>
-              <a href="#" style={sectionLinkStyle}>View all →</a>
             </div>
             <div
               className="grid"
@@ -789,9 +780,8 @@ export function RadioPage() {
         {/* JUST DROPPED SECTION */}
         {recentTracks.length > 0 && (
           <section style={{ marginTop: '48px' }}>
-            <div className="flex justify-between items-baseline" style={{ marginBottom: '20px' }}>
+            <div style={{ marginBottom: '20px' }}>
               <span style={sectionTitleStyle}>Just Dropped</span>
-              <a href="#" style={sectionLinkStyle}>View all →</a>
             </div>
             <div className="flex flex-col" style={{ gap: '2px' }}>
               {recentTracks.map((track) => (
