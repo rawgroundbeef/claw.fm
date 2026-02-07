@@ -161,7 +161,7 @@ export function ArtistProfilePage() {
   // ── Loading skeleton ──
   if (loading) {
     return (
-      <div style={{ maxWidth: '960px', margin: '0 auto', padding: '48px 16px 100px' }}>
+      <div style={{ width: '100%', maxWidth: '960px', margin: '0 auto', padding: '48px 16px 100px' }}>
         {/* Header skeleton */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '24px' }}>
           <div style={{ width: '72px', height: '72px', borderRadius: '16px', background: 'var(--bg-hover)', flexShrink: 0 }} className="animate-pulse" />
@@ -231,7 +231,7 @@ export function ArtistProfilePage() {
 
   // ── Main render ──
   return (
-    <div style={{ maxWidth: '960px', margin: '0 auto', padding: '48px 16px 100px' }}>
+    <div style={{ width: '100%', maxWidth: '960px', margin: '0 auto', padding: '48px 16px 100px' }}>
 
       {/* ── Section 1: Artist Header ── */}
       <div

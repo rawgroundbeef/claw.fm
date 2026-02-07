@@ -5,6 +5,25 @@ import { useUSDCTransfer } from '../hooks/useUSDCTransfer'
 import { FundDialog } from './FundDialog'
 import { TIP_AMOUNTS, USDC_DECIMALS } from '../lib/constants'
 
+// Dollar sign icon (Lucide-style)
+function DollarIcon({ size = 14 }: { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <line x1="12" y1="1" x2="12" y2="23" />
+      <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+    </svg>
+  )
+}
+
 interface TipButtonsProps {
   trackId: number
   disabled?: boolean
@@ -37,7 +56,7 @@ export function TipButtons({ trackId, disabled = false, onTipSuccess }: TipButto
 
   return (
     <>
-      <div className="flex items-center flex-wrap justify-center" style={{ gap: '8px' }}>
+      <div className="flex items-center" style={{ gap: '8px' }}>
         {TIP_AMOUNTS.map((amount) => {
           const isActive = activeAmount === amount
 
@@ -46,29 +65,31 @@ export function TipButtons({ trackId, disabled = false, onTipSuccess }: TipButto
               key={amount}
               onClick={() => handleTip(amount)}
               disabled={isButtonDisabled}
-              className="flex items-center justify-center font-medium transition-colors"
+              className="flex items-center justify-center transition-all"
               style={{
-                padding: '10px 20px',
-                fontSize: '14px',
-                borderRadius: '24px',
-                background: isButtonDisabled
-                  ? 'var(--bg-hover)'
-                  : 'var(--bg-hover)',
-                color: isButtonDisabled
-                  ? 'var(--text-muted)'
-                  : 'var(--text-primary)',
+                padding: '8px 14px',
+                fontSize: '12px',
+                fontFamily: 'var(--font-mono)',
+                borderRadius: '20px',
+                background: 'transparent',
+                border: '1px solid var(--border)',
+                color: isButtonDisabled ? 'var(--text-muted)' : 'var(--text-secondary)',
                 cursor: isButtonDisabled ? 'not-allowed' : 'pointer',
                 opacity: isButtonDisabled ? 0.5 : 1,
-                gap: '8px',
+                gap: '5px',
               }}
               onMouseEnter={(e) => {
                 if (!isButtonDisabled) {
-                  e.currentTarget.style.background = 'var(--bg-hover-strong)'
+                  e.currentTarget.style.borderColor = 'var(--accent)'
+                  e.currentTarget.style.color = 'var(--text-primary)'
+                  e.currentTarget.style.background = 'var(--accent-dim)'
                 }
               }}
               onMouseLeave={(e) => {
                 if (!isButtonDisabled) {
-                  e.currentTarget.style.background = 'var(--bg-hover)'
+                  e.currentTarget.style.borderColor = 'var(--border)'
+                  e.currentTarget.style.color = 'var(--text-secondary)'
+                  e.currentTarget.style.background = 'transparent'
                 }
               }}
             >
@@ -77,21 +98,20 @@ export function TipButtons({ trackId, disabled = false, onTipSuccess }: TipButto
                   <div
                     className="border-2 rounded-full animate-spin"
                     style={{
-                      width: '16px',
-                      height: '16px',
+                      width: '14px',
+                      height: '14px',
                       borderColor: 'var(--text-primary)',
                       borderTopColor: 'transparent',
                     }}
                   />
-                  ${amount}
+                  {amount}
                 </>
               ) : (
                 <>
-                  {/* Heart icon */}
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-                  </svg>
-                  ${amount}
+                  <span style={{ color: 'var(--text-tertiary)' }}>
+                    <DollarIcon size={14} />
+                  </span>
+                  {amount}
                 </>
               )}
             </button>

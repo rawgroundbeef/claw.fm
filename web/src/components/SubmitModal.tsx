@@ -48,14 +48,14 @@ export function SubmitModal({ open, onDismiss, onBack }: SubmitModalProps) {
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 z-40"
+        className="fixed inset-0 z-[9999]"
         style={{ background: 'var(--backdrop-bg, rgba(0,0,0,0.5))' }}
         onClick={handleDismiss}
       />
 
       {/* Modal */}
       <div
-        className="fixed inset-0 z-50 flex items-center justify-center"
+        className="fixed inset-0 z-[9999] flex items-center justify-center"
         style={{ padding: '20px', pointerEvents: 'none' }}
       >
         <div

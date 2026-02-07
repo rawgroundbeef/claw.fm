@@ -54,6 +54,8 @@
   --warning-bg: #2a2520;
   --warning-border: #3d3025;
   --warning-text: #c9a46c;
+
+  --accent-dim: rgba(255, 107, 74, 0.15);  /* for radial glow */
 }
 
 :root.light {
@@ -109,12 +111,19 @@
   --warning-bg: #FFF8F0;
   --warning-border: #F0DCC0;
   --warning-text: #8a6830;
+
+  --accent-dim: rgba(232, 90, 58, 0.15);  /* for radial glow */
 }
 
 /* ─── Animations ─── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(255, 107, 74, 0.4); }
+  50% { opacity: 0.7; box-shadow: 0 0 0 6px rgba(255, 107, 74, 0); }
 }
 
 @keyframes wave {
@@ -237,6 +246,17 @@ input[type="range"]::-moz-range-thumb {
     max-width: 100% !important;
     border-radius: 16px 16px 0 0 !important;
     animation: dialogSlideUp 200ms ease-out !important;
+  }
+}
+
+/* ─── Homepage Responsive ─── */
+@media (max-width: 768px) {
+  .how-it-works-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .dual-cta-grid {
+    grid-template-columns: 1fr !important;
   }
 }
 
