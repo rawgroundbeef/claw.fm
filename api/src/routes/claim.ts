@@ -4,6 +4,7 @@ type Env = {
   Bindings: {
     DB: D1Database
     KV: KVNamespace
+    X_BEARER_TOKEN?: string  // Optional - if not set, falls back to trust-based
   }
 }
 
@@ -11,7 +12,6 @@ const claimRoute = new Hono<Env>()
 
 // Word lists for generating memorable verification codes
 const ADJECTIVES = ['red', 'blue', 'deep', 'fast', 'loud', 'bass', 'dark', 'neon', 'wave', 'beat']
-const NOUNS = ['reef', 'claw', 'bass', 'drop', 'wave', 'beat', 'fire', 'vibe', 'flow', 'zone']
 
 function generateVerificationCode(): string {
   const adj = ADJECTIVES[Math.floor(Math.random() * ADJECTIVES.length)]
@@ -23,6 +23,77 @@ function generateClaimToken(): string {
   return 'claw_claim_' + Array.from({ length: 32 }, () => 
     'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'[Math.floor(Math.random() * 62)]
   ).join('')
+}
+
+// X API helpers
+interface XUser {
+  id: string
+  name: string
+  username: string
+  profile_image_url?: string
+  public_metrics?: {
+    followers_count: number
+    following_count: number
+    tweet_count: number
+  }
+}
+
+interface XTweet {
+  id: string
+  text: string
+  author_id: string
+}
+
+async function searchTweets(query: string, bearerToken: string): Promise<XTweet[]> {
+  const url = new URL('https://api.x.com/2/tweets/search/recent')
+  url.searchParams.set('query', query)
+  url.searchParams.set('max_results', '10')
+  
+  const res = await fetch(url.toString(), {
+    headers: { 'Authorization': `Bearer ${bearerToken}` }
+  })
+  
+  if (!res.ok) {
+    console.error('X API search error:', res.status, await res.text())
+    return []
+  }
+  
+  const data = await res.json() as { data?: XTweet[] }
+  return data.data || []
+}
+
+async function getUser(username: string, bearerToken: string): Promise<XUser | null> {
+  const url = new URL(`https://api.x.com/2/users/by/username/${username}`)
+  url.searchParams.set('user.fields', 'profile_image_url,public_metrics')
+  
+  const res = await fetch(url.toString(), {
+    headers: { 'Authorization': `Bearer ${bearerToken}` }
+  })
+  
+  if (!res.ok) {
+    console.error('X API user lookup error:', res.status, await res.text())
+    return null
+  }
+  
+  const data = await res.json() as { data?: XUser }
+  return data.data || null
+}
+
+async function getUserById(userId: string, bearerToken: string): Promise<XUser | null> {
+  const url = new URL(`https://api.x.com/2/users/${userId}`)
+  url.searchParams.set('user.fields', 'profile_image_url,public_metrics')
+  
+  const res = await fetch(url.toString(), {
+    headers: { 'Authorization': `Bearer ${bearerToken}` }
+  })
+  
+  if (!res.ok) {
+    console.error('X API user lookup error:', res.status, await res.text())
+    return null
+  }
+  
+  const data = await res.json() as { data?: XUser }
+  return data.data || null
 }
 
 // POST /api/claim/start - Start verification process
@@ -149,7 +220,7 @@ claimRoute.post('/verify', async (c) => {
     return c.json({ error: 'INVALID_WALLET', message: 'Valid X-Wallet-Address header required' }, 400)
   }
 
-  const body = await c.req.json<{ x_handle?: string; tweet_url?: string }>().catch(() => ({}))
+  const body = await c.req.json<{ x_handle?: string }>().catch(() => ({}))
 
   if (!body.x_handle) {
     return c.json({ 
@@ -162,6 +233,7 @@ claimRoute.post('/verify', async (c) => {
   const xHandle = body.x_handle.replace(/^@/, '').toLowerCase()
 
   const db = c.env.DB
+  const bearerToken = c.env.X_BEARER_TOKEN
 
   // Get pending claim
   const claim = await db.prepare(
@@ -175,14 +247,58 @@ claimRoute.post('/verify', async (c) => {
     }, 400)
   }
 
-  // For now, we'll do a simple verification by trusting the provided handle
-  // In production, you'd want to:
-  // 1. Use Twitter API to search for tweets with the verification code
-  // 2. Verify the tweet exists and was posted by the claimed handle
-  // 3. Fetch the user's profile data
-
-  // Simulated X profile data (in production, fetch from Twitter API)
   const now = Math.floor(Date.now() / 1000)
+  let xUser: XUser | null = null
+  let verified = false
+
+  // If we have X API access, actually verify the tweet
+  if (bearerToken) {
+    // Search for tweets containing the verification code
+    const tweets = await searchTweets(`"${claim.verification_code}" @clawfm`, bearerToken)
+    
+    if (tweets.length === 0) {
+      return c.json({
+        error: 'TWEET_NOT_FOUND',
+        message: `Could not find a tweet with verification code "${claim.verification_code}"`,
+        hint: 'Make sure you tweeted the verification code and try again in a few seconds'
+      }, 400)
+    }
+
+    // Get user info for the tweet author
+    const authorId = tweets[0].author_id
+    xUser = await getUserById(authorId, bearerToken)
+
+    if (!xUser) {
+      return c.json({
+        error: 'USER_LOOKUP_FAILED',
+        message: 'Could not look up X user',
+        hint: 'Try again in a moment'
+      }, 500)
+    }
+
+    // Verify the handle matches
+    if (xUser.username.toLowerCase() !== xHandle) {
+      return c.json({
+        error: 'HANDLE_MISMATCH',
+        message: `Tweet was posted by @${xUser.username}, not @${xHandle}`,
+        hint: 'Make sure you provided the correct X handle'
+      }, 400)
+    }
+
+    verified = true
+  } else {
+    // No X API access - fall back to trust-based verification
+    // Just look up the user to get their profile data
+    console.warn('X_BEARER_TOKEN not configured - using trust-based verification')
+    
+    // Try to get user data anyway (will fail without token, that's ok)
+    xUser = {
+      id: '',
+      username: xHandle,
+      name: xHandle,
+    }
+    verified = true  // Trust-based
+  }
 
   // Mark claim as completed
   await db.prepare(
@@ -192,15 +308,30 @@ claimRoute.post('/verify', async (c) => {
   // Update artist profile with X data
   await db.prepare(`
     UPDATE artist_profiles 
-    SET x_handle = ?, x_verified_at = ?, updated_at = ?
+    SET x_id = ?, x_handle = ?, x_name = ?, x_avatar = ?, x_follower_count = ?, x_verified_at = ?, updated_at = ?
     WHERE wallet = ?
-  `).bind(xHandle, now, now, walletAddress).run()
+  `).bind(
+    xUser?.id || null,
+    xUser?.username || xHandle,
+    xUser?.name || null,
+    xUser?.profile_image_url || null,
+    xUser?.public_metrics?.followers_count || null,
+    now,
+    now,
+    walletAddress
+  ).run()
 
   return c.json({
     success: true,
-    message: 'Verification complete! Your X account is now linked. 🎉',
-    x_handle: xHandle,
-    verified_at: now
+    message: bearerToken 
+      ? 'Verification complete! Your X account is now linked. 🎉'
+      : 'Verification complete! (Note: Tweet verification skipped - API key not configured)',
+    x_handle: xUser?.username || xHandle,
+    x_name: xUser?.name,
+    x_avatar: xUser?.profile_image_url,
+    x_follower_count: xUser?.public_metrics?.followers_count,
+    verified_at: now,
+    verified_via: bearerToken ? 'api' : 'trust'
   })
 })
 
