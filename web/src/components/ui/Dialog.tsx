@@ -43,8 +43,13 @@ export function Dialog({ open, onClose, children, 'aria-label': ariaLabel }: Dia
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 z-[9999]"
         style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 9999,
           background: 'rgba(0, 0, 0, 0.6)',
           backdropFilter: 'blur(4px)',
           WebkitBackdropFilter: 'blur(4px)',
@@ -55,8 +60,19 @@ export function Dialog({ open, onClose, children, 'aria-label': ariaLabel }: Dia
 
       {/* Dialog container */}
       <div
-        className="fixed inset-0 z-[9999] flex items-center justify-center"
-        style={{ padding: '20px', pointerEvents: 'none' }}
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 9999,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '20px',
+          pointerEvents: 'none',
+        }}
       >
         {/* Panel */}
         <div
