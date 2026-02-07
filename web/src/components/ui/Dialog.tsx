@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { useFocusTrap } from '../../hooks/useFocusTrap'
 
 interface DialogProps {
@@ -38,7 +39,7 @@ export function Dialog({ open, onClose, children, 'aria-label': ariaLabel }: Dia
 
   if (!open) return null
 
-  return (
+  return createPortal(
     <>
       {/* Backdrop */}
       <div
@@ -123,6 +124,7 @@ export function Dialog({ open, onClose, children, 'aria-label': ariaLabel }: Dia
           {children}
         </div>
       </div>
-    </>
+    </>,
+    document.body
   )
 }
