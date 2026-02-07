@@ -1,15 +1,17 @@
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { API_URL } from '../../lib/constants'
+import { hasNudgeBeenShown, markNudgeShown } from '../../contexts/WalletContext'
 
 interface CommentInputProps {
   trackId: number
   currentTime: number // in seconds
   walletAddress: string | null
+  isLocked: boolean
   onCommentPosted: () => void
 }
 
-export function CommentInput({ trackId, currentTime, walletAddress, onCommentPosted }: CommentInputProps) {
+export function CommentInput({ trackId, currentTime, walletAddress, isLocked, onCommentPosted }: CommentInputProps) {
   const [text, setText] = useState('')
   const [isFocused, setIsFocused] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -46,6 +48,22 @@ export function CommentInput({ trackId, currentTime, walletAddress, onCommentPos
       setText('')
       toast.success('Comment posted!')
       onCommentPosted()
+
+      // First comment nudge
+      if (!isLocked && !hasNudgeBeenShown('first_comment')) {
+        markNudgeShown('first_comment')
+        setTimeout(() => {
+          toast('Nice comment! Secure your wallet to keep your identity.', {
+            action: {
+              label: 'Secure Now',
+              onClick: () => {
+                window.dispatchEvent(new CustomEvent('open-wallet-modal'))
+              },
+            },
+            duration: 8000,
+          })
+        }, 1000)
+      }
     } catch (err) {
       toast.error('Failed to post comment')
     } finally {

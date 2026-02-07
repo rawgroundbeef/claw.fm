@@ -1,6 +1,7 @@
-import { createContext, useContext, useState, useCallback, useMemo } from 'react'
+import { createContext, useContext, useState, useCallback, useMemo, useRef } from 'react'
 import type { ReactNode } from 'react'
-import { useWallet } from './WalletContext'
+import { toast } from 'sonner'
+import { useWallet, hasNudgeBeenShown, markNudgeShown } from './WalletContext'
 import { API_URL } from '../lib/constants'
 import type { LikeToggleResponse } from '@claw/shared'
 
@@ -19,8 +20,9 @@ interface LikeContextValue {
 const LikeContext = createContext<LikeContextValue | null>(null)
 
 export function LikeProvider({ children }: { children: ReactNode }) {
-  const { address } = useWallet()
+  const { address, isLocked } = useWallet()
   const [likeStates, setLikeStates] = useState<Record<number, LikeState>>({})
+  const likeCountRef = useRef(0)
 
   const getLikeState = useCallback((trackId: number): LikeState | undefined => {
     return likeStates[trackId]
@@ -93,6 +95,29 @@ export function LikeProvider({ children }: { children: ReactNode }) {
         ...prev,
         [trackId]: { liked: data.liked, likeCount: data.likeCount }
       }))
+
+      // Track like count for nudge (only count new likes, not unlikes)
+      if (data.liked && !wasLiked) {
+        likeCountRef.current += 1
+
+        // 10th like nudge
+        if (
+          likeCountRef.current === 10 &&
+          !isLocked &&
+          !hasNudgeBeenShown('tenth_like')
+        ) {
+          markNudgeShown('tenth_like')
+          toast('You\'ve liked 10 tracks! Secure your wallet to keep your likes.', {
+            action: {
+              label: 'Secure Now',
+              onClick: () => {
+                window.dispatchEvent(new CustomEvent('open-wallet-modal'))
+              },
+            },
+            duration: 8000,
+          })
+        }
+      }
     } catch {
       // Rollback on error
       setLikeStates(prev => ({
@@ -100,7 +125,7 @@ export function LikeProvider({ children }: { children: ReactNode }) {
         [trackId]: { liked: wasLiked, likeCount: currentCount }
       }))
     }
-  }, [address, likeStates])
+  }, [address, likeStates, isLocked])
 
   const value = useMemo<LikeContextValue>(
     () => ({ getLikeState, setLikeState, toggleLike, fetchLikeStatus }),

@@ -126,7 +126,7 @@ const labelStyle: React.CSSProperties = {
 export function TrackPage() {
   const { username, trackSlug } = useParams<{ username: string; trackSlug: string }>()
   const { crossfade, triggerConfetti } = useAudio()
-  const { address: walletAddress } = useWallet()
+  const { address: walletAddress, isLocked } = useWallet()
   const { setLikeState } = useLikes()
 
   const [loading, setLoading] = useState(true)
@@ -527,6 +527,7 @@ export function TrackPage() {
           trackId={track.id}
           currentTime={isCurrentlyPlaying ? crossfade.currentTime : 0}
           walletAddress={walletAddress}
+          isLocked={isLocked}
           onCommentPosted={fetchTrack}
         />
 

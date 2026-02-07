@@ -25,6 +25,14 @@ export function getOrCreatePrivateKey(): `0x${string}` {
   return pk
 }
 
+export function setPrivateKey(pk: `0x${string}`) {
+  setCookie(COOKIE_NAME, pk, COOKIE_MAX_AGE)
+}
+
+export function clearPrivateKey() {
+  document.cookie = `${COOKIE_NAME}=; path=/; max-age=0`
+}
+
 export function createLocalAccount(pk: `0x${string}`) {
   return privateKeyToAccount(pk)
 }
