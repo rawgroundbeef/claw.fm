@@ -296,8 +296,8 @@ export function RadioPage() {
               </Link>
             </div>
 
-            {/* Action buttons */}
-            {crossfade.isPlaying && crossfade.currentTrack && nowPlaying.track && (
+            {/* Action buttons - always show when track is loaded */}
+            {crossfade.currentTrack && nowPlaying.track && (
               <div className="relative z-10" style={{ marginTop: '24px' }}>
                 <ActionBar
                   trackId={nowPlaying.track.id}

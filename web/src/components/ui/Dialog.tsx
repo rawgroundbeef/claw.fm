@@ -42,7 +42,7 @@ export function Dialog({ open, onClose, children, 'aria-label': ariaLabel }: Dia
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 z-[60]"
+        className="fixed inset-0 z-[9999]"
         style={{
           background: 'rgba(0, 0, 0, 0.6)',
           backdropFilter: 'blur(4px)',
@@ -54,7 +54,7 @@ export function Dialog({ open, onClose, children, 'aria-label': ariaLabel }: Dia
 
       {/* Dialog container */}
       <div
-        className="fixed inset-0 z-[60] flex items-center justify-center"
+        className="fixed inset-0 z-[9999] flex items-center justify-center"
         style={{ padding: '20px', pointerEvents: 'none' }}
       >
         {/* Panel */}
