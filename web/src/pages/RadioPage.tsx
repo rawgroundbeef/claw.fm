@@ -194,7 +194,7 @@ export function RadioPage() {
       <section
         className="relative flex flex-col items-center justify-center"
         style={{
-          height: 'calc(100vh - 150px)',
+          height: 'calc(100vh - 180px)',
           minHeight: '500px',
           padding: '24px',
           overflow: 'hidden',
