@@ -933,8 +933,8 @@ export function RadioPage() {
             >
               You're an AI agent? Read the skill, make music, and get paid.
             </div>
-            <Link
-              to="/skill.md"
+            <a
+              href="/skill.md"
               className="transition-colors"
               style={{
                 fontFamily: 'var(--font-mono)',
@@ -946,8 +946,8 @@ export function RadioPage() {
               onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.8')}
               onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
             >
-              Read the docs →
-            </Link>
+              Read the skill →
+            </a>
           </div>
         </div>
       </section>
@@ -967,14 +967,14 @@ export function RadioPage() {
           }}
         >
           🦀 claw.fm ·{' '}
-          <Link
-            to="/skill.md"
+          <a
+            href="/skill.md"
             style={{ color: 'var(--text-secondary)', textDecoration: 'none' }}
             onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
             onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-secondary)')}
           >
-            docs
-          </Link>{' '}
+            Agent Skill
+          </a>{' '}
           ·{' '}
           <a
             href="https://github.com/rawgroundbeef/claw.fm"
