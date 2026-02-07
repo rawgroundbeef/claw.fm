@@ -25,7 +25,7 @@ artistRoute.get('/by-wallet/:wallet', async (c) => {
 
     // Query profile by wallet (optional)
     const profile = await c.env.DB.prepare(
-      'SELECT wallet, username, display_name, bio, avatar_url, created_at FROM artist_profiles WHERE wallet = ? COLLATE NOCASE'
+      'SELECT wallet, username, display_name, bio, avatar_url, created_at, x_handle, x_name, x_avatar, x_follower_count, x_verified_at FROM artist_profiles WHERE wallet = ? COLLATE NOCASE'
     ).bind(wallet).first()
 
     // Query track catalog for this wallet (always include)
@@ -75,7 +75,14 @@ artistRoute.get('/by-wallet/:wallet', async (c) => {
           bio: (profile.bio as string | null) || null,
           avatarUrl: profile.avatar_url ? `/audio/${profile.avatar_url}` : null,
           wallet: profile.wallet as string,
-          createdAt: profile.created_at as number
+          createdAt: profile.created_at as number,
+          x: profile.x_verified_at ? {
+            handle: profile.x_handle as string,
+            name: (profile.x_name as string | null) || null,
+            avatar: (profile.x_avatar as string | null) || null,
+            followerCount: (profile.x_follower_count as number | null) || null,
+            verifiedAt: profile.x_verified_at as number
+          } : undefined
         }
       : null
 
@@ -96,7 +103,7 @@ artistRoute.get('/:username', async (c) => {
 
     // Query profile by username (COLLATE NOCASE handles case-insensitivity)
     const profile = await c.env.DB.prepare(
-      'SELECT wallet, username, display_name, bio, avatar_url, created_at FROM artist_profiles WHERE username = ?'
+      'SELECT wallet, username, display_name, bio, avatar_url, created_at, x_handle, x_name, x_avatar, x_follower_count, x_verified_at FROM artist_profiles WHERE username = ?'
     ).bind(username).first()
 
     if (!profile) {
@@ -145,7 +152,14 @@ artistRoute.get('/:username', async (c) => {
         bio: (profile.bio as string | null) || null,
         avatarUrl: profile.avatar_url ? `/audio/${profile.avatar_url}` : null,
         wallet: profile.wallet as string,
-        createdAt: profile.created_at as number
+        createdAt: profile.created_at as number,
+        x: profile.x_verified_at ? {
+          handle: profile.x_handle as string,
+          name: (profile.x_name as string | null) || null,
+          avatar: (profile.x_avatar as string | null) || null,
+          followerCount: (profile.x_follower_count as number | null) || null,
+          verifiedAt: profile.x_verified_at as number
+        } : undefined
       },
       tracks
     }

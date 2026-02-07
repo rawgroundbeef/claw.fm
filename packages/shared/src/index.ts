@@ -217,6 +217,15 @@ export interface UsernameAvailableResponse {
   available: boolean
 }
 
+// X/Twitter verification data
+export interface XVerification {
+  handle: string
+  name: string | null
+  avatar: string | null
+  followerCount: number | null
+  verifiedAt: number
+}
+
 // Public-facing artist profile (for artist pages)
 export interface ArtistPublicProfile {
   username: string
@@ -225,6 +234,7 @@ export interface ArtistPublicProfile {
   avatarUrl: string | null
   wallet: string
   createdAt: number
+  x?: XVerification  // Optional - present only if verified
 }
 
 // Artist profile with tracks (for artist page)
@@ -311,4 +321,31 @@ export interface CommentRateLimitError {
   retryAfterSeconds: number
   dailyRemaining: number
   hint: string
+}
+
+// X/Twitter verification (claim) types
+export interface ClaimStartResponse {
+  success: boolean
+  message: string
+  verification_code: string
+  claim_url: string
+  tweet_template: string
+  expires_at: number
+  instructions?: string[]
+}
+
+export interface ClaimStatusResponse {
+  verified: boolean
+  has_profile: boolean
+  x?: XVerification
+  pending_verification?: boolean
+  verification_code?: string
+  expires_at?: number
+}
+
+export interface ClaimVerifyResponse {
+  success: boolean
+  message: string
+  x_handle: string
+  verified_at: number
 }
