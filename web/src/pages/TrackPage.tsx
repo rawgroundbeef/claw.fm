@@ -6,9 +6,7 @@ import { NotFoundPage } from './NotFoundPage'
 import { useAudio } from '../contexts/AudioContext'
 import { useWallet } from '../contexts/WalletContext'
 import { useLikes } from '../contexts/LikeContext'
-import { TipArtistModal } from '../components/TipArtistModal'
-import { BuyButton } from '../components/BuyButton'
-import { LikeButtonPill } from '../components/LikeButton'
+import { ActionBar } from '../components/ActionBar'
 import { ProgressBar } from '../components/Player/ProgressBar'
 import { CommentInput, CommentThread } from '../components/Comments'
 import { toast } from 'sonner'
@@ -133,7 +131,6 @@ export function TrackPage() {
   const [error, setError] = useState<string | null>(null)
   const [data, setData] = useState<TrackDetailResponse | null>(null)
   const [notFound, setNotFound] = useState(false)
-  const [tipOpen, setTipOpen] = useState(false)
 
   const fetchTrack = useCallback(async () => {
     if (!username || !trackSlug) return
@@ -207,7 +204,6 @@ export function TrackPage() {
   }
 
   const handleTipSuccess = () => {
-    setTipOpen(false)
     triggerConfetti()
     fetchTrack() // Refresh to get updated tip history
   }
@@ -444,31 +440,10 @@ export function TrackPage() {
               {isCurrentlyPlaying && crossfade.isPlaying ? 'Playing' : 'Play'}
             </button>
 
-            <button
-              onClick={() => setTipOpen(true)}
-              className="flex items-center gap-2 transition-colors"
-              style={{
-                background: 'transparent',
-                color: 'var(--text-primary)',
-                border: '1px solid var(--card-border)',
-                borderRadius: '9999px',
-                padding: '12px 24px',
-                fontSize: '14px',
-                fontWeight: 600,
-                cursor: 'pointer',
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-hover)'}
-              onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-            >
-              Tip Artist
-            </button>
-
-            <BuyButton trackId={track.id} trackTitle={track.title} />
-
-            <LikeButtonPill
+            <ActionBar
               trackId={track.id}
-              initialLiked={data.liked}
-              initialCount={data.likeCount}
+              trackTitle={track.title}
+              onTipSuccess={handleTipSuccess}
             />
 
             <button
@@ -600,25 +575,7 @@ export function TrackPage() {
           <p style={labelStyle}>TIP HISTORY</p>
           {tips.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-6">
-              <p style={{ fontSize: '14px', color: 'var(--text-muted)', marginBottom: '16px' }}>No tips yet. Be the first!</p>
-              <button
-                onClick={() => setTipOpen(true)}
-                className="flex items-center gap-2 transition-colors"
-                style={{
-                  background: 'var(--accent)',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '9999px',
-                  padding: '10px 20px',
-                  fontSize: '14px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.background = 'var(--accent-hover)'}
-                onMouseLeave={(e) => e.currentTarget.style.background = 'var(--accent)'}
-              >
-                Tip Artist
-              </button>
+              <p style={{ fontSize: '14px', color: 'var(--text-muted)' }}>No tips yet. Be the first!</p>
             </div>
           ) : (
             <div className="flex flex-col gap-2" style={{ maxHeight: '180px', overflowY: 'auto' }}>
@@ -730,14 +687,6 @@ export function TrackPage() {
         </div>
       )}
 
-      {/* Tip modal */}
-      <TipArtistModal
-        open={tipOpen}
-        onDismiss={() => setTipOpen(false)}
-        trackId={track.id}
-        artistName={artistName}
-        onTipSuccess={handleTipSuccess}
-      />
     </div>
   )
 }

@@ -60,27 +60,29 @@ export function LikeButtonPill({ trackId, initialLiked, initialCount }: LikeButt
   return (
     <button
       onClick={handleClick}
-      className="flex items-center gap-2 transition-all"
+      className="flex items-center transition-all"
       style={{
-        height: '36px',
-        padding: '6px 14px',
+        padding: '8px 14px',
         borderRadius: '20px',
-        background: 'transparent',
-        border: `1px solid ${liked ? '#ef4444' : 'var(--card-border)'}`,
-        color: liked ? '#ef4444' : '#8a8780',
+        background: liked ? 'var(--accent-dim)' : 'transparent',
+        border: `1px solid ${liked ? 'var(--accent)' : 'var(--border)'}`,
+        color: liked ? 'var(--accent)' : 'var(--text-secondary)',
         cursor: 'pointer',
-        fontSize: '14px',
-        fontWeight: 500,
+        fontSize: '12px',
+        fontFamily: 'var(--font-mono)',
+        gap: '6px',
       }}
       onMouseEnter={(e) => {
         if (!liked) {
-          e.currentTarget.style.borderColor = '#ef4444'
-          e.currentTarget.style.background = 'rgba(239, 68, 68, 0.08)'
+          e.currentTarget.style.borderColor = 'var(--accent)'
+          e.currentTarget.style.color = 'var(--accent)'
+          e.currentTarget.style.background = 'var(--accent-dim)'
         }
       }}
       onMouseLeave={(e) => {
         if (!liked) {
-          e.currentTarget.style.borderColor = 'var(--card-border)'
+          e.currentTarget.style.borderColor = 'var(--border)'
+          e.currentTarget.style.color = 'var(--text-secondary)'
           e.currentTarget.style.background = 'transparent'
         }
       }}
@@ -142,18 +144,18 @@ export function LikeButtonIcon({ trackId, initialLiked, initialCount }: LikeButt
         borderRadius: '50%',
         background: 'transparent',
         border: 'none',
-        color: liked ? '#ef4444' : '#8a8780',
+        color: liked ? 'var(--accent)' : 'var(--text-tertiary)',
         cursor: 'pointer',
       }}
       onMouseEnter={(e) => {
         if (!liked) {
-          e.currentTarget.style.color = '#ef4444'
-          e.currentTarget.style.background = 'rgba(239, 68, 68, 0.08)'
+          e.currentTarget.style.color = 'var(--accent)'
+          e.currentTarget.style.background = 'var(--accent-dim)'
         }
       }}
       onMouseLeave={(e) => {
         if (!liked) {
-          e.currentTarget.style.color = '#8a8780'
+          e.currentTarget.style.color = 'var(--text-tertiary)'
           e.currentTarget.style.background = 'transparent'
         }
       }}

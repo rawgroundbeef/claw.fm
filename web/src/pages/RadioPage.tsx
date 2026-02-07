@@ -2,10 +2,8 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router'
 import { useAudio } from '../contexts/AudioContext'
 import { EmptyState } from '../components/EmptyState'
-import { TipButtons } from '../components/TipButtons'
-import { BuyButton } from '../components/BuyButton'
+import { ActionBar } from '../components/ActionBar'
 import { Identicon } from '../components/Identicon'
-import { LikeButtonPill } from '../components/LikeButton'
 import { API_URL } from '../lib/constants'
 
 interface Stats {
@@ -300,10 +298,12 @@ export function RadioPage() {
 
             {/* Action buttons */}
             {crossfade.isPlaying && crossfade.currentTrack && nowPlaying.track && (
-              <div className="flex items-center flex-wrap justify-center relative z-10" style={{ gap: '8px', marginTop: '24px' }}>
-                <TipButtons trackId={nowPlaying.track.id} onTipSuccess={triggerConfetti} />
-                <BuyButton trackId={nowPlaying.track.id} trackTitle={nowPlaying.track.title} />
-                <LikeButtonPill trackId={nowPlaying.track.id} />
+              <div className="relative z-10" style={{ marginTop: '24px' }}>
+                <ActionBar
+                  trackId={nowPlaying.track.id}
+                  trackTitle={nowPlaying.track.title}
+                  onTipSuccess={triggerConfetti}
+                />
               </div>
             )}
 
