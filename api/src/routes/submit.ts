@@ -6,6 +6,7 @@ import { generateIdenticon } from '../lib/identicon'
 import { processAndUploadCoverArt } from '../lib/image'
 import { extractWaveformPeaks } from '../lib/audio'
 import { generateUniqueSlug } from '../lib/slugify'
+import { announceNewTrack, getTwitterConfig } from '../lib/twitter'
 
 type Env = {
   Bindings: {
@@ -14,6 +15,11 @@ type Env = {
     PLATFORM_WALLET: string
     QUEUE_BRAIN: DurableObjectNamespace
     KV: KVNamespace
+    // Twitter/X posting credentials (optional)
+    X_API_KEY?: string
+    X_API_SECRET?: string
+    X_ACCESS_TOKEN?: string
+    X_ACCESS_TOKEN_SECRET?: string
   }
 }
 
@@ -237,6 +243,28 @@ submitRoute.post('/', async (c) => {
 
     // Calculate next free submission time (next UTC midnight)
     const nextMidnightUTC = (todayStart + 86400) * 1000
+
+    // Step 9.7: Announce on X/Twitter (non-blocking)
+    const twitterConfig = getTwitterConfig(c.env)
+    if (twitterConfig) {
+      // Get artist display name if they have a profile
+      const artistProfile = await c.env.DB.prepare(
+        'SELECT display_name, username FROM artist_profiles WHERE wallet = ?'
+      ).bind(walletAddress).first<{ display_name: string; username: string }>()
+
+      const artistName = artistProfile?.display_name || artistProfile?.username || walletAddress.slice(0, 10) + '...'
+
+      // Fire and forget - don't block submission on tweet
+      announceNewTrack(title, artistName, slug, twitterConfig)
+        .then(result => {
+          if (result.success) {
+            console.log(`Tweeted new track: ${result.tweetUrl}`)
+          } else {
+            console.warn(`Failed to tweet new track: ${result.error}`)
+          }
+        })
+        .catch(err => console.error('Twitter announcement error:', err))
+    }
 
     // Step 10: Return success response with enhanced fields
     const response: SubmitResponseEnhanced = {

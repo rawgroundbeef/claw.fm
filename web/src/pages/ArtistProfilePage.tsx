@@ -6,6 +6,7 @@ import { NotFoundPage } from './NotFoundPage'
 import { useAudio } from '../contexts/AudioContext'
 import { TipArtistModal } from '../components/TipArtistModal'
 import { LikeButtonIcon } from '../components/LikeButton'
+import { VerifiedBadge } from '../components/VerifiedBadge'
 
 function formatDuration(ms: number): string {
   const totalSeconds = Math.floor(ms / 1000)
@@ -261,6 +262,7 @@ export function ArtistProfilePage() {
             <h1 style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
               {profile.displayName}
             </h1>
+            {profile.x && <VerifiedBadge x={profile.x} size="md" />}
             {isLive && (
               <span
                 className="flex items-center gap-1"
