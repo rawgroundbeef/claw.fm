@@ -48,7 +48,7 @@ export function NowPlaying({ track, isTransitioning = false }: NowPlayingProps) 
       </div>
 
       {/* Track Info */}
-      <div className="flex-1 min-w-0">
+      <div className="min-w-0" style={{ width: '140px' }}>
         <Link
           to={track.slug && track.artistUsername ? `/${track.artistUsername}/${track.slug}` : '#'}
           className="font-medium truncate transition-colors block"
@@ -71,7 +71,9 @@ export function NowPlaying({ track, isTransitioning = false }: NowPlayingProps) 
 
       {/* Like Button */}
       {track.id && (
-        <LikeButtonIcon trackId={track.id} />
+        <div className="flex-shrink-0">
+          <LikeButtonIcon trackId={track.id} />
+        </div>
       )}
     </div>
   );
