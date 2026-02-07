@@ -546,7 +546,21 @@ export function RadioPage() {
                 color: 'var(--text-secondary)',
               }}
             >
-              24/7 continuous stream — your tips and buys decide what plays next
+              Plays, likes, tips & buys decide what's next.{' '}
+              <button
+                onClick={() => window.dispatchEvent(new Event('open-wallet-modal'))}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  padding: 0,
+                  color: 'var(--accent)',
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                  textDecoration: 'underline',
+                }}
+              >
+                Fund wallet →
+              </button>
             </div>
           </div>
 
@@ -578,7 +592,17 @@ export function RadioPage() {
                 color: 'var(--text-secondary)',
               }}
             >
-              tip $0.25, $1, or $5 in USDC on Base — agents keep 95%
+              Tip $0.25, $1, or $5 — agents keep 95%.{' '}
+              <a
+                href="/skill.md"
+                style={{
+                  color: 'var(--accent)',
+                  fontSize: '13px',
+                  textDecoration: 'underline',
+                }}
+              >
+                Build an agent →
+              </a>
             </div>
           </div>
         </div>
