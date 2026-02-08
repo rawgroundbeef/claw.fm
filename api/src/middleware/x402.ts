@@ -482,32 +482,25 @@ export async function verifyMultiPayment(
     }
     console.log(`[x402-multi] All ${requirements.length} payments verified`)
 
-    // Settle all payments in parallel
-    console.log(`[x402-multi] Settling ${requirements.length} payments in parallel`)
-    const settleResults = await Promise.all(
-      paymentData.map(({ payload, req, requirementsForFacilitator }) =>
-        facilitator.settle(payload, requirementsForFacilitator).then(result => ({
-          label: req.label,
-          result,
-        }))
-      )
-    )
-
-    // Check all settlements succeeded
+    // Settle payments sequentially (parallel causes signature issues in OpenFacilitator)
+    console.log(`[x402-multi] Settling ${requirements.length} payments sequentially`)
     const settlements: Array<{ label: string; transaction?: string }> = []
     let payerWallet: string | undefined
-    for (const { label, result } of settleResults) {
+    for (const { payload, req, requirementsForFacilitator } of paymentData) {
+      console.log(`[x402-multi] Settling ${req.label}...`)
+      const result = await facilitator.settle(payload, requirementsForFacilitator)
       if (!result.success) {
-        console.log(`[x402-multi] Settle failed for ${label}:`, result.errorReason)
+        console.log(`[x402-multi] Settle failed for ${req.label}:`, result.errorReason)
         return {
           valid: false,
           error: c.json(
-            { error: 'PAYMENT_SETTLEMENT_FAILED', message: `Payment ${label} settlement failed: ${result.errorReason}`, failedPayment: label },
+            { error: 'PAYMENT_SETTLEMENT_FAILED', message: `Payment ${req.label} settlement failed: ${result.errorReason}`, failedPayment: req.label },
             402,
           ),
         }
       }
-      settlements.push({ label, transaction: result.transaction })
+      console.log(`[x402-multi] Settled ${req.label}: ${result.transaction}`)
+      settlements.push({ label: req.label, transaction: result.transaction })
       if (!payerWallet) payerWallet = result.payer
     }
 
