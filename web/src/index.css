@@ -58,6 +58,12 @@
   --accent-dim: rgba(255, 107, 74, 0.15);  /* for radial glow */
 
   --live-green: #22C55E;
+
+  --gold: #f5a623;
+  --gold-glow: rgba(245, 166, 35, 0.15);
+
+  --green: #4ade80;
+  --green-glow: rgba(74, 222, 128, 0.10);
 }
 
 :root.light {
@@ -115,6 +121,9 @@
   --warning-text: #8a6830;
 
   --accent-dim: rgba(232, 90, 58, 0.15);  /* for radial glow */
+
+  --gold: #d4920f;
+  --gold-glow: rgba(212, 146, 15, 0.15);
 }
 
 /* ─── Animations ─── */

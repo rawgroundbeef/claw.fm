@@ -20,6 +20,87 @@ const POINTS = {
   tip_received: 10,
 }
 
+// GET /api/royalties/by-wallet/:wallet - Public wallet royalty lookup
+royaltiesRoute.get('/by-wallet/:wallet', async (c) => {
+  const wallet = c.req.param('wallet')
+
+  // Validate address format
+  if (!wallet.startsWith('0x') || wallet.length !== 42) {
+    return c.json({ error: 'INVALID_ADDRESS', message: 'Enter a valid wallet address (0x...)' }, 400)
+  }
+
+  const db = c.env.DB
+
+  // Get artist profile
+  const profile = await db.prepare(`
+    SELECT wallet, username, display_name, avatar_url, claimable_balance, lifetime_royalties
+    FROM artist_profiles WHERE wallet = ? COLLATE NOCASE
+  `).bind(wallet).first()
+
+  if (!profile) {
+    return c.json({ error: 'NOT_FOUND', message: 'No artist found for this address' }, 404)
+  }
+
+  // Get distributions with pool share calculation
+  const distributions = await db.prepare(`
+    SELECT ra.amount, ra.points, rd.period_end, rd.total_points,
+           CASE WHEN rc.id IS NOT NULL THEN 'claimed' ELSE 'pending' END as status
+    FROM royalty_allocations ra
+    JOIN royalty_distributions rd ON ra.distribution_id = rd.id
+    LEFT JOIN royalty_claims rc ON rc.wallet = ra.wallet AND rc.created_at > rd.period_end
+    WHERE ra.wallet = ?
+    ORDER BY rd.period_end DESC
+    LIMIT 10
+  `).bind(wallet).all()
+
+  // Calculate today's engagement points
+  const now = Math.floor(Date.now() / 1000)
+  const todayStart = now - (now % 86400)
+  const engagement = await db.prepare(`
+    SELECT
+      (SELECT COALESCE(SUM(play_count), 0) FROM tracks WHERE wallet = ?) as plays,
+      (SELECT COUNT(*) FROM track_likes tl JOIN tracks t ON tl.track_id = t.id
+       WHERE t.wallet = ? AND tl.created_at >= ?) as likes,
+      (SELECT COUNT(*) FROM track_comments tc JOIN tracks t ON tc.track_id = t.id
+       WHERE t.wallet = ? AND tc.created_at >= ?) as comments,
+      (SELECT COUNT(*) FROM pool_contributions
+       WHERE artist_wallet = ? AND source_type = 'tip' AND created_at >= ?) as tips
+  `).bind(wallet, wallet, todayStart, wallet, todayStart, wallet, todayStart).first()
+
+  const pointsToday = ((engagement?.plays as number || 0) * 1) +
+                      ((engagement?.likes as number || 0) * 3) +
+                      ((engagement?.comments as number || 0) * 5) +
+                      ((engagement?.tips as number || 0) * 10)
+
+  // Pool share from latest distribution
+  let poolSharePercent = 0
+  if (distributions.results?.length) {
+    const latest = distributions.results[0]
+    poolSharePercent = Math.round(((latest.points as number) / (latest.total_points as number)) * 10000) / 100
+  }
+
+  return c.json({
+    artist: {
+      name: profile.display_name || profile.username,
+      handle: profile.username,
+      slug: profile.username,
+      avatarUrl: profile.avatar_url ? `/audio/${profile.avatar_url}` : null,
+      wallet: profile.wallet
+    },
+    claimable: (profile.claimable_balance as number || 0) / 1_000_000,
+    lifetimeEarned: (profile.lifetime_royalties as number || 0) / 1_000_000,
+    pointsToday,
+    poolSharePercent,
+    distributions: (distributions.results || []).map(d => ({
+      date: new Date((d.period_end as number) * 1000).toISOString().split('T')[0],
+      amount: (d.amount as number) / 1_000_000,
+      points: d.points as number,
+      poolSharePercent: Math.round(((d.points as number) / (d.total_points as number)) * 10000) / 100,
+      status: d.status as 'pending' | 'claimed'
+    }))
+  })
+})
+
 // GET /api/royalties - Get your royalty balance and stats (artists only)
 royaltiesRoute.get('/', async (c) => {
   const walletAddress = c.req.header('X-Wallet-Address')

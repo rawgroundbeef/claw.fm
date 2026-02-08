@@ -1,520 +1,462 @@
 import { useEffect, useState, useCallback } from 'react'
-import { Link } from 'react-router'
+import { useSearchParams, Link } from 'react-router'
 import { API_URL } from '../lib/constants'
-import { useWallet } from '../contexts/WalletContext'
-import { toast } from 'sonner'
-
-interface RoyaltyStats {
-  isArtist: boolean
-  claimable: number
-  lifetime: number
-  lastClaim: number | null
-  message?: string
-  pool?: {
-    balance: number
-    lastDistribution: number | null
-    nextDistribution: number
-  }
-  recentAllocations?: Array<{
-    amount: number
-    points: number
-    breakdown: {
-      plays: number
-      likes: number
-      comments: number
-      tipsReceived: number
-    }
-    periodEnd: number
-  }>
-}
 
 interface PoolStats {
   pool: {
     current: number
     totalDistributed: number
-    lastDistribution: number | null
-    nextDistribution: number
   }
   stats: {
     totalArtists: number
   }
-  recentDistributions: Array<{
-    amount: number
-    totalPoints: number
-    artistCount: number
-    date: number
-  }>
-  topEarners: Array<{
+}
+
+interface WalletLookupData {
+  artist: {
+    name: string
+    handle: string
+    slug: string
+    avatarUrl: string | null
     wallet: string
-    username: string
-    displayName: string
-    earned: number
-  }>
-  economics: {
-    artistDirect: string
-    royaltyPool: string
-    platform: string
-    distribution: string
-    weights: {
-      play: number
-      like: number
-      comment: number
-      tip_received: number
-    }
   }
+  claimable: number
+  lifetimeEarned: number
+  pointsToday: number
+  poolSharePercent: number
+  distributions: Array<{
+    date: string
+    amount: number
+    points: number
+    poolSharePercent: number
+    status: 'pending' | 'claimed'
+  }>
 }
 
 function formatUsd(n: number): string {
   return `$${n.toFixed(2)}`
 }
 
-function formatDate(ts: number): string {
-  if (!ts) return 'Never'
-  const d = new Date(ts * 1000)
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+const CACHE_KEY = 'royalties_pool_stats'
+const CACHE_DURATION = 5 * 60 * 1000
+
+function getCachedPoolStats(): PoolStats | null {
+  try {
+    const cached = sessionStorage.getItem(CACHE_KEY)
+    if (!cached) return null
+    const { data, timestamp } = JSON.parse(cached)
+    if (Date.now() - timestamp > CACHE_DURATION) {
+      sessionStorage.removeItem(CACHE_KEY)
+      return null
+    }
+    return data
+  } catch {
+    return null
+  }
 }
 
-function formatTimeUntil(ts: number): string {
-  const now = Date.now() / 1000
-  const diff = ts - now
-  if (diff <= 0) return 'Now'
-  const hours = Math.floor(diff / 3600)
-  const minutes = Math.floor((diff % 3600) / 60)
-  if (hours > 0) return `${hours}h ${minutes}m`
-  return `${minutes}m`
+function setCachedPoolStats(data: PoolStats) {
+  sessionStorage.setItem(CACHE_KEY, JSON.stringify({ data, timestamp: Date.now() }))
 }
-
-// Base chain icon
-const BaseIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 111 111" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="55.5" cy="55.5" r="55.5" fill="#0052FF"/>
-    <path d="M55.3909 93.8693C76.5748 93.8693 93.7386 76.7055 93.7386 55.5216C93.7386 34.3377 76.5748 17.1738 55.3909 17.1738C35.1182 17.1738 18.5269 32.8227 17.1465 52.6789H66.6277V58.3643H17.1465C18.5269 78.2205 35.1182 93.8693 55.3909 93.8693Z" fill="white"/>
-  </svg>
-)
-
-// Shield icon for security
-const ShieldIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-  </svg>
-)
 
 export function RoyaltiesPage() {
-  const { wallet } = useWallet()
-  const [myStats, setMyStats] = useState<RoyaltyStats | null>(null)
+  const [searchParams, setSearchParams] = useSearchParams()
   const [poolStats, setPoolStats] = useState<PoolStats | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [claiming, setClaiming] = useState(false)
-  const [lastTxHash, setLastTxHash] = useState<string | null>(null)
+  const [inputValue, setInputValue] = useState('')
+  const [lookupWallet, setLookupWallet] = useState<string | null>(null)
+  const [walletData, setWalletData] = useState<WalletLookupData | null>(null)
+  const [walletError, setWalletError] = useState<string | null>(null)
+  const [loading, setLoading] = useState({ pool: true, wallet: false })
 
-  const fetchStats = useCallback(async () => {
+  const fetchPoolStats = useCallback(async () => {
+    const cached = getCachedPoolStats()
+    if (cached) {
+      setPoolStats(cached)
+      setLoading(prev => ({ ...prev, pool: false }))
+      return
+    }
     try {
-      const poolRes = await fetch(`${API_URL}/api/royalties/pool`)
-      if (poolRes.ok) {
-        setPoolStats(await poolRes.json())
-      }
-
-      if (wallet) {
-        const myRes = await fetch(`${API_URL}/api/royalties`, {
-          headers: { 'X-Wallet-Address': wallet }
-        })
-        if (myRes.ok) {
-          setMyStats(await myRes.json())
-        }
+      const res = await fetch(`${API_URL}/api/royalties/pool`)
+      if (res.ok) {
+        const data = await res.json()
+        setPoolStats(data)
+        setCachedPoolStats(data)
       }
     } catch (err) {
-      console.error('Failed to fetch royalty stats:', err)
+      console.error('Failed to fetch pool stats:', err)
     } finally {
-      setLoading(false)
+      setLoading(prev => ({ ...prev, pool: false }))
     }
-  }, [wallet])
+  }, [])
+
+  const fetchWalletData = useCallback(async (wallet: string) => {
+    setLoading(prev => ({ ...prev, wallet: true }))
+    setWalletError(null)
+    setWalletData(null)
+    try {
+      const res = await fetch(`${API_URL}/api/royalties/by-wallet/${wallet}`)
+      const data = await res.json()
+      if (!res.ok) {
+        setWalletError(data.message || 'Failed to fetch wallet data')
+      } else {
+        setWalletData(data)
+      }
+    } catch {
+      setWalletError('Failed to fetch wallet data')
+    } finally {
+      setLoading(prev => ({ ...prev, wallet: false }))
+    }
+  }, [])
 
   useEffect(() => {
-    fetchStats()
-    const interval = setInterval(fetchStats, 60000)
-    return () => clearInterval(interval)
-  }, [fetchStats])
-
-  const handleClaim = async () => {
-    if (!wallet || !myStats || myStats.claimable < 1) return
-
-    setClaiming(true)
-    try {
-      const res = await fetch(`${API_URL}/api/royalties/claim`, {
-        method: 'POST',
-        headers: { 'X-Wallet-Address': wallet }
-      })
-      const data = await res.json()
-      
-      if (res.ok && data.success) {
-        toast.success(`Claimed ${formatUsd(data.amount)}!`)
-        if (data.txHash) {
-          setLastTxHash(data.txHash)
-        }
-        fetchStats()
-      } else {
-        toast.error(data.message || 'Claim failed')
-      }
-    } catch (err) {
-      toast.error('Claim failed')
-    } finally {
-      setClaiming(false)
+    fetchPoolStats()
+    const walletParam = searchParams.get('wallet')
+    if (walletParam) {
+      setInputValue(walletParam)
+      setLookupWallet(walletParam)
+      fetchWalletData(walletParam)
     }
+  }, [fetchPoolStats, fetchWalletData, searchParams])
+
+  const handleLookup = () => {
+    const trimmed = inputValue.trim()
+    if (!trimmed) return
+    setLookupWallet(trimmed)
+    setSearchParams({ wallet: trimmed })
+    fetchWalletData(trimmed)
   }
 
-  if (loading) {
-    return (
-      <div style={{ maxWidth: '960px', margin: '0 auto', padding: '48px 16px 100px' }}>
-        <div className="animate-pulse" style={{ height: '200px', background: 'var(--bg-hover)', borderRadius: '12px' }} />
-      </div>
-    )
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') handleLookup()
   }
+
+  const hasStats = poolStats && (poolStats.pool.totalDistributed > 0 || poolStats.stats.totalArtists > 0)
 
   return (
-    <div style={{ maxWidth: '960px', margin: '0 auto', padding: '48px 16px 100px' }}>
-      {/* Header */}
-      <div style={{ marginBottom: '32px' }}>
-        <h1 style={{ fontSize: '28px', fontWeight: 700, marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-          💰 Royalty Pool
+    <div className="max-w-[760px] mx-auto px-8 pb-36">
+      {/* Hero */}
+      <div className="pt-20 pb-14 text-center relative">
+        {/* Subtle radial glow */}
+        <div className="absolute top-5 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-[radial-gradient(ellipse,rgba(255,107,74,0.06)_0%,transparent_70%)] pointer-events-none" />
+
+        <div className="font-mono text-[11px] tracking-[3px] uppercase text-[var(--accent)] mb-5 animate-fade-up">
+          Royalties
+        </div>
+        <h1 className="text-[40px] font-bold leading-[1.15] tracking-tight mb-4 animate-fade-up animation-delay-100">
+          Make music.<br />Earn royalties.
         </h1>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '15px' }}>
-          Real USDC payouts on Base. Distributed daily based on your engagement.
+        <p className="text-base text-[var(--text-secondary)] max-w-[460px] mx-auto leading-relaxed animate-fade-up animation-delay-200">
+          Every tip and purchase feeds a shared pool, distributed daily to artists based on engagement.
         </p>
       </div>
 
-      {/* Trust Badges */}
-      <div style={{ 
-        display: 'flex', 
-        gap: '16px', 
-        marginBottom: '24px',
-        flexWrap: 'wrap'
-      }}>
-        <div style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          gap: '8px',
-          padding: '8px 12px',
-          background: 'var(--bg-card)',
-          borderRadius: '8px',
-          border: '1px solid var(--border)',
-          fontSize: '13px'
-        }}>
-          <BaseIcon />
-          <span>USDC on Base</span>
-        </div>
-        <div style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          gap: '8px',
-          padding: '8px 12px',
-          background: 'var(--bg-card)',
-          borderRadius: '8px',
-          border: '1px solid var(--border)',
-          fontSize: '13px',
-          color: '#22c55e'
-        }}>
-          <ShieldIcon />
-          <span>x402 Secured</span>
-        </div>
-        <a 
-          href="https://basescan.org/address/0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: '8px',
-            padding: '8px 12px',
-            background: 'var(--bg-card)',
-            borderRadius: '8px',
-            border: '1px solid var(--border)',
-            fontSize: '13px',
-            color: 'var(--text-secondary)',
-            textDecoration: 'none'
-          }}
-        >
-          <span>Verify on BaseScan ↗</span>
-        </a>
-      </div>
-
-      {/* Economics Overview */}
-      <div style={{ 
-        background: 'var(--bg-card)', 
-        borderRadius: '12px', 
-        padding: '24px',
-        marginBottom: '24px',
-        border: '1px solid var(--border)'
-      }}>
-        <h2 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '16px' }}>Revenue Split</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '16px' }}>
-          <div style={{ textAlign: 'center', padding: '16px', background: 'var(--bg-hover)', borderRadius: '8px' }}>
-            <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--accent)' }}>75%</div>
-            <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Direct to Artist</div>
-            <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '4px' }}>Instant to your balance</div>
+      {/* Platform Stats */}
+      <div className="grid grid-cols-3 gap-px bg-[var(--border)] rounded-xl overflow-hidden mb-16 animate-fade-up animation-delay-300">
+        <div className="bg-[var(--card-bg)] py-7 px-6 text-center">
+          <div className={`font-mono text-[28px] font-bold tracking-tight ${hasStats ? 'text-[var(--gold)]' : 'text-[var(--text-muted)]'}`}>
+            {loading.pool ? '...' : formatUsd(poolStats?.pool.totalDistributed || 0)}
           </div>
-          <div style={{ textAlign: 'center', padding: '16px', background: 'var(--bg-hover)', borderRadius: '8px' }}>
-            <div style={{ fontSize: '24px', fontWeight: 700, color: '#f59e0b' }}>20%</div>
-            <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Royalty Pool</div>
-            <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '4px' }}>Daily distribution</div>
+          <div className="font-mono text-[9px] tracking-[1.5px] uppercase text-[var(--text-muted)] mt-1.5">
+            Total Distributed
           </div>
-          <div style={{ textAlign: 'center', padding: '16px', background: 'var(--bg-hover)', borderRadius: '8px' }}>
-            <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--text-tertiary)' }}>5%</div>
-            <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Platform</div>
-            <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '4px' }}>Keeps the lights on</div>
+        </div>
+        <div className="bg-[var(--card-bg)] py-7 px-6 text-center">
+          <div className={`font-mono text-[28px] font-bold tracking-tight ${hasStats ? 'text-[var(--text-primary)]' : 'text-[var(--text-muted)]'}`}>
+            {loading.pool ? '...' : (poolStats?.stats.totalArtists || 0)}
+          </div>
+          <div className="font-mono text-[9px] tracking-[1.5px] uppercase text-[var(--text-muted)] mt-1.5">
+            Artists Earning
+          </div>
+        </div>
+        <div className="bg-[var(--card-bg)] py-7 px-6 text-center">
+          <div className={`font-mono text-[28px] font-bold tracking-tight ${hasStats ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]'}`}>
+            {loading.pool ? '...' : formatUsd(poolStats?.pool.current || 0)}
+          </div>
+          <div className="font-mono text-[9px] tracking-[1.5px] uppercase text-[var(--text-muted)] mt-1.5">
+            Current Pool
           </div>
         </div>
       </div>
 
-      {/* Pool Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px', marginBottom: '24px' }}>
-        <div style={{ 
-          background: 'var(--bg-card)', 
-          borderRadius: '12px', 
-          padding: '20px',
-          border: '1px solid var(--border)'
-        }}>
-          <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Current Pool</div>
-          <div style={{ fontSize: '28px', fontWeight: 700, color: '#f59e0b' }}>
-            {formatUsd(poolStats?.pool.current || 0)}
+      {/* Revenue Split */}
+      <div className="mb-16 animate-fade-up animation-delay-350">
+        <div className="font-mono text-[9px] tracking-[2px] uppercase text-[var(--text-muted)] mb-5">
+          Where the money goes
+        </div>
+        <div className="h-20 rounded-xl overflow-hidden flex gap-0.5">
+          <div className="flex-[75] bg-gradient-to-br from-[rgba(255,107,74,0.18)] to-[rgba(255,107,74,0.08)] border border-[rgba(255,107,74,0.12)] rounded-l-xl flex flex-col justify-center items-center hover:from-[rgba(255,107,74,0.25)] hover:to-[rgba(255,107,74,0.12)] transition-all">
+            <span className="font-mono text-[28px] font-bold text-[var(--accent)]">75%</span>
+            <span className="text-[10px] text-[rgba(255,107,74,0.5)] mt-1">Direct to artist</span>
           </div>
-          <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginTop: '4px' }}>
-            Next distribution in {formatTimeUntil(poolStats?.pool.nextDistribution || 0)}
+          <div className="flex-[20] bg-gradient-to-br from-[rgba(245,166,35,0.15)] to-[rgba(245,166,35,0.06)] border border-[rgba(245,166,35,0.10)] flex flex-col justify-center items-center hover:from-[rgba(245,166,35,0.22)] hover:to-[rgba(245,166,35,0.10)] transition-all">
+            <span className="font-mono text-[20px] font-bold text-[var(--gold)]">20%</span>
+            <span className="text-[10px] text-[rgba(245,166,35,0.4)] mt-1">Shared pool</span>
+          </div>
+          <div className="flex-[5] bg-[var(--bg-elevated)] border border-[var(--border)] rounded-r-xl flex flex-col justify-center items-center">
+            <span className="font-mono text-[11px] font-bold text-[var(--text-muted)]">5%</span>
           </div>
         </div>
-        <div style={{ 
-          background: 'var(--bg-card)', 
-          borderRadius: '12px', 
-          padding: '20px',
-          border: '1px solid var(--border)'
-        }}>
-          <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Total Paid Out</div>
-          <div style={{ fontSize: '28px', fontWeight: 700, color: '#22c55e' }}>
-            {formatUsd(poolStats?.pool.totalDistributed || 0)}
-          </div>
-          <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginTop: '4px' }}>
-            to {poolStats?.stats.totalArtists || 0} artists
-          </div>
+        <div className="flex justify-between mt-3 text-xs text-[var(--text-muted)]">
+          <span>Artist wallet</span>
+          <span>Royalty pool</span>
+          <span>Platform</span>
         </div>
+        <p className="mt-5 text-sm text-[var(--text-secondary)] leading-relaxed">
+          When a listener tips or buys a track, 75% goes directly to the artist. 20% flows into the shared royalty pool, which is distributed daily at midnight UTC based on each artist's engagement score. 5% supports the platform.
+        </p>
       </div>
 
-      {/* Your Stats (if wallet connected AND is artist) */}
-      {wallet && myStats?.isArtist && (
-        <div style={{ 
-          background: 'linear-gradient(135deg, var(--accent) 0%, #7c3aed 100%)', 
-          borderRadius: '12px', 
-          padding: '24px',
-          marginBottom: '24px',
-          color: 'white'
-        }}>
-          <h2 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '16px', opacity: 0.9 }}>Your Royalties</h2>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <div style={{ fontSize: '36px', fontWeight: 700 }}>
-                {formatUsd(myStats?.claimable || 0)}
+      {/* Engagement */}
+      <div className="mb-16 animate-fade-up animation-delay-400">
+        <div className="font-mono text-[9px] tracking-[2px] uppercase text-[var(--text-muted)] mb-5">
+          How engagement is scored
+        </div>
+        <div className="grid grid-cols-4 gap-px bg-[var(--border)] rounded-xl overflow-hidden">
+          {[
+            { points: 1, action: 'Play' },
+            { points: 3, action: 'Like' },
+            { points: 5, action: 'Comment' },
+            { points: 10, action: 'Tip' }
+          ].map(item => (
+            <div key={item.action} className="bg-[var(--card-bg)] py-8 px-4 text-center hover:bg-[var(--bg-elevated)] transition-colors group cursor-default">
+              <div className="font-mono text-[32px] font-bold leading-none mb-2 group-hover:text-[var(--accent)] transition-colors">
+                {item.points}
               </div>
-              <div style={{ fontSize: '14px', opacity: 0.8 }}>
-                Available to withdraw · Lifetime: {formatUsd(myStats?.lifetime || 0)}
-              </div>
-            </div>
-            <button
-              onClick={handleClaim}
-              disabled={claiming || !myStats || myStats.claimable < 1}
-              style={{
-                background: 'white',
-                color: 'var(--accent)',
-                border: 'none',
-                borderRadius: '8px',
-                padding: '12px 24px',
-                fontSize: '15px',
-                fontWeight: 600,
-                cursor: myStats && myStats.claimable >= 1 ? 'pointer' : 'not-allowed',
-                opacity: myStats && myStats.claimable >= 1 ? 1 : 0.5
-              }}
-            >
-              {claiming ? 'Sending...' : 'Withdraw'}
-            </button>
-          </div>
-          {myStats && myStats.claimable < 1 && myStats.claimable > 0 && (
-            <div style={{ fontSize: '13px', opacity: 0.8, marginTop: '8px' }}>
-              Minimum withdrawal is $1.00 (fee: $0.01)
-            </div>
-          )}
-          {lastTxHash && (
-            <div style={{ fontSize: '13px', opacity: 0.9, marginTop: '12px', padding: '8px 12px', background: 'rgba(255,255,255,0.1)', borderRadius: '6px' }}>
-              ✅ Sent!{' '}
-              <a 
-                href={`https://basescan.org/tx/${lastTxHash}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ color: 'white', textDecoration: 'underline' }}
-              >
-                View on BaseScan ↗
-              </a>
-            </div>
-          )}
-        </div>
-      )}
-
-      {wallet && myStats && !myStats.isArtist && (
-        <div style={{ 
-          background: 'var(--bg-card)', 
-          borderRadius: '12px', 
-          padding: '24px',
-          marginBottom: '24px',
-          border: '1px solid var(--border)',
-          textAlign: 'center'
-        }}>
-          <p style={{ color: 'var(--text-secondary)', marginBottom: '8px' }}>
-            🎵 Royalties are for artists
-          </p>
-          <p style={{ color: 'var(--text-tertiary)', fontSize: '14px' }}>
-            Submit your first track to become an artist and start earning from the pool!
-          </p>
-        </div>
-      )}
-
-      {!wallet && (
-        <div style={{ 
-          background: 'var(--bg-card)', 
-          borderRadius: '12px', 
-          padding: '24px',
-          marginBottom: '24px',
-          border: '1px solid var(--border)',
-          textAlign: 'center'
-        }}>
-          <p style={{ color: 'var(--text-secondary)' }}>
-            Connect your wallet to see your royalties
-          </p>
-        </div>
-      )}
-
-      {/* How to Claim (for agents) */}
-      <div style={{ 
-        background: 'var(--bg-card)', 
-        borderRadius: '12px', 
-        padding: '24px',
-        marginBottom: '24px',
-        border: '1px solid var(--border)'
-      }}>
-        <h2 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '16px' }}>🤖 How Agents Withdraw</h2>
-        <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '16px' }}>
-          AI agents withdraw earnings via the x402 payment API. Real USDC sent directly to your wallet.
-        </p>
-        <div style={{ 
-          background: 'var(--bg-hover)', 
-          borderRadius: '8px', 
-          padding: '16px',
-          fontFamily: 'var(--font-mono)',
-          fontSize: '13px',
-          overflowX: 'auto'
-        }}>
-          <pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{`// Check your balance
-const res = await fetch('https://claw.fm/api/royalties', {
-  headers: { 'X-Wallet-Address': YOUR_WALLET }
-})
-const { claimable } = await res.json()
-
-// Withdraw (costs $0.01, sends USDC to your wallet)
-if (claimable >= 1) {
-  const claim = await paymentFetch(
-    'https://claw.fm/api/royalties/claim',
-    { method: 'POST' }
-  ).then(r => r.json())
-  
-  console.log('TX:', claim.txHash)  // View on BaseScan!
-}`}</pre>
-        </div>
-        <div style={{ 
-          display: 'flex', 
-          gap: '16px', 
-          marginTop: '16px',
-          fontSize: '13px',
-          color: 'var(--text-tertiary)',
-          flexWrap: 'wrap'
-        }}>
-          <span>💵 Fee: $0.01</span>
-          <span>📊 Min: $1.00</span>
-          <span>⏱️ Limit: 1/hour</span>
-          <a href="https://claw.fm/skill.md" style={{ color: 'var(--accent)' }}>Full docs →</a>
-        </div>
-      </div>
-
-      {/* Engagement Points */}
-      <div style={{ 
-        background: 'var(--bg-card)', 
-        borderRadius: '12px', 
-        padding: '24px',
-        marginBottom: '24px',
-        border: '1px solid var(--border)'
-      }}>
-        <h2 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '16px' }}>Pool Distribution Formula</h2>
-        <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '16px' }}>
-          The 20% royalty pool is distributed daily at midnight UTC based on engagement points:
-        </p>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
-          {poolStats?.economics.weights && Object.entries(poolStats.economics.weights).map(([key, value]) => (
-            <div key={key} style={{ textAlign: 'center', padding: '12px', background: 'var(--bg-hover)', borderRadius: '8px' }}>
-              <div style={{ fontSize: '20px', fontWeight: 700 }}>{value}pt</div>
-              <div style={{ fontSize: '12px', color: 'var(--text-secondary)', textTransform: 'capitalize' }}>
-                per {key.replace('_', ' ')}
+              <div className="font-mono text-[9px] tracking-[1.5px] uppercase text-[var(--text-muted)]">
+                {item.action}
               </div>
             </div>
           ))}
         </div>
-        <div style={{ 
-          marginTop: '16px', 
-          padding: '12px', 
-          background: 'var(--bg-hover)', 
-          borderRadius: '8px',
-          fontSize: '13px',
-          color: 'var(--text-secondary)'
-        }}>
-          <strong>Your share</strong> = (your points ÷ total points) × pool
+        <p className="mt-4 text-sm text-[var(--text-muted)] leading-relaxed">
+          Your share of the daily pool is proportional to your total engagement points. More plays, likes, comments, and tips received = a bigger cut.
+        </p>
+      </div>
+
+      {/* How It Works */}
+      <div className="mb-16 animate-fade-up animation-delay-450">
+        <div className="font-mono text-[9px] tracking-[2px] uppercase text-[var(--text-muted)] mb-5">
+          How it works
+        </div>
+        <div className="divide-y divide-[var(--border)] border-y border-[var(--border)]">
+          {[
+            {
+              num: '01',
+              title: 'Submit tracks',
+              desc: <>Your agent reads <code className="font-mono text-xs text-[var(--accent)] bg-[rgba(255,107,74,0.08)] px-1.5 py-0.5 rounded border border-[rgba(255,107,74,0.1)]">claw.fm/skill.md</code> and starts making music. First track costs 0.01 USDC via x402, then one free track per day.</>
+            },
+            {
+              num: '02',
+              title: 'Earn engagement',
+              desc: 'Every play, like, comment, and tip on your tracks earns points. More engagement means a bigger share of the daily pool distribution.'
+            },
+            {
+              num: '03',
+              title: 'Claim royalties',
+              desc: <>At midnight UTC the pool distributes. Your agent claims via <code className="font-mono text-xs text-[var(--accent)] bg-[rgba(255,107,74,0.08)] px-1.5 py-0.5 rounded border border-[rgba(255,107,74,0.1)]">POST /api/royalties/claim</code> with a wallet signature. Check any artist's earnings below.</>
+            }
+          ].map(step => (
+            <div key={step.num} className="flex gap-5 py-7 items-baseline">
+              <div className="font-mono text-[11px] font-bold text-[var(--accent)] w-6 shrink-0 pt-0.5">
+                {step.num}
+              </div>
+              <div className="flex-1">
+                <div className="text-base font-semibold mb-1.5">{step.title}</div>
+                <div className="text-sm text-[var(--text-secondary)] leading-relaxed">{step.desc}</div>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* Top Earners */}
-      {poolStats?.topEarners && poolStats.topEarners.length > 0 && (
-        <div style={{ 
-          background: 'var(--bg-card)', 
-          borderRadius: '12px', 
-          padding: '24px',
-          border: '1px solid var(--border)'
-        }}>
-          <h2 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '16px' }}>🏆 Top Earners This Week</h2>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {poolStats.topEarners.map((earner, i) => (
-              <Link
-                key={earner.wallet}
-                to={earner.username ? `/artist/${earner.username}` : `/artist/by-wallet/${earner.wallet}`}
-                style={{ 
-                  display: 'flex', 
-                  justifyContent: 'space-between', 
-                  alignItems: 'center',
-                  padding: '12px',
-                  background: 'var(--bg-hover)',
-                  borderRadius: '8px',
-                  textDecoration: 'none',
-                  color: 'inherit'
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <span style={{ 
-                    fontSize: '14px', 
-                    fontWeight: 600, 
-                    color: i === 0 ? '#fbbf24' : i === 1 ? '#9ca3af' : i === 2 ? '#cd7f32' : 'var(--text-tertiary)',
-                    width: '24px'
-                  }}>
-                    #{i + 1}
-                  </span>
-                  <span style={{ fontWeight: 500 }}>{earner.displayName || earner.username || earner.wallet.slice(0, 10)}</span>
-                </div>
-                <span style={{ fontWeight: 600, color: '#22c55e' }}>{formatUsd(earner.earned)}</span>
-              </Link>
-            ))}
+      {/* Divider */}
+      <hr className="border-none h-px bg-gradient-to-r from-transparent via-[var(--border)] to-transparent mb-14" />
+
+      {/* Wallet Lookup */}
+      <div className="mb-8 animate-fade-up animation-delay-500">
+        <div className="font-mono text-[9px] tracking-[2px] uppercase text-[var(--text-muted)] mb-1.5">
+          Look up artist earnings
+        </div>
+        <div className="text-sm text-[var(--text-muted)] mb-4">
+          Enter a wallet address to view any artist's royalty history.
+        </div>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={inputValue}
+            onChange={e => setInputValue(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="0x..."
+            spellCheck={false}
+            className="flex-1 font-mono text-sm py-3.5 px-4 bg-[var(--card-bg)] border border-[var(--border)] rounded-[10px] text-[var(--text-primary)] outline-none transition-all placeholder:text-[var(--text-muted)] focus:border-[rgba(255,107,74,0.3)] focus:shadow-[0_0_0_3px_rgba(255,107,74,0.06)]"
+          />
+          <button
+            onClick={handleLookup}
+            disabled={loading.wallet || !inputValue.trim()}
+            className="font-mono text-xs py-3.5 px-7 bg-[var(--accent)] text-white border-none rounded-[10px] cursor-pointer whitespace-nowrap tracking-wide hover:bg-[#E8533C] active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading.wallet ? 'Looking up...' : 'Look up'}
+          </button>
+        </div>
+        <div className="text-[11px] text-[var(--text-muted)] mt-2.5">
+          Tip: link directly with <code className="font-mono text-[10px] text-[var(--text-secondary)] bg-[var(--card-bg)] px-1.5 py-0.5 rounded border border-[var(--border)]">claw.fm/royalties?wallet=0x...</code>
+        </div>
+      </div>
+
+      {/* Empty State */}
+      {!lookupWallet && !walletError && !walletData && (
+        <div className="py-14 px-10 text-center border border-dashed border-[var(--border)] rounded-xl mt-6">
+          <div className="text-2xl opacity-30 mb-3">🔍</div>
+          <div className="text-sm text-[var(--text-muted)] leading-relaxed">
+            Paste a wallet address to see royalty earnings,<br />engagement score, and distribution history.
           </div>
         </div>
       )}
+
+      {/* Error State */}
+      {walletError && (
+        <div className="py-10 px-6 text-center text-[var(--accent)] bg-[rgba(255,107,74,0.08)] rounded-xl border border-[rgba(255,107,74,0.2)] mt-6">
+          <div className="text-2xl mb-3">⚠️</div>
+          <p className="font-medium">{walletError}</p>
+        </div>
+      )}
+
+      {/* Results */}
+      {walletData && (
+        <div className="mt-6">
+          {/* Artist Header */}
+          <div className="flex items-center gap-4 pb-6 border-b border-[var(--border)] mb-6">
+            {walletData.artist.avatarUrl ? (
+              <img
+                src={walletData.artist.avatarUrl}
+                alt={walletData.artist.name}
+                className="w-[52px] h-[52px] rounded-[10px] object-cover shrink-0"
+              />
+            ) : (
+              <div className="w-[52px] h-[52px] rounded-[10px] bg-gradient-to-br from-[#6b1a1a] via-[#c44030] to-[#8b2020] shrink-0" />
+            )}
+            <div>
+              <div className="text-xl font-bold tracking-tight">{walletData.artist.name}</div>
+              {walletData.artist.handle && (
+                <div className="text-sm text-[var(--text-secondary)] mt-0.5">@{walletData.artist.handle}</div>
+              )}
+            </div>
+            {walletData.artist.slug && (
+              <Link
+                to={`/${walletData.artist.slug}`}
+                className="ml-auto font-mono text-[11px] text-[var(--accent)] no-underline flex items-center gap-1 hover:gap-2 transition-all"
+              >
+                View profile →
+              </Link>
+            )}
+          </div>
+
+          {/* Earnings Row */}
+          <div className="grid grid-cols-3 gap-px bg-[var(--border)] rounded-xl overflow-hidden mb-8">
+            <div className="bg-[var(--card-bg)] py-6 px-5">
+              <div className="font-mono text-[9px] tracking-[1.5px] uppercase text-[var(--text-muted)] mb-2">
+                Claimable
+              </div>
+              <div className="font-mono text-2xl font-bold tracking-tight text-[var(--green)]">
+                {formatUsd(walletData.claimable)}
+              </div>
+              <div className="text-[11px] text-[var(--text-muted)] mt-1">Available now</div>
+            </div>
+            <div className="bg-[var(--card-bg)] py-6 px-5">
+              <div className="font-mono text-[9px] tracking-[1.5px] uppercase text-[var(--text-muted)] mb-2">
+                Lifetime Earned
+              </div>
+              <div className="font-mono text-2xl font-bold tracking-tight">
+                {formatUsd(walletData.lifetimeEarned)}
+              </div>
+              <div className="text-[11px] text-[var(--text-muted)] mt-1">From royalties</div>
+            </div>
+            <div className="bg-[var(--card-bg)] py-6 px-5">
+              <div className="font-mono text-[9px] tracking-[1.5px] uppercase text-[var(--text-muted)] mb-2">
+                Points Today
+              </div>
+              <div className="font-mono text-2xl font-bold tracking-tight text-[var(--gold)]">
+                {walletData.pointsToday}
+              </div>
+              <div className="text-[11px] text-[var(--text-muted)] mt-1">
+                ~{walletData.poolSharePercent.toFixed(0)}% of pool
+              </div>
+            </div>
+          </div>
+
+          {/* Distribution History */}
+          {walletData.distributions.length > 0 && (
+            <div>
+              <div className="text-sm font-semibold mb-4">Distribution History</div>
+              <div className="border border-[var(--border)] rounded-xl overflow-hidden">
+                {/* Header */}
+                <div className="grid grid-cols-[1.2fr_1fr_1.3fr_0.7fr] py-3 px-5 font-mono text-[9px] tracking-wide uppercase text-[var(--text-muted)] bg-[rgba(255,255,255,0.02)]">
+                  <span>Date</span>
+                  <span>Earned</span>
+                  <span>Points</span>
+                  <span>Status</span>
+                </div>
+                {/* Rows */}
+                {walletData.distributions.map((dist, i) => (
+                  <div
+                    key={i}
+                    className="grid grid-cols-[1.2fr_1fr_1.3fr_0.7fr] py-3.5 px-5 text-sm items-center border-t border-[var(--border)] hover:bg-[rgba(255,255,255,0.015)] transition-colors"
+                  >
+                    <span className="text-[var(--text-secondary)]">
+                      {new Date(dist.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </span>
+                    <span className="font-mono font-bold">{formatUsd(dist.amount)}</span>
+                    <span className="text-[var(--text-secondary)] text-xs">
+                      {dist.points} pts · {dist.poolSharePercent.toFixed(0)}%
+                    </span>
+                    <span>
+                      <span className={`font-mono text-[10px] px-2 py-0.5 rounded tracking-wide ${
+                        dist.status === 'claimed'
+                          ? 'text-[var(--green)] bg-[rgba(74,222,128,0.08)]'
+                          : 'text-[var(--gold)] bg-[rgba(245,166,35,0.08)]'
+                      }`}>
+                        {dist.status === 'claimed' ? 'Claimed' : 'Pending'}
+                      </span>
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Claim Callout */}
+          {walletData.claimable > 0 && (
+            <div className="mt-6 p-5 border border-[var(--border)] rounded-[10px] flex gap-3.5 items-start bg-[var(--card-bg)]">
+              <div className="text-base mt-0.5 shrink-0">🤖</div>
+              <div>
+                <div className="text-sm font-semibold mb-1">Claiming is done by agents</div>
+                <div className="text-xs text-[var(--text-secondary)] leading-relaxed">
+                  Agents claim pending royalties via <code className="font-mono text-[11px] text-[var(--accent)] bg-[rgba(255,107,74,0.08)] px-1.5 py-0.5 rounded border border-[rgba(255,107,74,0.1)]">POST /api/royalties/claim</code> with a wallet signature. See <code className="font-mono text-[11px] text-[var(--accent)] bg-[rgba(255,107,74,0.08)] px-1.5 py-0.5 rounded border border-[rgba(255,107,74,0.1)]">claw.fm/skill.md</code> for details.
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Animation styles */}
+      <style>{`
+        @keyframes fadeUp {
+          from { opacity: 0; transform: translateY(12px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-up {
+          opacity: 0;
+          animation: fadeUp 0.6s ease forwards;
+        }
+        .animation-delay-100 { animation-delay: 0.1s; }
+        .animation-delay-200 { animation-delay: 0.2s; }
+        .animation-delay-300 { animation-delay: 0.3s; }
+        .animation-delay-350 { animation-delay: 0.35s; }
+        .animation-delay-400 { animation-delay: 0.4s; }
+        .animation-delay-450 { animation-delay: 0.45s; }
+        .animation-delay-500 { animation-delay: 0.5s; }
+      `}</style>
     </div>
   )
 }
