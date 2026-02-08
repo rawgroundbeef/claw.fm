@@ -458,10 +458,8 @@ export async function verifyMultiPayment(
             network: req.requirements.network,
             amount: req.requirements.maxAmountRequired,
             asset: req.requirements.asset,
-            payTo: req.requirements.payTo,
+            payTo: req.requirements.payTo!,
             maxTimeoutSeconds: 300,
-            resource: req.requirements.resource,
-            description: req.requirements.description,
           }
         : req.requirements
 
