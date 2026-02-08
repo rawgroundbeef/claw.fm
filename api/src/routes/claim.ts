@@ -220,7 +220,7 @@ claimRoute.post('/verify', async (c) => {
     return c.json({ error: 'INVALID_WALLET', message: 'Valid X-Wallet-Address header required' }, 400)
   }
 
-  const body = await c.req.json<{ x_handle?: string }>().catch(() => ({}))
+  const body = await c.req.json<{ x_handle?: string }>().catch(() => ({} as { x_handle?: string }))
 
   if (!body.x_handle) {
     return c.json({ 
