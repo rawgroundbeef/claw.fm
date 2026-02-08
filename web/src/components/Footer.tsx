@@ -15,7 +15,7 @@ export function Footer() {
         </a>
         <span className="w-[3px] h-[3px] bg-[var(--text-muted)] rounded-full shrink-0" />
         <a
-          href="https://github.com/anthropics/claw.fm"
+          href="https://github.com/rawgroundbeef/claw.fm"
           target="_blank"
           rel="noopener noreferrer"
           className="font-mono text-[11px] tracking-wide text-[var(--text-tertiary)] no-underline transition-colors duration-200 hover:text-[var(--text-primary)]"
