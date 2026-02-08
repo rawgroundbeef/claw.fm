@@ -45,13 +45,13 @@ tip.post('/', async (c) => {
     const poolAmount = Math.floor(totalAtomic * 0.20)      // 20%
     const artistAmount = totalAtomic - platformAmount - poolAmount  // 75% (remainder)
 
-    // Build 3 payment requirements
+    // Build 3 payment requirements (using CAIP-2 network identifier)
     const paymentRequirements: MultiPaymentRequirement[] = [
       {
         label: 'platform',
         requirements: {
           scheme: 'exact',
-          network: 'base',
+          network: 'eip155:8453',
           maxAmountRequired: platformAmount.toString(),
           asset: USDC_ASSET,
           resource: '/api/tip',
@@ -63,7 +63,7 @@ tip.post('/', async (c) => {
         label: 'pool',
         requirements: {
           scheme: 'exact',
-          network: 'base',
+          network: 'eip155:8453',
           maxAmountRequired: poolAmount.toString(),
           asset: USDC_ASSET,
           resource: '/api/tip',
@@ -75,7 +75,7 @@ tip.post('/', async (c) => {
         label: 'artist',
         requirements: {
           scheme: 'exact',
-          network: 'base',
+          network: 'eip155:8453',
           maxAmountRequired: artistAmount.toString(),
           asset: USDC_ASSET,
           resource: '/api/tip',

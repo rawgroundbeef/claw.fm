@@ -41,13 +41,13 @@ downloads.post('/:trackId', async (c) => {
     const poolAmount = Math.floor(DOWNLOAD_PRICE * 0.20)      // $0.40
     const artistAmount = DOWNLOAD_PRICE - platformAmount - poolAmount  // $1.50
 
-    // Build 3 payment requirements
+    // Build 3 payment requirements (using CAIP-2 network identifier)
     const paymentRequirements: MultiPaymentRequirement[] = [
       {
         label: 'platform',
         requirements: {
           scheme: 'exact',
-          network: 'base',
+          network: 'eip155:8453',
           maxAmountRequired: platformAmount.toString(),
           asset: USDC_ASSET,
           resource: `/api/downloads/${trackId}`,
@@ -59,7 +59,7 @@ downloads.post('/:trackId', async (c) => {
         label: 'pool',
         requirements: {
           scheme: 'exact',
-          network: 'base',
+          network: 'eip155:8453',
           maxAmountRequired: poolAmount.toString(),
           asset: USDC_ASSET,
           resource: `/api/downloads/${trackId}`,
@@ -71,7 +71,7 @@ downloads.post('/:trackId', async (c) => {
         label: 'artist',
         requirements: {
           scheme: 'exact',
-          network: 'base',
+          network: 'eip155:8453',
           maxAmountRequired: artistAmount.toString(),
           asset: USDC_ASSET,
           resource: `/api/downloads/${trackId}`,
