@@ -45,14 +45,22 @@ export function LegacyTrackRedirect() {
 
   // Loading state
   return (
-    <div style={{ maxWidth: '960px', margin: '0 auto', padding: '48px 16px 100px', width: '100%' }}>
-      <div className="flex flex-col md:flex-row gap-6" style={{ marginBottom: '32px' }}>
-        <div className="rounded-xl animate-pulse" style={{ width: '280px', height: '280px', background: 'var(--bg-hover)', flexShrink: 0 }} />
-        <div className="flex-1 flex flex-col gap-3">
-          <div className="rounded animate-pulse" style={{ height: '20px', width: '80px', background: 'var(--bg-hover)' }} />
-          <div className="rounded animate-pulse" style={{ height: '36px', width: '70%', background: 'var(--bg-hover)' }} />
-        </div>
-      </div>
+    <div style={{
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      minHeight: '60vh'
+    }}>
+      <div
+        style={{
+          width: '32px',
+          height: '32px',
+          border: '3px solid var(--border)',
+          borderTopColor: 'var(--accent)',
+          borderRadius: '50%',
+          animation: 'spin 0.8s linear infinite'
+        }}
+      />
     </div>
   )
 }
@@ -211,30 +219,25 @@ export function TrackPage() {
   // 404 handling
   if (notFound) return <NotFoundPage />
 
-  // Loading skeleton
+  // Loading
   if (loading) {
     return (
-      <div style={{ maxWidth: '960px', margin: '0 auto', padding: '48px 16px 100px', width: '100%' }}>
-        {/* Hero skeleton */}
-        <div className="flex flex-col md:flex-row gap-6" style={{ marginBottom: '32px' }}>
-          <div className="rounded-xl animate-pulse" style={{ width: '280px', height: '280px', background: 'var(--bg-hover)', flexShrink: 0 }} />
-          <div className="flex-1 flex flex-col gap-3">
-            <div className="rounded animate-pulse" style={{ height: '20px', width: '80px', background: 'var(--bg-hover)' }} />
-            <div className="rounded animate-pulse" style={{ height: '36px', width: '70%', background: 'var(--bg-hover)' }} />
-            <div className="rounded animate-pulse" style={{ height: '24px', width: '50%', background: 'var(--bg-hover)' }} />
-            <div className="flex gap-2 mt-4">
-              <div className="rounded-full animate-pulse" style={{ height: '44px', width: '120px', background: 'var(--bg-hover)' }} />
-              <div className="rounded-full animate-pulse" style={{ height: '44px', width: '120px', background: 'var(--bg-hover)' }} />
-            </div>
-          </div>
-        </div>
-        {/* Waveform skeleton */}
-        <div className="rounded-xl animate-pulse" style={{ height: '80px', background: 'var(--bg-hover)', marginBottom: '24px' }} />
-        {/* Details skeleton */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="rounded-xl animate-pulse" style={{ height: '200px', background: 'var(--bg-hover)' }} />
-          <div className="rounded-xl animate-pulse" style={{ height: '200px', background: 'var(--bg-hover)' }} />
-        </div>
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: '60vh'
+      }}>
+        <div
+          style={{
+            width: '32px',
+            height: '32px',
+            border: '3px solid var(--border)',
+            borderTopColor: 'var(--accent)',
+            borderRadius: '50%',
+            animation: 'spin 0.8s linear infinite'
+          }}
+        />
       </div>
     )
   }

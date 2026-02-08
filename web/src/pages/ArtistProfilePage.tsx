@@ -158,47 +158,25 @@ export function ArtistProfilePage() {
   // ── 404 ──
   if (notFound) return <NotFoundPage />
 
-  // ── Loading skeleton ──
+  // ── Loading ──
   if (loading) {
     return (
-      <div style={{ width: '100%', maxWidth: '960px', margin: '0 auto', padding: '48px 16px 100px' }}>
-        {/* Header skeleton */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '24px' }}>
-          <div style={{ width: '72px', height: '72px', borderRadius: '16px', background: 'var(--bg-hover)', flexShrink: 0 }} className="animate-pulse" />
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ height: '24px', width: '140px', maxWidth: '60%', borderRadius: '6px', background: 'var(--bg-hover)', marginBottom: '8px' }} className="animate-pulse" />
-            <div style={{ height: '16px', width: '100px', maxWidth: '40%', borderRadius: '4px', background: 'var(--bg-hover)' }} className="animate-pulse" />
-          </div>
-        </div>
-
-        {/* Stats skeleton */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px', marginBottom: '12px' }}>
-          {[0, 1, 2].map((i) => (
-            <div key={i} style={{ height: '80px', borderRadius: '12px', background: 'var(--bg-hover)' }} className="animate-pulse" />
-          ))}
-        </div>
-
-        {/* About + Top Track skeleton */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '12px', marginBottom: '12px' }}>
-          <div style={{ height: '160px', borderRadius: '12px', background: 'var(--bg-hover)' }} className="animate-pulse" />
-          <div style={{ height: '160px', borderRadius: '12px', background: 'var(--bg-hover)' }} className="animate-pulse" />
-        </div>
-
-        {/* Track list skeleton */}
-        <div style={{ borderRadius: '12px', background: 'var(--bg-hover)', marginBottom: '12px', padding: '20px' }} className="animate-pulse">
-          {[0, 1, 2, 3].map((i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: i < 3 ? '16px' : 0 }}>
-              <div style={{ width: '48px', height: '48px', borderRadius: '8px', background: 'var(--bg-hover-strong)', flexShrink: 0 }} />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ height: '14px', width: '60%', maxWidth: '200px', borderRadius: '4px', background: 'var(--bg-hover-strong)', marginBottom: '6px' }} />
-                <div style={{ height: '12px', width: '30%', maxWidth: '80px', borderRadius: '4px', background: 'var(--bg-hover-strong)' }} />
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Footer skeleton */}
-        <div style={{ height: '56px', borderRadius: '12px', background: 'var(--bg-hover)' }} className="animate-pulse" />
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: '60vh'
+      }}>
+        <div
+          style={{
+            width: '32px',
+            height: '32px',
+            border: '3px solid var(--border)',
+            borderTopColor: 'var(--accent)',
+            borderRadius: '50%',
+            animation: 'spin 0.8s linear infinite'
+          }}
+        />
       </div>
     )
   }
