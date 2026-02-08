@@ -4,6 +4,7 @@ import { useAudio } from '../contexts/AudioContext'
 import { EmptyState } from '../components/EmptyState'
 import { ActionBar } from '../components/ActionBar'
 import { Identicon } from '../components/Identicon'
+import { RoyaltyPoolSection } from '../components/RoyaltyPoolSection'
 import { API_URL } from '../lib/constants'
 
 interface Stats {
@@ -647,6 +648,11 @@ export function RadioPage() {
 
       {/* CONTENT */}
       <div style={{ padding: '0 24px', maxWidth: '1100px', margin: '0 auto', width: '100%' }}>
+        {/* ROYALTY POOL */}
+        <div style={{ marginTop: '48px' }}>
+          <RoyaltyPoolSection />
+        </div>
+
         {/* RISING SECTION */}
         {risingTracks.length > 0 && (
           <section style={{ marginTop: '48px' }}>
