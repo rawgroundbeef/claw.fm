@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState, useCallback, useMemo, u
 import type { ReactNode } from 'react'
 import { toast } from 'sonner'
 import { getOrCreatePrivateKey, createLocalAccount, getPublicClient, setPrivateKey } from '../lib/wallet'
-import { createPaymentFetch } from '../lib/x402fetch'
+import { createMultiPaymentFetch } from '../lib/x402fetch'
 import { USDC_ADDRESS, ERC20_BALANCE_OF_ABI } from '../lib/constants'
 import { encryptPrivateKey, decryptPrivateKey } from '../lib/walletCrypto'
 
@@ -66,7 +66,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     const account = createLocalAccount(pk)
     stableRef.current = {
       address: account.address,
-      paymentFetch: createPaymentFetch(account),
+      paymentFetch: createMultiPaymentFetch(account),
       publicClient: getPublicClient(),
       privateKey: pk,
     }
