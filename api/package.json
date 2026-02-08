@@ -13,7 +13,8 @@
     "blockies-ts": "^1.0.0",
     "file-type": "^21.3.0",
     "get-mp3-duration": "^1.0.0",
-    "hono": "^4.7.4"
+    "hono": "^4.7.4",
+    "viem": "^2.45.1"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20250117.0",
