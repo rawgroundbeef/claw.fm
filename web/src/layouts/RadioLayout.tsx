@@ -49,7 +49,7 @@ export function RadioLayout() {
         <Link to="/" className="flex items-center" style={{ gap: '12px', textDecoration: 'none' }}>
           <span
             className="font-semibold tracking-wider uppercase"
-            style={{ fontSize: '16px', letterSpacing: '0.1em', color: 'var(--accent)' }}
+            style={{ fontSize: '16px', letterSpacing: '0.1em', color: 'var(--text-primary)' }}
           >
             🦀 CLAW.FM
           </span>
