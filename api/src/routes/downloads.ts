@@ -1,14 +1,18 @@
 import { Hono } from 'hono'
 import type { DownloadResponse } from '@claw/shared'
 import { generateDownloadToken, verifyDownloadToken } from '../lib/presigned'
-import { verifyPayment } from '../middleware/x402'
+import { verifyMultiPayment, type MultiPaymentRequirement } from '../middleware/x402'
 
 type Bindings = {
   DB: D1Database
   AUDIO_BUCKET: R2Bucket
   DOWNLOAD_SECRET: string
   PLATFORM_WALLET: string
+  POOL_WALLET: string
 }
+
+const USDC_ASSET = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913'
+const DOWNLOAD_PRICE = 2_000_000 // $2 USDC in atomic units
 
 const downloads = new Hono<{ Bindings: Bindings }>()
 
@@ -30,53 +34,78 @@ downloads.post('/:trackId', async (c) => {
       return c.json({ error: 'Track not found' }, 404)
     }
 
-    // x402 payment gate — $2 USDC for download
-    const paymentResult = await verifyPayment(c, {
-      scheme: 'exact',
-      network: 'base',
-      maxAmountRequired: '2000000', // $2 USDC (6 decimals)
-      asset: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
-      resource: `/api/downloads/${trackId}`,
-      description: '$2 track download',
-      payTo: c.env.PLATFORM_WALLET,
-    })
+    const artistWallet = track.wallet as string
+
+    // Calculate split amounts: 5% platform, 20% pool, 75% artist
+    const platformAmount = Math.floor(DOWNLOAD_PRICE * 0.05)  // $0.10
+    const poolAmount = Math.floor(DOWNLOAD_PRICE * 0.20)      // $0.40
+    const artistAmount = DOWNLOAD_PRICE - platformAmount - poolAmount  // $1.50
+
+    // Build 3 payment requirements
+    const paymentRequirements: MultiPaymentRequirement[] = [
+      {
+        label: 'platform',
+        requirements: {
+          scheme: 'exact',
+          network: 'base',
+          maxAmountRequired: platformAmount.toString(),
+          asset: USDC_ASSET,
+          resource: `/api/downloads/${trackId}`,
+          description: 'Platform fee (5% of $2)',
+          payTo: c.env.PLATFORM_WALLET,
+        },
+      },
+      {
+        label: 'pool',
+        requirements: {
+          scheme: 'exact',
+          network: 'base',
+          maxAmountRequired: poolAmount.toString(),
+          asset: USDC_ASSET,
+          resource: `/api/downloads/${trackId}`,
+          description: 'Royalty pool (20% of $2)',
+          payTo: c.env.POOL_WALLET,
+        },
+      },
+      {
+        label: 'artist',
+        requirements: {
+          scheme: 'exact',
+          network: 'base',
+          maxAmountRequired: artistAmount.toString(),
+          asset: USDC_ASSET,
+          resource: `/api/downloads/${trackId}`,
+          description: 'Artist payment (75% of $2)',
+          payTo: artistWallet,
+        },
+      },
+    ]
+
+    // x402 multi-payment gate — 3 separate transactions
+    const paymentResult = await verifyMultiPayment(c, paymentRequirements)
 
     if (!paymentResult.valid) {
       return paymentResult.error!
     }
 
-    // Log transaction for purchase history
-    const artistWallet = track.wallet as string
+    // All 3 payments settled — log transaction
     const now = Math.floor(Date.now() / 1000)
-    
+
     await c.env.DB.prepare(
       `INSERT INTO transactions (track_id, type, amount_usdc, payer_wallet, artist_wallet, created_at)
        VALUES (?, 'buy', 2, ?, ?, ?)`
     ).bind(trackId, paymentResult.walletAddress, artistWallet, now).run()
 
-    // Split: 75% artist, 20% pool, 5% platform
-    // $2 purchase = $1.50 artist, $0.40 pool, $0.10 platform
-    const amountMicro = 2_000_000 // $2 in USDC micro-units
-    const artistShare = Math.floor(amountMicro * 0.75) // 1,500,000
-    const poolShare = Math.floor(amountMicro * 0.20)   // 400,000
-
-    // Add artist's direct share to their claimable balance
-    await c.env.DB.prepare(`
-      UPDATE artist_profiles 
-      SET claimable_balance = COALESCE(claimable_balance, 0) + ?
-      WHERE wallet = ?
-    `).bind(artistShare, artistWallet).run()
-
-    // Add to royalty pool
-    await c.env.DB.prepare(`
-      UPDATE royalty_pool SET balance = balance + ?, updated_at = ? WHERE id = 1
-    `).bind(poolShare, now).run()
-
-    // Log pool contribution
+    // Log pool contribution (pool received funds on-chain, but track for analytics)
     await c.env.DB.prepare(`
       INSERT INTO pool_contributions (source_type, source_id, amount, wallet, artist_wallet, created_at)
       VALUES ('download', ?, ?, ?, ?, ?)
-    `).bind(trackId, poolShare, paymentResult.walletAddress, artistWallet, now).run()
+    `).bind(trackId, poolAmount, paymentResult.walletAddress, artistWallet, now).run()
+
+    // Update pool balance tracking (for UI display, actual funds are on-chain)
+    await c.env.DB.prepare(`
+      UPDATE royalty_pool SET balance = balance + ?, updated_at = ? WHERE id = 1
+    `).bind(poolAmount, now).run()
 
     // Generate download URL
     const fileUrl = track.file_url as string

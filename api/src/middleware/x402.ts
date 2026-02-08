@@ -351,3 +351,159 @@ export function createPaymentGate(options: PaymentGateOptions) {
     return verifyPayment(c, requirements)
   }
 }
+
+export interface MultiPaymentRequirement {
+  label: string  // 'platform', 'pool', 'artist'
+  requirements: PaymentRequirementsV1
+}
+
+export interface MultiPaymentVerificationResult {
+  valid: boolean
+  walletAddress?: string
+  settlements?: Array<{ label: string; transaction?: string }>
+  error?: Response
+}
+
+/**
+ * Verify and settle multiple x402 payments in a single request.
+ * Used for tip splits: platform (5%), pool (20%), artist (75%).
+ *
+ * Client sends X-PAYMENTS header with JSON array of base64-encoded payment payloads.
+ * Server returns 402 with X-PAYMENTS-REQUIRED header containing array of requirements.
+ */
+export async function verifyMultiPayment(
+  c: Context,
+  requirements: MultiPaymentRequirement[],
+): Promise<MultiPaymentVerificationResult> {
+  const paymentsHeader = c.req.header('X-PAYMENTS')
+
+  if (!paymentsHeader) {
+    // Build multi-payment 402 response
+    const v1Requirements = requirements.map(r => ({
+      label: r.label,
+      ...r.requirements,
+    }))
+
+    const v2Accepts = requirements.map(r => ({
+      label: r.label,
+      scheme: r.requirements.scheme,
+      network: 'eip155:8453',
+      asset: r.requirements.asset,
+      payTo: r.requirements.payTo,
+      amount: r.requirements.maxAmountRequired,
+      maxTimeoutSeconds: 300,
+      extra: {
+        name: 'USD Coin',
+        version: '2',
+      },
+    }))
+
+    const v2Payload = {
+      x402Version: 2,
+      accepts: v2Accepts,
+      resource: {
+        url: requirements[0]?.requirements.resource || c.req.path,
+      },
+    }
+
+    const errorResponse = c.json(
+      {
+        error: 'PAYMENTS_REQUIRED',
+        message: `${requirements.length} payments required for tip split`,
+        payments: v1Requirements,
+        x402Version: 1,
+      },
+      402,
+      {
+        'X-PAYMENTS-REQUIRED': btoa(JSON.stringify(v1Requirements)),
+        'PAYMENTS-REQUIRED': btoa(JSON.stringify(v2Payload)),
+      },
+    )
+
+    return { valid: false, error: errorResponse }
+  }
+
+  try {
+    // Parse array of payment payloads
+    const paymentPayloads: PaymentPayload[] = JSON.parse(atob(paymentsHeader))
+
+    if (!Array.isArray(paymentPayloads) || paymentPayloads.length !== requirements.length) {
+      const errorResponse = c.json(
+        {
+          error: 'INVALID_PAYMENTS',
+          message: `Expected ${requirements.length} payments, got ${Array.isArray(paymentPayloads) ? paymentPayloads.length : 0}`,
+        },
+        400,
+      )
+      return { valid: false, error: errorResponse }
+    }
+
+    const facilitator = new OpenFacilitator()
+    const settlements: Array<{ label: string; transaction?: string }> = []
+    let payerWallet: string | undefined
+
+    // Verify and settle each payment
+    for (let i = 0; i < requirements.length; i++) {
+      const payload = paymentPayloads[i]
+      const req = requirements[i]
+
+      console.log(`[x402-multi] Verifying payment ${i + 1}/${requirements.length}: ${req.label}`)
+
+      const verifyResult = await facilitator.verify(payload, req.requirements)
+      if (!verifyResult.isValid) {
+        const errorResponse = c.json(
+          {
+            error: 'PAYMENT_INVALID',
+            message: `Payment ${req.label} invalid: ${verifyResult.invalidReason}`,
+            failedPayment: req.label,
+          },
+          402,
+        )
+        return { valid: false, error: errorResponse }
+      }
+
+      const settleResult = await facilitator.settle(payload, req.requirements)
+      console.log(`[x402-multi] Settle ${req.label}:`, settleResult.success, settleResult.transaction || settleResult.errorReason || '')
+
+      if (!settleResult.success) {
+        const errorResponse = c.json(
+          {
+            error: 'PAYMENT_SETTLEMENT_FAILED',
+            message: `Payment ${req.label} settlement failed: ${settleResult.errorReason}`,
+            failedPayment: req.label,
+          },
+          402,
+        )
+        return { valid: false, error: errorResponse }
+      }
+
+      settlements.push({ label: req.label, transaction: settleResult.transaction })
+      if (!payerWallet) payerWallet = settleResult.payer
+    }
+
+    console.log(`[x402-multi] All ${requirements.length} payments settled successfully`)
+    return { valid: true, walletAddress: payerWallet, settlements }
+
+  } catch (error) {
+    console.error('[x402-multi] Exception:', error)
+    if (error instanceof FacilitatorError) {
+      const errorResponse = c.json(
+        {
+          error: 'FACILITATOR_ERROR',
+          message: `Facilitator error: ${error.message}`,
+        },
+        502,
+      )
+      return { valid: false, error: errorResponse }
+    }
+
+    const errorResponse = c.json(
+      {
+        error: 'PAYMENT_VERIFICATION_ERROR',
+        message: `Payment verification error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      },
+      500,
+    )
+    return { valid: false, error: errorResponse }
+  }
+}
