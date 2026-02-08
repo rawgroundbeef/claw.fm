@@ -439,19 +439,10 @@ export async function verifyMultiPayment(
     }
 
     const facilitator = new OpenFacilitator()
-    const settlements: Array<{ label: string; transaction?: string }> = []
-    let payerWallet: string | undefined
 
-    // Verify and settle each payment
-    for (let i = 0; i < requirements.length; i++) {
+    // Build requirements for each payment
+    const paymentData = requirements.map((req, i) => {
       const payload = paymentPayloads[i]
-      const req = requirements[i]
-
-      console.log(`[x402-multi] Verifying payment ${i + 1}/${requirements.length}: ${req.label}`)
-      console.log(`[x402-multi] Payload version: ${payload.x402Version}`)
-
-      // Build requirements matching the payload version
-      // v2 payloads need v2 requirements with 'amount' instead of 'maxAmountRequired'
       const requirementsForFacilitator = payload.x402Version === 2
         ? {
             scheme: req.requirements.scheme,
@@ -462,41 +453,62 @@ export async function verifyMultiPayment(
             maxTimeoutSeconds: 300,
           }
         : req.requirements
+      return { payload, req, requirementsForFacilitator }
+    })
 
-      console.log(`[x402-multi] Requirements:`, JSON.stringify(requirementsForFacilitator))
+    // Verify all payments in parallel first
+    console.log(`[x402-multi] Verifying ${requirements.length} payments in parallel`)
+    const verifyResults = await Promise.all(
+      paymentData.map(({ payload, req, requirementsForFacilitator }) =>
+        facilitator.verify(payload, requirementsForFacilitator).then(result => ({
+          label: req.label,
+          result,
+        }))
+      )
+    )
 
-      const verifyResult = await facilitator.verify(payload, requirementsForFacilitator)
-      console.log(`[x402-multi] Verify result:`, verifyResult.isValid, verifyResult.invalidReason || '')
-
-      if (!verifyResult.isValid) {
-        const errorResponse = c.json(
-          {
-            error: 'PAYMENT_INVALID',
-            message: `Payment ${req.label} invalid: ${verifyResult.invalidReason}`,
-            failedPayment: req.label,
-          },
-          402,
-        )
-        return { valid: false, error: errorResponse }
+    // Check all verifications passed
+    for (const { label, result } of verifyResults) {
+      if (!result.isValid) {
+        console.log(`[x402-multi] Verify failed for ${label}:`, result.invalidReason)
+        return {
+          valid: false,
+          error: c.json(
+            { error: 'PAYMENT_INVALID', message: `Payment ${label} invalid: ${result.invalidReason}`, failedPayment: label },
+            402,
+          ),
+        }
       }
+    }
+    console.log(`[x402-multi] All ${requirements.length} payments verified`)
 
-      const settleResult = await facilitator.settle(payload, requirementsForFacilitator)
-      console.log(`[x402-multi] Settle ${req.label}:`, settleResult.success, settleResult.transaction || settleResult.errorReason || '')
+    // Settle all payments in parallel
+    console.log(`[x402-multi] Settling ${requirements.length} payments in parallel`)
+    const settleResults = await Promise.all(
+      paymentData.map(({ payload, req, requirementsForFacilitator }) =>
+        facilitator.settle(payload, requirementsForFacilitator).then(result => ({
+          label: req.label,
+          result,
+        }))
+      )
+    )
 
-      if (!settleResult.success) {
-        const errorResponse = c.json(
-          {
-            error: 'PAYMENT_SETTLEMENT_FAILED',
-            message: `Payment ${req.label} settlement failed: ${settleResult.errorReason}`,
-            failedPayment: req.label,
-          },
-          402,
-        )
-        return { valid: false, error: errorResponse }
+    // Check all settlements succeeded
+    const settlements: Array<{ label: string; transaction?: string }> = []
+    let payerWallet: string | undefined
+    for (const { label, result } of settleResults) {
+      if (!result.success) {
+        console.log(`[x402-multi] Settle failed for ${label}:`, result.errorReason)
+        return {
+          valid: false,
+          error: c.json(
+            { error: 'PAYMENT_SETTLEMENT_FAILED', message: `Payment ${label} settlement failed: ${result.errorReason}`, failedPayment: label },
+            402,
+          ),
+        }
       }
-
-      settlements.push({ label: req.label, transaction: settleResult.transaction })
-      if (!payerWallet) payerWallet = settleResult.payer
+      settlements.push({ label, transaction: result.transaction })
+      if (!payerWallet) payerWallet = result.payer
     }
 
     console.log(`[x402-multi] All ${requirements.length} payments settled successfully`)
