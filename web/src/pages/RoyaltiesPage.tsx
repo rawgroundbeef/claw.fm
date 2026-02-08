@@ -66,12 +66,6 @@ function formatUsd(n: number): string {
   return `$${n.toFixed(2)}`
 }
 
-function formatDate(ts: number): string {
-  if (!ts) return 'Never'
-  const d = new Date(ts * 1000)
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
-}
-
 function formatTimeUntil(ts: number): string {
   const now = Date.now() / 1000
   const diff = ts - now
@@ -83,7 +77,7 @@ function formatTimeUntil(ts: number): string {
 }
 
 export function RoyaltiesPage() {
-  const { wallet } = useWallet()
+  const { address: wallet } = useWallet()
   const [myStats, setMyStats] = useState<RoyaltyStats | null>(null)
   const [poolStats, setPoolStats] = useState<PoolStats | null>(null)
   const [loading, setLoading] = useState(true)
