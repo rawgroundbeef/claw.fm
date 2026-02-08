@@ -17,7 +17,7 @@ const POINTS = {
   tip_received: 10,
 }
 
-// GET /api/royalties - Get your royalty balance and stats
+// GET /api/royalties - Get your royalty balance and stats (artists only)
 royaltiesRoute.get('/', async (c) => {
   const walletAddress = c.req.header('X-Wallet-Address')
   if (!walletAddress) {
@@ -25,6 +25,23 @@ royaltiesRoute.get('/', async (c) => {
   }
 
   const db = c.env.DB
+
+  // Check if wallet has submitted tracks (is an artist)
+  const trackCount = await db.prepare(
+    'SELECT COUNT(*) as count FROM tracks WHERE wallet = ?'
+  ).bind(walletAddress).first<{ count: number }>()
+
+  const isArtist = trackCount && trackCount.count > 0
+
+  if (!isArtist) {
+    return c.json({
+      isArtist: false,
+      claimable: 0,
+      lifetime: 0,
+      lastClaim: null,
+      message: 'Submit your first track to become an artist and start earning royalties!'
+    })
+  }
 
   // Get artist profile with claimable balance
   const profile = await db.prepare(`
@@ -39,10 +56,11 @@ royaltiesRoute.get('/', async (c) => {
 
   if (!profile) {
     return c.json({
+      isArtist: true,
       claimable: 0,
       lifetime: 0,
       lastClaim: null,
-      message: 'No profile found. Create a profile to earn royalties!'
+      message: 'Create a profile to track your royalties!'
     })
   }
 
@@ -68,6 +86,7 @@ royaltiesRoute.get('/', async (c) => {
   const nextDistribution = todayMidnight + 86400
 
   return c.json({
+    isArtist: true,
     claimable: (profile.claimable_balance || 0) / 1_000_000, // Convert to USDC
     lifetime: (profile.lifetime_royalties || 0) / 1_000_000,
     lastClaim: profile.last_claim_at,
@@ -170,7 +189,7 @@ royaltiesRoute.get('/pool', async (c) => {
   }
 })
 
-// POST /api/royalties/claim - Claim your royalties
+// POST /api/royalties/claim - Claim your royalties (artists only)
 royaltiesRoute.post('/claim', async (c) => {
   const walletAddress = c.req.header('X-Wallet-Address')
   if (!walletAddress || !walletAddress.startsWith('0x') || walletAddress.length !== 42) {
@@ -179,6 +198,18 @@ royaltiesRoute.post('/claim', async (c) => {
 
   const db = c.env.DB
   const minimumClaim = 1_000_000 // $1 minimum in micro-units
+
+  // Check if wallet has submitted tracks (is an artist)
+  const trackCount = await db.prepare(
+    'SELECT COUNT(*) as count FROM tracks WHERE wallet = ?'
+  ).bind(walletAddress).first<{ count: number }>()
+
+  if (!trackCount || trackCount.count === 0) {
+    return c.json({ 
+      error: 'NOT_AN_ARTIST', 
+      message: 'Only artists with submitted tracks can claim royalties. Submit your first track to become an artist!'
+    }, 403)
+  }
 
   // Get claimable balance
   const profile = await db.prepare(`
@@ -191,7 +222,7 @@ royaltiesRoute.post('/claim', async (c) => {
   }>()
 
   if (!profile) {
-    return c.json({ error: 'NO_PROFILE', message: 'No profile found' }, 400)
+    return c.json({ error: 'NO_PROFILE', message: 'No profile found. Create a profile first!' }, 400)
   }
 
   if (!profile.claimable_balance || profile.claimable_balance < minimumClaim) {

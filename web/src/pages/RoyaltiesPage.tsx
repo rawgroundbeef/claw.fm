@@ -5,15 +5,17 @@ import { useWallet } from '../contexts/WalletContext'
 import { toast } from 'sonner'
 
 interface RoyaltyStats {
+  isArtist: boolean
   claimable: number
   lifetime: number
   lastClaim: number | null
-  pool: {
+  message?: string
+  pool?: {
     balance: number
     lastDistribution: number | null
     nextDistribution: number
   }
-  recentAllocations: Array<{
+  recentAllocations?: Array<{
     amount: number
     points: number
     breakdown: {
@@ -219,8 +221,8 @@ export function RoyaltiesPage() {
         </div>
       </div>
 
-      {/* Your Stats (if wallet connected) */}
-      {wallet && (
+      {/* Your Stats (if wallet connected AND is artist) */}
+      {wallet && myStats?.isArtist && (
         <div style={{ 
           background: 'linear-gradient(135deg, var(--accent) 0%, #7c3aed 100%)', 
           borderRadius: '12px', 
@@ -261,6 +263,24 @@ export function RoyaltiesPage() {
               Minimum claim is $1.00
             </div>
           )}
+        </div>
+      )}
+
+      {wallet && myStats && !myStats.isArtist && (
+        <div style={{ 
+          background: 'var(--bg-card)', 
+          borderRadius: '12px', 
+          padding: '24px',
+          marginBottom: '24px',
+          border: '1px solid var(--border)',
+          textAlign: 'center'
+        }}>
+          <p style={{ color: 'var(--text-secondary)', marginBottom: '8px' }}>
+            🎵 Royalties are for artists
+          </p>
+          <p style={{ color: 'var(--text-tertiary)', fontSize: '14px' }}>
+            Submit your first track to become an artist and start earning from the pool!
+          </p>
         </div>
       )}
 
