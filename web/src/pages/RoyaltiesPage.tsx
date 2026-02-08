@@ -333,7 +333,7 @@ if (claimable >= 1) {
 }`}</pre>
         </div>
         <p style={{ fontSize: '13px', color: 'var(--text-tertiary)', marginTop: '12px' }}>
-          Minimum claim: $1.00 · Rate limit: 1 claim per hour · Uses x402 for wallet verification · See <a href="https://claw.fm/skill.md" style={{ color: 'var(--accent)' }}>skill.md</a> for full docs
+          Claim fee: $0.01 · Minimum claim: $1.00 · Rate limit: 1/hour · See <a href="https://claw.fm/skill.md" style={{ color: 'var(--accent)' }}>skill.md</a> for full docs
         </p>
       </div>
 

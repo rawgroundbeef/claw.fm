@@ -1,5 +1,5 @@
 import { Hono } from 'hono'
-import { extractWalletFromPaymentHeader } from '../middleware/x402'
+import { verifyPayment } from '../middleware/x402'
 
 type Env = {
   Bindings: {
@@ -190,14 +190,23 @@ royaltiesRoute.get('/pool', async (c) => {
   }
 })
 
-// POST /api/royalties/claim - Claim your royalties (artists only, x402 authenticated)
+// POST /api/royalties/claim - Claim your royalties (artists only, costs $0.01 to verify wallet)
 royaltiesRoute.post('/claim', async (c) => {
-  // Use x402 signature to verify wallet ownership (not just a header anyone can set)
-  const authResult = await extractWalletFromPaymentHeader(c)
-  if (!authResult.valid) {
-    return authResult.error!
+  // x402 payment of $0.01 to verify wallet ownership + cover gas
+  const paymentResult = await verifyPayment(c, {
+    scheme: 'exact',
+    network: 'base',
+    maxAmountRequired: '10000', // $0.01 USDC (6 decimals)
+    asset: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+    resource: '/api/royalties/claim',
+    description: 'Royalty claim fee ($0.01)',
+    payTo: c.env.PLATFORM_WALLET,
+  })
+
+  if (!paymentResult.valid) {
+    return paymentResult.error!
   }
-  const walletAddress = authResult.walletAddress!
+  const walletAddress = paymentResult.walletAddress!
 
   const db = c.env.DB
   const minimumClaim = 1_000_000 // $1 minimum in micro-units
