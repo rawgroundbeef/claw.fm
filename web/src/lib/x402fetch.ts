@@ -15,19 +15,6 @@ export function createPaymentFetch(account: PrivateKeyAccount) {
   return wrapFetchWithPayment(fetch, client)
 }
 
-/**
- * Multi-payment requirement from server
- */
-interface MultiPaymentRequirement {
-  label: string
-  scheme: string
-  network: string
-  maxAmountRequired: string
-  asset: string
-  resource: string
-  description: string
-  payTo: string
-}
 
 /**
  * Creates a fetch function that handles multi-payment 402 responses.
@@ -51,13 +38,14 @@ export function createMultiPaymentFetch(account: PrivateKeyAccount) {
       return response
     }
 
-    // Check for multi-payment header
-    const multiPaymentHeader = response.headers.get('X-PAYMENTS-REQUIRED')
+    // Check for multi-payment header (v2 format preferred)
+    const multiPaymentHeaderV2 = response.headers.get('PAYMENTS-REQUIRED')
+    const multiPaymentHeaderV1 = response.headers.get('X-PAYMENTS-REQUIRED')
 
-    if (!multiPaymentHeader) {
+    if (!multiPaymentHeaderV2 && !multiPaymentHeaderV1) {
       // Fall back to single payment handling
-      const singlePaymentHeader = response.headers.get('X-PAYMENT-REQUIRED') ||
-                                   response.headers.get('PAYMENT-REQUIRED')
+      const singlePaymentHeader = response.headers.get('PAYMENT-REQUIRED') ||
+                                   response.headers.get('X-PAYMENT-REQUIRED')
 
       if (!singlePaymentHeader) {
         return response // No payment info, return as-is
@@ -74,36 +62,52 @@ export function createMultiPaymentFetch(account: PrivateKeyAccount) {
       return fetch(clonedRequest)
     }
 
-    // Parse multi-payment requirements
-    const requirements: MultiPaymentRequirement[] = JSON.parse(atob(multiPaymentHeader))
-
-    // Sign each payment
+    // Parse multi-payment requirements - prefer v2 format
     const payloads: unknown[] = []
-    for (const req of requirements) {
-      // Convert to format expected by x402Client
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const paymentRequired: any = {
-        x402Version: 2,
-        accepts: [{
-          scheme: req.scheme,
-          network: req.network === 'base' ? 'eip155:8453' : req.network,
-          asset: req.asset,
-          payTo: req.payTo,
-          maxAmountRequired: req.maxAmountRequired,
-          extra: {
-            name: 'USD Coin',
-            version: '2',
-          },
-        }],
-        resource: {
-          url: req.resource,
-          description: req.description,
-          mimeType: 'application/json',
-        },
-      }
 
-      const payload = await client.createPaymentPayload(paymentRequired)
-      payloads.push(payload)
+    if (multiPaymentHeaderV2) {
+      // v2 format: { x402Version: 2, accepts: [...], resource: {...} }
+      const v2Response = JSON.parse(atob(multiPaymentHeaderV2))
+
+      // Sign each accept entry as a separate payment
+      for (const accept of v2Response.accepts) {
+        const paymentRequired = {
+          x402Version: 2,
+          accepts: [accept],
+          resource: v2Response.resource,
+        }
+        const payload = await client.createPaymentPayload(paymentRequired)
+        payloads.push(payload)
+      }
+    } else {
+      // v1 format fallback: array of requirements with maxAmountRequired
+      const v1Requirements = JSON.parse(atob(multiPaymentHeaderV1!))
+
+      for (const req of v1Requirements) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const paymentRequired: any = {
+          x402Version: 2,
+          accepts: [{
+            scheme: req.scheme,
+            network: 'eip155:8453',
+            asset: req.asset,
+            payTo: req.payTo,
+            amount: req.maxAmountRequired,
+            maxTimeoutSeconds: 300,
+            extra: {
+              name: 'USD Coin',
+              version: '2',
+            },
+          }],
+          resource: {
+            url: req.resource || '/api/tip',
+            description: req.description || 'Payment',
+            mimeType: 'application/json',
+          },
+        }
+        const payload = await client.createPaymentPayload(paymentRequired)
+        payloads.push(payload)
+      }
     }
 
     // Encode all payloads as JSON array, then base64
