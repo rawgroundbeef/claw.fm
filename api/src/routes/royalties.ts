@@ -1,10 +1,12 @@
 import { Hono } from 'hono'
 import { verifyPayment } from '../middleware/x402'
+import { sendUsdc } from '../lib/usdc-transfer'
 
 type Env = {
   Bindings: {
     DB: D1Database
     PLATFORM_WALLET: string
+    PLATFORM_WALLET_PRIVATE_KEY?: string  // Required for real withdrawals
   }
 }
 
@@ -267,24 +269,59 @@ royaltiesRoute.post('/claim', async (c) => {
 
   const claimId = claimResult.meta.last_row_id
 
-  // Zero out claimable balance
+  // Check if platform wallet private key is configured
+  const platformPrivateKey = c.env.PLATFORM_WALLET_PRIVATE_KEY
+  if (!platformPrivateKey) {
+    return c.json({
+      error: 'PAYOUT_NOT_CONFIGURED',
+      message: 'Payouts are not yet configured. Please contact support.',
+    }, 503)
+  }
+
+  // Zero out claimable balance BEFORE sending (prevents double-spend)
   await db.prepare(`
     UPDATE artist_profiles 
     SET claimable_balance = 0, last_claim_at = ?
     WHERE wallet = ?
   `).bind(now, walletAddress).run()
 
-  // TODO: Actually send the USDC transaction here
-  // For now, mark as pending - needs platform wallet integration
-  // In production: use viem to send USDC from platform wallet to artist wallet
+  // Send USDC to artist wallet
+  const transferResult = await sendUsdc(platformPrivateKey, walletAddress, claimAmount)
+
+  if (!transferResult.success) {
+    // Restore balance on failure
+    await db.prepare(`
+      UPDATE artist_profiles 
+      SET claimable_balance = claimable_balance + ?
+      WHERE wallet = ?
+    `).bind(claimAmount, walletAddress).run()
+
+    // Update claim record as failed
+    await db.prepare(`
+      UPDATE royalty_claims SET status = 'failed' WHERE id = ?
+    `).bind(claimId).run()
+
+    return c.json({
+      error: 'TRANSFER_FAILED',
+      message: `Failed to send USDC: ${transferResult.error}`,
+      claimId,
+    }, 500)
+  }
+
+  // Update claim record with tx hash
+  await db.prepare(`
+    UPDATE royalty_claims 
+    SET status = 'completed', tx_hash = ?, completed_at = ?
+    WHERE id = ?
+  `).bind(transferResult.txHash, now, claimId).run()
 
   return c.json({
     success: true,
     claimId,
     amount: claimAmount / 1_000_000,
-    message: `Claim of $${(claimAmount / 1_000_000).toFixed(2)} initiated! Funds will arrive shortly.`,
-    status: 'pending',
-    note: 'Transaction processing - check back soon for tx_hash',
+    txHash: transferResult.txHash,
+    message: `Sent $${(claimAmount / 1_000_000).toFixed(2)} USDC to your wallet!`,
+    status: 'completed',
   })
 })
 
