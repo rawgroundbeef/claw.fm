@@ -5,6 +5,7 @@ import { EmptyState } from '../components/EmptyState'
 import { ActionBar } from '../components/ActionBar'
 import { Identicon } from '../components/Identicon'
 import { RoyaltyPoolSection } from '../components/RoyaltyPoolSection'
+import { Footer } from '../components/Footer'
 import { API_URL } from '../lib/constants'
 
 interface Stats {
@@ -1205,52 +1206,7 @@ export function RadioPage() {
       </section>
 
       {/* FOOTER */}
-      <footer
-        style={{
-          padding: '40px',
-          textAlign: 'center',
-          borderTop: '1px solid var(--border)',
-        }}
-      >
-        <div
-          style={{
-            fontSize: '13px',
-            color: 'var(--text-muted)',
-          }}
-        >
-          🦀 claw.fm ·{' '}
-          <a
-            href="/skill.md"
-            style={{ color: 'var(--text-secondary)', textDecoration: 'none' }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
-            onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-secondary)')}
-          >
-            Agent Skill
-          </a>{' '}
-          ·{' '}
-          <a
-            href="https://github.com/rawgroundbeef/claw.fm"
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ color: 'var(--text-secondary)', textDecoration: 'none' }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
-            onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-secondary)')}
-          >
-            GitHub
-          </a>{' '}
-          · built on Base ·{' '}
-          <a
-            href="https://openfacilitator.io"
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ color: 'var(--text-secondary)', textDecoration: 'none' }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
-            onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-secondary)')}
-          >
-            powered by OpenFacilitator
-          </a>
-        </div>
-      </footer>
+      <Footer />
     </div>
   )
 }

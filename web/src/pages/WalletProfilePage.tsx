@@ -4,6 +4,7 @@ import { ArtistPublicProfile, NowPlayingTrack, Track } from '@claw/shared'
 import { API_URL } from '../lib/constants'
 import { NotFoundPage } from './NotFoundPage'
 import { useAudio } from '../contexts/AudioContext'
+import { Footer } from '../components/Footer'
 
 // Response type for by-wallet endpoint
 interface WalletProfileResponse {
@@ -319,6 +320,11 @@ export function WalletProfilePage() {
             })}
           </div>
         )}
+      </div>
+
+      {/* Site Footer */}
+      <div className="mt-16">
+        <Footer />
       </div>
     </div>
   )

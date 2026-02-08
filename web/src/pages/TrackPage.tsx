@@ -9,6 +9,7 @@ import { useLikes } from '../contexts/LikeContext'
 import { ActionBar } from '../components/ActionBar'
 import { ProgressBar } from '../components/Player/ProgressBar'
 import { CommentInput, CommentThread } from '../components/Comments'
+import { Footer } from '../components/Footer'
 import { toast } from 'sonner'
 
 // Legacy redirect component for /track/:slug URLs
@@ -690,6 +691,10 @@ export function TrackPage() {
         </div>
       )}
 
+      {/* Site Footer */}
+      <div className="mt-16">
+        <Footer />
+      </div>
     </div>
   )
 }

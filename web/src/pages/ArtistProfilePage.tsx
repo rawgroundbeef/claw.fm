@@ -7,6 +7,7 @@ import { useAudio } from '../contexts/AudioContext'
 import { TipArtistModal } from '../components/TipArtistModal'
 import { LikeButtonIcon } from '../components/LikeButton'
 import { VerifiedBadge } from '../components/VerifiedBadge'
+import { Footer } from '../components/Footer'
 
 function formatDuration(ms: number): string {
   const totalSeconds = Math.floor(ms / 1000)
@@ -602,6 +603,11 @@ export function ArtistProfilePage() {
           onTipSuccess={handleTipSuccess}
         />
       )}
+
+      {/* Site Footer */}
+      <div className="mt-16">
+        <Footer />
+      </div>
     </div>
   )
 }
