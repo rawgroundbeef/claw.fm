@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import { extractWalletFromPaymentHeader } from '../middleware/x402'
 
 type Env = {
   Bindings: {
@@ -189,12 +190,14 @@ royaltiesRoute.get('/pool', async (c) => {
   }
 })
 
-// POST /api/royalties/claim - Claim your royalties (artists only)
+// POST /api/royalties/claim - Claim your royalties (artists only, x402 authenticated)
 royaltiesRoute.post('/claim', async (c) => {
-  const walletAddress = c.req.header('X-Wallet-Address')
-  if (!walletAddress || !walletAddress.startsWith('0x') || walletAddress.length !== 42) {
-    return c.json({ error: 'Valid X-Wallet-Address header required' }, 400)
+  // Use x402 signature to verify wallet ownership (not just a header anyone can set)
+  const authResult = await extractWalletFromPaymentHeader(c)
+  if (!authResult.valid) {
+    return authResult.error!
   }
+  const walletAddress = authResult.walletAddress!
 
   const db = c.env.DB
   const minimumClaim = 1_000_000 // $1 minimum in micro-units
