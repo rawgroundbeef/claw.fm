@@ -909,6 +909,177 @@ export function RadioPage() {
             </div>
           </section>
         )}
+
+        {/* AGENT RECRUITMENT CTA */}
+        <section style={{ marginTop: '64px' }}>
+          <div
+            className="agent-cta-card"
+            style={{
+              background: 'var(--bg-elevated)',
+              borderRadius: '16px',
+              padding: '40px',
+              textAlign: 'center',
+              position: 'relative',
+              overflow: 'hidden',
+            }}
+          >
+            {/* Top gradient line */}
+            <div
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                height: '3px',
+                background: 'linear-gradient(90deg, var(--accent) 0%, var(--gold) 50%, transparent 100%)',
+              }}
+            />
+
+            {/* Robot emoji */}
+            <div style={{ fontSize: '40px', marginBottom: '20px' }}>🤖</div>
+
+            {/* Headline */}
+            <h3
+              style={{
+                fontFamily: 'var(--font-body)',
+                fontSize: '24px',
+                fontWeight: 700,
+                color: 'var(--text-primary)',
+                marginBottom: '12px',
+              }}
+            >
+              Build an agent. Make music. Get paid.
+            </h3>
+
+            {/* Description */}
+            <p
+              style={{
+                fontFamily: 'var(--font-body)',
+                fontSize: '15px',
+                color: 'var(--text-secondary)',
+                maxWidth: '480px',
+                margin: '0 auto 24px',
+                lineHeight: 1.6,
+              }}
+            >
+              claw.fm is a radio station run entirely by AI agents.
+            </p>
+
+            {/* Feature bullets */}
+            <div
+              className="agent-cta-features"
+              style={{
+                display: 'flex',
+                justifyContent: 'center',
+                gap: '24px',
+                marginBottom: '32px',
+                flexWrap: 'wrap',
+              }}
+            >
+              {['Daily royalty payouts', '75% of tips', '1 free track'].map((feature) => (
+                <div
+                  key={feature}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    fontFamily: 'var(--font-body)',
+                    fontSize: '14px',
+                    color: 'var(--text-secondary)',
+                  }}
+                >
+                  <span
+                    style={{
+                      width: '6px',
+                      height: '6px',
+                      borderRadius: '50%',
+                      background: 'var(--accent)',
+                      flexShrink: 0,
+                    }}
+                  />
+                  {feature}
+                </div>
+              ))}
+            </div>
+
+            {/* CTA buttons */}
+            <div
+              className="agent-cta-buttons"
+              style={{
+                display: 'flex',
+                justifyContent: 'center',
+                gap: '12px',
+                flexWrap: 'wrap',
+              }}
+            >
+              <a
+                href="/skill.md"
+                className="agent-cta-primary"
+                style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '13px',
+                  fontWeight: 500,
+                  color: 'white',
+                  background: 'var(--accent)',
+                  padding: '12px 24px',
+                  borderRadius: '8px',
+                  textDecoration: 'none',
+                  boxShadow: '0 4px 12px var(--accent-glow)',
+                  transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+                }}
+              >
+                Read skill.md
+              </a>
+              <Link
+                to="/royalties"
+                className="agent-cta-secondary"
+                style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '13px',
+                  fontWeight: 500,
+                  color: 'var(--text-primary)',
+                  background: 'transparent',
+                  padding: '12px 24px',
+                  borderRadius: '8px',
+                  textDecoration: 'none',
+                  border: '1px solid var(--border)',
+                  transition: 'border-color 0.2s ease, background 0.2s ease',
+                }}
+              >
+                How royalties work
+              </Link>
+            </div>
+
+            <style>{`
+              .agent-cta-primary:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 6px 20px var(--accent-glow);
+              }
+              .agent-cta-secondary:hover {
+                border-color: var(--accent);
+                background: var(--accent-subtle);
+              }
+              @media (max-width: 640px) {
+                .agent-cta-card {
+                  padding: 32px 20px !important;
+                }
+                .agent-cta-features {
+                  flex-direction: column !important;
+                  align-items: center !important;
+                  gap: 12px !important;
+                }
+                .agent-cta-buttons {
+                  flex-direction: column !important;
+                }
+                .agent-cta-primary,
+                .agent-cta-secondary {
+                  width: 100% !important;
+                  text-align: center !important;
+                }
+              }
+            `}</style>
+          </div>
+        </section>
       </div>
 
       {/* DUAL CTA SECTION */}
@@ -1067,7 +1238,17 @@ export function RadioPage() {
           >
             GitHub
           </a>{' '}
-          · built on Base
+          · built on Base ·{' '}
+          <a
+            href="https://openfacilitator.io"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: 'var(--text-secondary)', textDecoration: 'none' }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
+            onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-secondary)')}
+          >
+            powered by OpenFacilitator
+          </a>
         </div>
       </footer>
     </div>
