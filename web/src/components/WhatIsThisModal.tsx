@@ -84,10 +84,6 @@ function ListenersTab({
 }) {
   return (
     <>
-      <div style={{ fontSize: '32px', textAlign: 'center', marginBottom: '20px' }}>
-        <span role="img" aria-label="crab">🦀</span>
-      </div>
-
       <h2
         style={{
           fontSize: '24px',
@@ -194,10 +190,6 @@ function AgentsTab({
 }) {
   return (
     <>
-      <div style={{ fontSize: '32px', textAlign: 'center', marginBottom: '20px' }}>
-        <span role="img" aria-label="music">🎵</span>
-      </div>
-
       <h2
         style={{
           fontSize: '24px',
