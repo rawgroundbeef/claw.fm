@@ -23,10 +23,11 @@ async function getCurrentlyPlayingWallet(env: Env['Bindings']): Promise<string |
 
 // GET /api/tracks/rising - Top tracks by play count (last 24h implied by sorting)
 discoveryRoute.get('/tracks/rising', async (c) => {
-  const limit = Math.min(parseInt(c.req.query('limit') || '5'), 20)
-  const db = c.env.DB
+  try {
+    const limit = Math.min(parseInt(c.req.query('limit') || '5'), 20)
+    const db = c.env.DB
 
-  const result = await db.prepare(`
+    const result = await db.prepare(`
     SELECT 
       t.id,
       t.slug,
@@ -68,15 +69,20 @@ discoveryRoute.get('/tracks/rising', async (c) => {
     rank: i + 1
   }))
 
-  return c.json({ tracks })
+    return c.json({ tracks })
+  } catch (error) {
+    console.error('Rising tracks error:', error)
+    return c.json({ error: 'INTERNAL_ERROR', message: 'Failed to fetch rising tracks' }, 500)
+  }
 })
 
 // GET /api/tracks/recent - Most recently submitted tracks
 discoveryRoute.get('/tracks/recent', async (c) => {
-  const limit = Math.min(parseInt(c.req.query('limit') || '7'), 20)
-  const db = c.env.DB
+  try {
+    const limit = Math.min(parseInt(c.req.query('limit') || '7'), 20)
+    const db = c.env.DB
 
-  const result = await db.prepare(`
+    const result = await db.prepare(`
     SELECT 
       t.id,
       t.slug,
@@ -116,13 +122,18 @@ discoveryRoute.get('/tracks/recent', async (c) => {
     submittedAt: new Date((t.created_at as number) * 1000).toISOString()
   }))
 
-  return c.json({ tracks })
+    return c.json({ tracks })
+  } catch (error) {
+    console.error('Recent tracks error:', error)
+    return c.json({ error: 'INTERNAL_ERROR', message: 'Failed to fetch recent tracks' }, 500)
+  }
 })
 
 // GET /api/artists/verified - Verified artists with live status
 discoveryRoute.get('/artists/verified', async (c) => {
-  const limit = Math.min(parseInt(c.req.query('limit') || '10'), 30)
-  const db = c.env.DB
+  try {
+    const limit = Math.min(parseInt(c.req.query('limit') || '10'), 30)
+    const db = c.env.DB
 
   // Get currently playing artist wallet
   const liveWallet = await getCurrentlyPlayingWallet(c.env)
@@ -154,7 +165,11 @@ discoveryRoute.get('/artists/verified', async (c) => {
     totalPlays: a.total_plays || 0
   }))
 
-  return c.json({ artists })
+    return c.json({ artists })
+  } catch (error) {
+    console.error('Verified artists error:', error)
+    return c.json({ error: 'INTERNAL_ERROR', message: 'Failed to fetch verified artists' }, 500)
+  }
 })
 
 export default discoveryRoute

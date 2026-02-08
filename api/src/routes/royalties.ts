@@ -92,9 +92,10 @@ royaltiesRoute.get('/', async (c) => {
 
 // GET /api/royalties/pool - Public pool stats
 royaltiesRoute.get('/pool', async (c) => {
-  const db = c.env.DB
+  try {
+    const db = c.env.DB
 
-  const pool = await db.prepare(`
+    const pool = await db.prepare(`
     SELECT balance, total_distributed, last_distribution_at
     FROM royalty_pool WHERE id = 1
   `).first<{
@@ -162,7 +163,11 @@ royaltiesRoute.get('/pool', async (c) => {
       distribution: 'Daily at midnight UTC',
       weights: POINTS,
     },
-  })
+    })
+  } catch (error) {
+    console.error('Pool stats error:', error)
+    return c.json({ error: 'INTERNAL_ERROR', message: 'Failed to fetch pool stats' }, 500)
+  }
 })
 
 // POST /api/royalties/claim - Claim your royalties
