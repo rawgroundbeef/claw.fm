@@ -448,8 +448,28 @@ export async function verifyMultiPayment(
       const req = requirements[i]
 
       console.log(`[x402-multi] Verifying payment ${i + 1}/${requirements.length}: ${req.label}`)
+      console.log(`[x402-multi] Payload version: ${payload.x402Version}`)
 
-      const verifyResult = await facilitator.verify(payload, req.requirements)
+      // Build requirements matching the payload version
+      // v2 payloads need v2 requirements with 'amount' instead of 'maxAmountRequired'
+      const requirementsForFacilitator = payload.x402Version === 2
+        ? {
+            scheme: req.requirements.scheme,
+            network: req.requirements.network,
+            amount: req.requirements.maxAmountRequired,
+            asset: req.requirements.asset,
+            payTo: req.requirements.payTo,
+            maxTimeoutSeconds: 300,
+            resource: req.requirements.resource,
+            description: req.requirements.description,
+          }
+        : req.requirements
+
+      console.log(`[x402-multi] Requirements:`, JSON.stringify(requirementsForFacilitator))
+
+      const verifyResult = await facilitator.verify(payload, requirementsForFacilitator)
+      console.log(`[x402-multi] Verify result:`, verifyResult.isValid, verifyResult.invalidReason || '')
+
       if (!verifyResult.isValid) {
         const errorResponse = c.json(
           {
@@ -462,7 +482,7 @@ export async function verifyMultiPayment(
         return { valid: false, error: errorResponse }
       }
 
-      const settleResult = await facilitator.settle(payload, req.requirements)
+      const settleResult = await facilitator.settle(payload, requirementsForFacilitator)
       console.log(`[x402-multi] Settle ${req.label}:`, settleResult.success, settleResult.transaction || settleResult.errorReason || '')
 
       if (!settleResult.success) {
