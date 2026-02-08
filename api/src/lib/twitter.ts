@@ -132,8 +132,12 @@ export async function postTweet(
 ): Promise<TweetResult> {
   const url = 'https://api.twitter.com/2/tweets'
 
+  console.log('[Twitter] Attempting to post tweet:', text.substring(0, 50) + '...')
+  console.log('[Twitter] Using API key:', config.apiKey?.substring(0, 8) + '...')
+
   try {
     const authHeader = await generateOAuthHeader('POST', url, config)
+    console.log('[Twitter] Generated OAuth header, making request...')
 
     const response = await fetch(url, {
       method: 'POST',
@@ -144,9 +148,11 @@ export async function postTweet(
       body: JSON.stringify({ text })
     })
 
+    console.log('[Twitter] Response status:', response.status)
+
     if (!response.ok) {
       const errorText = await response.text()
-      console.error('Twitter API error:', response.status, errorText)
+      console.error('[Twitter] API error:', response.status, errorText)
       return {
         success: false,
         error: `Twitter API error: ${response.status} - ${errorText}`

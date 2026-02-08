@@ -246,6 +246,7 @@ submitRoute.post('/', async (c) => {
 
     // Step 9.7: Announce on X/Twitter (non-blocking)
     const twitterConfig = getTwitterConfig(c.env)
+    console.log('[Submit] Twitter configured:', !!twitterConfig)
     if (twitterConfig) {
       // Get artist display name if they have a profile
       const artistProfile = await c.env.DB.prepare(
