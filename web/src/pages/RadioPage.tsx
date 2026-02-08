@@ -114,7 +114,7 @@ export function RadioPage() {
   useEffect(() => {
     const fetchRising = async () => {
       try {
-        const res = await fetch(`${API_URL}/api/tracks/rising?limit=5`)
+        const res = await fetch(`${API_URL}/api/tracks/rising?limit=8`)
         if (res.ok) {
           const data = await res.json()
           setRisingTracks(data.tracks || [])
