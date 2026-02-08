@@ -47,10 +47,36 @@ downloads.post('/:trackId', async (c) => {
 
     // Log transaction for purchase history
     const artistWallet = track.wallet as string
+    const now = Math.floor(Date.now() / 1000)
+    
     await c.env.DB.prepare(
       `INSERT INTO transactions (track_id, type, amount_usdc, payer_wallet, artist_wallet, created_at)
-       VALUES (?, 'buy', 2, ?, ?, unixepoch())`
-    ).bind(trackId, paymentResult.walletAddress, artistWallet).run()
+       VALUES (?, 'buy', 2, ?, ?, ?)`
+    ).bind(trackId, paymentResult.walletAddress, artistWallet, now).run()
+
+    // Split: 75% artist, 20% pool, 5% platform
+    // $2 purchase = $1.50 artist, $0.40 pool, $0.10 platform
+    const amountMicro = 2_000_000 // $2 in USDC micro-units
+    const artistShare = Math.floor(amountMicro * 0.75) // 1,500,000
+    const poolShare = Math.floor(amountMicro * 0.20)   // 400,000
+
+    // Add artist's direct share to their claimable balance
+    await c.env.DB.prepare(`
+      UPDATE artist_profiles 
+      SET claimable_balance = COALESCE(claimable_balance, 0) + ?
+      WHERE wallet = ?
+    `).bind(artistShare, artistWallet).run()
+
+    // Add to royalty pool
+    await c.env.DB.prepare(`
+      UPDATE royalty_pool SET balance = balance + ?, updated_at = ? WHERE id = 1
+    `).bind(poolShare, now).run()
+
+    // Log pool contribution
+    await c.env.DB.prepare(`
+      INSERT INTO pool_contributions (source_type, source_id, amount, wallet, artist_wallet, created_at)
+      VALUES ('download', ?, ?, ?, ?, ?)
+    `).bind(trackId, poolShare, paymentResult.walletAddress, artistWallet, now).run()
 
     // Generate download URL
     const fileUrl = track.file_url as string
