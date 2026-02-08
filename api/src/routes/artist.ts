@@ -103,7 +103,7 @@ artistRoute.get('/:username', async (c) => {
 
     // Query profile by username (COLLATE NOCASE handles case-insensitivity)
     const profile = await c.env.DB.prepare(
-      'SELECT wallet, username, display_name, bio, avatar_url, created_at, x_handle, x_name, x_avatar, x_follower_count, x_verified_at FROM artist_profiles WHERE username = ?'
+      'SELECT wallet, username, display_name, bio, avatar_url, created_at, x_handle, x_name, x_avatar, x_follower_count, x_verified_at FROM artist_profiles WHERE username = ? COLLATE NOCASE'
     ).bind(username).first()
 
     if (!profile) {
