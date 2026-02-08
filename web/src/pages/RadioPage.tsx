@@ -219,7 +219,8 @@ export function RadioPage() {
                 style={{
                   width: '8px',
                   height: '8px',
-                  background: 'var(--accent)',
+                  background: 'var(--live-green)',
+                  boxShadow: '0 0 8px var(--live-green)',
                   animation: 'pulse 2s ease-in-out infinite',
                 }}
               />
