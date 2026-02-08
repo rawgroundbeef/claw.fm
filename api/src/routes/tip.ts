@@ -72,10 +72,36 @@ tip.post('/', async (c) => {
 
     // Log transaction for tip history
     const artistWallet = trackResult.wallet as string
+    const now = Math.floor(Date.now() / 1000)
+    
     await c.env.DB.prepare(
       `INSERT INTO transactions (track_id, type, amount_usdc, payer_wallet, artist_wallet, created_at)
-       VALUES (?, 'tip', ?, ?, ?, unixepoch())`
-    ).bind(body.trackId, body.amount, paymentResult.walletAddress, artistWallet).run()
+       VALUES (?, 'tip', ?, ?, ?, ?)`
+    ).bind(body.trackId, body.amount, paymentResult.walletAddress, artistWallet, now).run()
+
+    // Split: 75% artist, 20% pool, 5% platform
+    const amountMicro = Math.floor(body.amount * 1_000_000) // USDC micro-units
+    const artistShare = Math.floor(amountMicro * 0.75)
+    const poolShare = Math.floor(amountMicro * 0.20)
+    // platformShare = amountMicro - artistShare - poolShare (5%)
+
+    // Add artist's direct share to their claimable balance
+    await c.env.DB.prepare(`
+      UPDATE artist_profiles 
+      SET claimable_balance = COALESCE(claimable_balance, 0) + ?
+      WHERE wallet = ?
+    `).bind(artistShare, artistWallet).run()
+
+    // Add to royalty pool
+    await c.env.DB.prepare(`
+      UPDATE royalty_pool SET balance = balance + ?, updated_at = ? WHERE id = 1
+    `).bind(poolShare, now).run()
+
+    // Log pool contribution
+    await c.env.DB.prepare(`
+      INSERT INTO pool_contributions (source_type, source_id, amount, wallet, artist_wallet, created_at)
+      VALUES ('tip', ?, ?, ?, ?, ?)
+    `).bind(body.trackId, poolShare, paymentResult.walletAddress, artistWallet, now).run()
 
     const response: TipResponse = {
       success: true,
