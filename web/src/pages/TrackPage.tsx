@@ -262,8 +262,8 @@ export function TrackPage() {
   const { track, stats, tips, relatedTracks } = data
   const artistName = track.artistProfile?.displayName || track.artistName || truncateWallet(track.wallet)
   const artistPath = track.artistProfile?.username
-    ? `/artist/${track.artistProfile.username}`
-    : `/artist/by-wallet/${track.wallet}`
+    ? `/${track.artistProfile.username}`
+    : `/w/${track.wallet}`
   const tools = parseTools(track.description)
 
   const toNowPlaying = (t: Track): NowPlayingTrack => ({

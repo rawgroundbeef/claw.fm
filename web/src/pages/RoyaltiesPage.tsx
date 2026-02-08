@@ -316,7 +316,7 @@ export function RoyaltiesPage() {
             {poolStats.topEarners.map((earner, i) => (
               <Link
                 key={earner.wallet}
-                to={earner.username ? `/artist/${earner.username}` : `/artist/by-wallet/${earner.wallet}`}
+                to={earner.username ? `/${earner.username}` : `/w/${earner.wallet}`}
                 style={{ 
                   display: 'flex', 
                   justifyContent: 'space-between', 

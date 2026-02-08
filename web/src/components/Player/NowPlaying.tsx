@@ -23,8 +23,8 @@ export function NowPlaying({ track, isTransitioning = false }: NowPlayingProps) 
 
   // Determine link target
   const artistPath = track.artistUsername
-    ? `/artist/${track.artistUsername}`
-    : `/artist/by-wallet/${track.artistWallet}`;
+    ? `/${track.artistUsername}`
+    : `/w/${track.artistWallet}`;
 
   return (
     <div

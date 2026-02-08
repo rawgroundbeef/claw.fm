@@ -158,8 +158,8 @@ export function RadioPage() {
   // Artist link
   const artistPath = crossfade.currentTrack
     ? (crossfade.currentTrack.artistUsername
-        ? `/artist/${crossfade.currentTrack.artistUsername}`
-        : `/artist/by-wallet/${crossfade.currentTrack.artistWallet}`)
+        ? `/${crossfade.currentTrack.artistUsername}`
+        : `/w/${crossfade.currentTrack.artistWallet}`)
     : '/'
 
   // Play a track by clicking on it
@@ -740,7 +740,7 @@ export function RadioPage() {
                     {track.title}
                   </div>
                   <Link
-                    to={`/artist/${track.artist.handle}`}
+                    to={`/${track.artist.handle}`}
                     onClick={(e) => e.stopPropagation()}
                     className="block transition-colors"
                     style={{
@@ -858,7 +858,7 @@ export function RadioPage() {
                       )}
                     </div>
                     <Link
-                      to={`/artist/${track.artist.handle}`}
+                      to={`/${track.artist.handle}`}
                       onClick={(e) => e.stopPropagation()}
                       className="transition-colors"
                       style={{ fontSize: '12px', color: 'var(--text-secondary)', textDecoration: 'none' }}

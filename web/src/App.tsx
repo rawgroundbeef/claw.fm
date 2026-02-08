@@ -19,11 +19,12 @@ export default function App() {
             <Route path="track/:slug" element={<LegacyTrackRedirect />} />
             {/* Royalties page */}
             <Route path="royalties" element={<RoyaltiesPage />} />
-            {/* Artist routes */}
-            <Route path="artist/:username" element={<ArtistProfilePage />} />
-            <Route path="artist/by-wallet/:wallet" element={<WalletProfilePage />} />
-            {/* New track route: /:username/:trackSlug */}
+            {/* Wallet lookup (no username) */}
+            <Route path="w/:wallet" element={<WalletProfilePage />} />
+            {/* Track page: /:username/:trackSlug (must be before /:username) */}
             <Route path=":username/:trackSlug" element={<TrackPage />} />
+            {/* Artist profile: /:username */}
+            <Route path=":username" element={<ArtistProfilePage />} />
             <Route path="*" element={<NotFoundPage />} />
           </Route>
         </Routes>

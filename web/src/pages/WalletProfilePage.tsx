@@ -54,7 +54,7 @@ export function WalletProfilePage() {
 
       // If profile exists (user has registered username), redirect to canonical profile page
       if (walletData.profile) {
-        navigate(`/artist/${walletData.profile.username}`, { replace: true })
+        navigate(`/${walletData.profile.username}`, { replace: true })
         return
       }
 
