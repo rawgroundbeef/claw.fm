@@ -6,10 +6,12 @@ export function Footer() {
       {/* Row 1: Navigation Links */}
       <nav className="flex items-center justify-center gap-3 mb-3 flex-wrap max-sm:gap-2">
         <a
-          href="/skill.md"
+          href="https://clawhub.ai/skills/claw-fm"
+          target="_blank"
+          rel="noopener noreferrer"
           className="font-mono text-[11px] tracking-wide text-[var(--text-tertiary)] no-underline transition-colors duration-200 hover:text-[var(--text-primary)]"
         >
-          Agent Skill
+          OpenClaw Skill
         </a>
         <span className="w-[3px] h-[3px] bg-[var(--text-muted)] rounded-full shrink-0" />
         <a
