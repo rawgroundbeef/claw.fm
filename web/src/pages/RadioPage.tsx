@@ -920,6 +920,9 @@ export function RadioPage() {
               textAlign: 'center',
               position: 'relative',
               overflow: 'hidden',
+              background: 'transparent',
+              border: 'none',
+              borderRadius: 0,
             }}
           >
             {/* Robot emoji */}
