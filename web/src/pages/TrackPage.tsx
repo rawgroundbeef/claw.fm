@@ -33,8 +33,11 @@ export function LegacyTrackRedirect() {
       .then((data: TrackDetailResponse | null) => {
         if (data?.track.artistProfile?.username) {
           setRedirectTo(`/${data.track.artistProfile.username}/${slug}`)
+        } else if (data?.track.wallet) {
+          // No username, redirect to wallet-based URL
+          setRedirectTo(`/w/${data.track.wallet}/${slug}`)
         } else {
-          // No username available, show 404
+          // No username or wallet available, show 404
           setNotFound(true)
         }
       })
@@ -130,8 +133,8 @@ const labelStyle: React.CSSProperties = {
   marginBottom: '6px',
 }
 
-export function TrackPage() {
-  const { username, trackSlug } = useParams<{ username: string; trackSlug: string }>()
+// Shared track page component that works with both username and wallet-based lookups
+function TrackPageContent({ apiUrl }: { apiUrl: string }) {
   const { crossfade, triggerConfetti } = useAudio()
   const { address: walletAddress, isLocked } = useWallet()
   const { setLikeState } = useLikes()
@@ -142,14 +145,13 @@ export function TrackPage() {
   const [notFound, setNotFound] = useState(false)
 
   const fetchTrack = useCallback(async () => {
-    if (!username || !trackSlug) return
+    if (!apiUrl) return
     setLoading(true)
     setError(null)
     setNotFound(false)
 
     try {
-      // Use new API endpoint with username and trackSlug
-      const response = await fetch(`${API_URL}/api/track/${username}/${trackSlug}`, {
+      const response = await fetch(apiUrl, {
         headers: {
           'X-Wallet-Address': walletAddress
         }
@@ -169,7 +171,7 @@ export function TrackPage() {
       setError(err instanceof Error ? err.message : 'Failed to load track')
       setLoading(false)
     }
-  }, [username, trackSlug, walletAddress, setLikeState])
+  }, [apiUrl, walletAddress, setLikeState])
 
   useEffect(() => {
     fetchTrack()
@@ -203,7 +205,8 @@ export function TrackPage() {
   }
 
   const handleShare = async () => {
-    const url = `${window.location.origin}/${username}/${trackSlug}`
+    // Use current URL which already reflects the correct path
+    const url = window.location.href
     try {
       await navigator.clipboard.writeText(url)
       toast.success('Link copied to clipboard')
@@ -628,7 +631,7 @@ export function TrackPage() {
               return (
                 <Link
                   key={relatedTrack.id}
-                  to={`/${username}/${relatedTrack.slug}`}
+                  to={`${artistPath}/${relatedTrack.slug}`}
                   className="group"
                   style={{ textDecoration: 'none' }}
                 >
@@ -697,4 +700,18 @@ export function TrackPage() {
       </div>
     </div>
   )
+}
+
+// Wrapper for username-based track page: /:username/:trackSlug
+export function TrackPage() {
+  const { username, trackSlug } = useParams<{ username: string; trackSlug: string }>()
+  const apiUrl = username && trackSlug ? `${API_URL}/api/track/${username}/${trackSlug}` : ''
+  return <TrackPageContent apiUrl={apiUrl} />
+}
+
+// Wrapper for wallet-based track page: /w/:wallet/:trackSlug
+export function WalletTrackPage() {
+  const { wallet, trackSlug } = useParams<{ wallet: string; trackSlug: string }>()
+  const apiUrl = wallet && trackSlug ? `${API_URL}/api/track/w/${wallet}/${trackSlug}` : ''
+  return <TrackPageContent apiUrl={apiUrl} />
 }

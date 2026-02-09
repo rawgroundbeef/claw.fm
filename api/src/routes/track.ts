@@ -300,6 +300,69 @@ async function buildTrackResponse(c: Context<Env>, trackRow: TrackRow) {
   return c.json(response, 200)
 }
 
+// Route for wallet-based track lookup: /w/:wallet/:trackSlug
+trackRoute.get('/w/:wallet/:trackSlug', async (c) => {
+  try {
+    const wallet = c.req.param('wallet')
+    const trackSlug = c.req.param('trackSlug')
+
+    // Basic wallet format validation
+    if (!wallet.startsWith('0x') || wallet.length !== 42) {
+      return c.json({
+        error: 'INVALID_WALLET',
+        message: 'Invalid wallet address format'
+      }, 400)
+    }
+
+    // Fetch track by wallet and slug
+    const trackRow = await c.env.DB.prepare(`
+      SELECT
+        t.id,
+        t.title,
+        t.slug,
+        t.wallet,
+        t.artist_name,
+        t.duration,
+        t.file_url,
+        t.cover_url,
+        t.genre,
+        t.description,
+        t.tags,
+        t.file_hash,
+        t.created_at,
+        t.play_count,
+        t.tip_weight,
+        t.waveform_peaks,
+        t.like_count,
+        ap.username AS profile_username,
+        ap.display_name AS profile_display_name,
+        ap.bio AS profile_bio,
+        ap.avatar_url AS profile_avatar_url,
+        ap.wallet AS profile_wallet,
+        ap.created_at AS profile_created_at
+      FROM tracks t
+      LEFT JOIN artist_profiles ap ON t.wallet = ap.wallet
+      WHERE t.slug = ? AND t.wallet = ? COLLATE NOCASE
+    `).bind(trackSlug, wallet).first<TrackRow>()
+
+    if (!trackRow) {
+      return c.json({
+        error: 'NOT_FOUND',
+        message: 'Track not found'
+      }, 404)
+    }
+
+    return buildTrackResponse(c, trackRow)
+
+  } catch (error) {
+    console.error('Track detail by wallet endpoint error:', error)
+    return c.json({
+      error: 'INTERNAL_ERROR',
+      message: 'Failed to fetch track details'
+    }, 500)
+  }
+})
+
 // New route: /:username/:trackSlug
 trackRoute.get('/:username/:trackSlug', async (c) => {
   try {

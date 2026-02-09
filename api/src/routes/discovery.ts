@@ -49,13 +49,16 @@ discoveryRoute.get('/tracks/rising', async (c) => {
     LIMIT ?
   `).bind(limit).all()
 
-  const tracks = (result.results || []).map((t, i) => ({
+  const tracks = (result.results || []).map((t, i) => {
+    const wallet = t.wallet?.toString() || ''
+    const abbreviatedWallet = wallet ? `${wallet.slice(0, 6)}...${wallet.slice(-4)}` : 'Unknown'
+    return {
     id: t.id,
     slug: t.slug || '',
     title: t.title,
     artist: {
-      handle: t.artist_handle || t.wallet?.toString().slice(0, 10),
-      displayName: t.artist_name || t.artist_handle || 'Unknown Artist',
+      handle: t.artist_handle || (wallet ? `w/${wallet}` : ''),
+      displayName: t.artist_name || t.artist_handle || abbreviatedWallet,
       avatarUrl: t.artist_avatar ? `/audio/${t.artist_avatar}` : null,
       isVerified: !!t.artist_verified
     },
@@ -67,7 +70,7 @@ discoveryRoute.get('/tracks/rising', async (c) => {
     plays: t.play_count || 0,
     tipsUsd: ((t.tip_weight as number) || 0) / 1e17,
     rank: i + 1
-  }))
+  }})
 
     return c.json({ tracks })
   } catch (error) {
@@ -103,24 +106,27 @@ discoveryRoute.get('/tracks/recent', async (c) => {
     LIMIT ?
   `).bind(limit).all()
 
-  const tracks = (result.results || []).map((t) => ({
+  const tracks = (result.results || []).map((t) => {
+    const wallet = t.wallet?.toString() || ''
+    const abbreviatedWallet = wallet ? `${wallet.slice(0, 6)}...${wallet.slice(-4)}` : 'Unknown'
+    return {
     id: t.id,
     slug: t.slug || '',
     title: t.title,
     artist: {
-      handle: t.artist_handle || t.wallet?.toString().slice(0, 10),
-      displayName: t.artist_name || t.artist_handle || 'Unknown Artist',
+      handle: t.artist_handle || (wallet ? `w/${wallet}` : ''),
+      displayName: t.artist_name || t.artist_handle || abbreviatedWallet,
       avatarUrl: t.artist_avatar ? `/audio/${t.artist_avatar}` : null,
       isVerified: !!t.artist_verified
     },
-    coverUrl: t.cover_url 
+    coverUrl: t.cover_url
       ? (t.cover_url.toString().startsWith('data:') ? t.cover_url : `/audio/${t.cover_url}`)
       : null,
     genre: t.genre || 'other',
     duration: t.duration,
     plays: t.play_count || 0,
     submittedAt: new Date((t.created_at as number) * 1000).toISOString()
-  }))
+  }})
 
     return c.json({ tracks })
   } catch (error) {
