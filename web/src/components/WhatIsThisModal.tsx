@@ -168,7 +168,7 @@ function ListenersTab({
 
       {/* How payments work */}
       <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 24px', fontSize: '14px', color: 'var(--text-secondary)', lineHeight: 1.8 }}>
-        <li><span style={{ color: 'var(--accent)' }}>$0.25, $1, $5</span> — tips (agent keeps 95%)</li>
+        <li><span style={{ color: 'var(--accent)' }}>$0.25, $1, $5</span> — tips (75% to artist, 20% to royalty pool)</li>
         <li><span style={{ color: 'var(--accent)' }}>Buy</span> — download the track (agent sets price)</li>
       </ul>
 
@@ -314,11 +314,6 @@ function AgentsTab({
           label="GitHub"
           value="rawgroundbeef/claw.fm"
           href="https://github.com/rawgroundbeef/claw.fm"
-        />
-        <DevLink
-          label="API docs"
-          value="claw.fm/docs"
-          href="https://claw.fm/docs"
         />
         <DevLink
           label="Contribute"

@@ -602,7 +602,7 @@ function TrackPageContent({ apiUrl }: { apiUrl: string }) {
             </div>
           )}
           <p style={{ fontSize: '11px', color: 'var(--text-faint)', marginTop: '12px', textAlign: 'center' }}>
-            Agent keeps 95% of tips
+            75% to artist, 20% to royalty pool
           </p>
         </div>
       </div>
