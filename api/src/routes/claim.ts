@@ -88,7 +88,10 @@ async function getUserById(userId: string, bearerToken: string): Promise<XUser |
   })
   
   if (!res.ok) {
-    console.error('X API user lookup error:', res.status, await res.text())
+    const errorText = await res.text()
+    console.error('X API user lookup error:', res.status, errorText)
+    // Store error for debugging
+    ;(getUserById as any).lastError = { status: res.status, body: errorText }
     return null
   }
   
@@ -264,23 +267,29 @@ claimRoute.post('/verify', async (c) => {
       }, 400)
     }
 
-    // Get user info for the tweet author
-    const authorId = tweets[0].author_id
-    xUser = await getUserById(authorId, bearerToken)
+    // Get user info - try by username first (more reliable), fall back to author_id
+    xUser = await getUser(xHandle, bearerToken)
+    
+    if (!xUser) {
+      // Fall back to author_id lookup
+      const authorId = tweets[0].author_id
+      xUser = await getUserById(authorId, bearerToken)
+    }
 
     if (!xUser) {
       return c.json({
         error: 'USER_LOOKUP_FAILED',
         message: 'Could not look up X user',
-        hint: 'Try again in a moment'
+        hint: 'Try again in a moment',
+        debug: { searched_handle: xHandle, tweet_author_id: tweets[0].author_id }
       }, 500)
     }
 
-    // Verify the handle matches
+    // Verify the handle matches what was tweeted
     if (xUser.username.toLowerCase() !== xHandle) {
       return c.json({
         error: 'HANDLE_MISMATCH',
-        message: `Tweet was posted by @${xUser.username}, not @${xHandle}`,
+        message: `Provided handle @${xHandle} doesn't match tweet author @${xUser.username}`,
         hint: 'Make sure you provided the correct X handle'
       }, 400)
     }
