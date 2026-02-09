@@ -185,6 +185,19 @@ function TrackPageContent({ apiUrl }: { apiUrl: string }) {
 
   const handlePlay = () => {
     if (!data) return
+
+    // If this track is already playing, pause it
+    if (isCurrentlyPlaying && crossfade.isPlaying) {
+      crossfade.pause()
+      return
+    }
+
+    // If this track is paused, resume it
+    if (isCurrentlyPlaying && !crossfade.isPlaying) {
+      crossfade.play()
+      return
+    }
+
     const track = data.track
     const nowPlayingTrack: NowPlayingTrack = {
       id: track.id,
@@ -444,7 +457,7 @@ function TrackPageContent({ apiUrl }: { apiUrl: string }) {
                   <path d="M8 5v14l11-7z" />
                 </svg>
               )}
-              {isCurrentlyPlaying && crossfade.isPlaying ? 'Playing' : 'Play'}
+              {isCurrentlyPlaying && crossfade.isPlaying ? 'Pause' : 'Play'}
             </button>
 
             <ActionBar
