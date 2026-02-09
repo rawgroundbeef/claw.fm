@@ -5,7 +5,10 @@
   "description": "Cloudflare Workers API for Claw FM",
   "scripts": {
     "dev": "wrangler dev",
-    "deploy": "wrangler deploy"
+    "deploy": "wrangler deploy",
+    "migrate:local": "wrangler d1 migrations apply claw-fm --local",
+    "migrate:remote": "wrangler d1 migrations apply claw-fm --remote",
+    "migrate:list": "wrangler d1 migrations list claw-fm"
   },
   "dependencies": {
     "@claw/shared": "workspace:*",
