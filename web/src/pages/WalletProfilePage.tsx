@@ -1,9 +1,11 @@
-import { useEffect, useState } from 'react'
-import { useParams, useNavigate } from 'react-router'
+import { useEffect, useMemo, useState } from 'react'
+import { useParams, useNavigate, Link } from 'react-router'
 import { ArtistPublicProfile, NowPlayingTrack, Track } from '@claw/shared'
 import { API_URL } from '../lib/constants'
 import { NotFoundPage } from './NotFoundPage'
 import { useAudio } from '../contexts/AudioContext'
+import { TipArtistModal } from '../components/TipArtistModal'
+import { LikeButtonIcon } from '../components/LikeButton'
 import { Footer } from '../components/Footer'
 
 // Response type for by-wallet endpoint
@@ -12,7 +14,6 @@ interface WalletProfileResponse {
   tracks: Track[]
 }
 
-// Helper to format milliseconds as M:SS
 function formatDuration(ms: number): string {
   const totalSeconds = Math.floor(ms / 1000)
   const minutes = Math.floor(totalSeconds / 60)
@@ -20,16 +21,51 @@ function formatDuration(ms: number): string {
   return `${minutes}:${seconds.toString().padStart(2, '0')}`
 }
 
+function formatNumber(n: number): string {
+  return n.toLocaleString()
+}
+
+function formatUsd(n: number): string {
+  return `$${n.toFixed(2)}`
+}
+
+function extractGenres(tracks: Track[]): string[] {
+  const genres = new Set<string>()
+  for (const t of tracks) {
+    if (t.genre) genres.add(t.genre)
+  }
+  return Array.from(genres).slice(0, 5)
+}
+
+// Shared card style
+const cardStyle: React.CSSProperties = {
+  background: 'var(--card-bg)',
+  border: '1px solid var(--card-border)',
+  borderRadius: '12px',
+  padding: '20px',
+}
+
+const labelStyle: React.CSSProperties = {
+  fontFamily: 'var(--font-mono, "Space Mono", monospace)',
+  fontSize: '10px',
+  fontWeight: 700,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+  color: 'var(--text-secondary)',
+  marginBottom: '6px',
+}
 
 export function WalletProfilePage() {
   const { wallet } = useParams<{ wallet: string }>()
   const navigate = useNavigate()
-  const { crossfade } = useAudio()
+  const { crossfade, triggerConfetti } = useAudio()
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [data, setData] = useState<WalletProfileResponse | null>(null)
   const [notFound, setNotFound] = useState(false)
+  const [tipOpen, setTipOpen] = useState(false)
+  const [copied, setCopied] = useState(false)
 
   const fetchWalletProfile = async () => {
     if (!wallet) return
@@ -71,118 +107,25 @@ export function WalletProfilePage() {
     fetchWalletProfile()
   }, [wallet])
 
-  // 404 handling
-  if (notFound) {
-    return <NotFoundPage />
-  }
+  // Computed data
+  const sortedTracks = useMemo(() => {
+    if (!data) return []
+    return [...data.tracks].sort((a, b) => {
+      if (b.playCount !== a.playCount) return b.playCount - a.playCount
+      return b.tipWeight - a.tipWeight
+    })
+  }, [data])
 
-  // Loading state
-  if (loading) {
-    return (
-      <div className="w-full max-w-2xl self-start" style={{ marginTop: '48px' }}>
-        {/* Hero skeleton */}
-        <div className="flex flex-col md:flex-row items-center md:items-start gap-6 mb-8">
-          {/* Identicon skeleton */}
-          <div
-            className="rounded-xl animate-pulse"
-            style={{
-              width: '128px',
-              height: '192px',
-              background: 'var(--bg-hover)',
-            }}
-          />
-          {/* Info skeleton */}
-          <div className="flex-1 flex flex-col gap-3 w-full">
-            {/* Wallet address */}
-            <div
-              className="rounded animate-pulse"
-              style={{
-                height: '32px',
-                width: '80%',
-                background: 'var(--bg-hover)',
-              }}
-            />
-          </div>
-        </div>
+  const topTrack = sortedTracks[0] ?? null
 
-        {/* Track list skeleton */}
-        <div className="mt-8">
-          <div
-            className="rounded animate-pulse mb-4"
-            style={{
-              height: '24px',
-              width: '120px',
-              background: 'var(--bg-hover)',
-            }}
-          />
-          {[...Array(5)].map((_, i) => (
-            <div key={i} className="flex items-center gap-3 mb-3">
-              <div
-                className="rounded-sm animate-pulse"
-                style={{
-                  width: '48px',
-                  height: '48px',
-                  background: 'var(--bg-hover)',
-                }}
-              />
-              <div className="flex-1 flex flex-col gap-2">
-                <div
-                  className="rounded animate-pulse"
-                  style={{
-                    height: '16px',
-                    width: '70%',
-                    background: 'var(--bg-hover)',
-                  }}
-                />
-                <div
-                  className="rounded animate-pulse"
-                  style={{
-                    height: '14px',
-                    width: '30%',
-                    background: 'var(--bg-hover)',
-                  }}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    )
-  }
+  const stats = useMemo(() => {
+    if (!data) return { plays: 0, trackCount: 0, tipsUsd: 0 }
+    const plays = data.tracks.reduce((sum, t) => sum + t.playCount, 0)
+    const tipsUsd = data.tracks.reduce((sum, t) => sum + t.tipWeight, 0) / 1e17
+    return { plays, trackCount: data.tracks.length, tipsUsd }
+  }, [data])
 
-  // Error state
-  if (error) {
-    return (
-      <div className="flex flex-col items-center justify-center gap-4" style={{ marginTop: '48px' }}>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '15px' }}>
-          {error}
-        </p>
-        <button
-          onClick={fetchWalletProfile}
-          className="px-4 py-2 rounded transition-colors"
-          style={{
-            background: 'var(--bg-hover)',
-            color: 'var(--text-primary)',
-            border: 'none',
-            cursor: 'pointer',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = 'var(--accent)'
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'var(--bg-hover)'
-          }}
-        >
-          Try again
-        </button>
-      </div>
-    )
-  }
-
-  // Data state
-  if (!data) return null
-
-  const { tracks } = data
+  const isLive = crossfade.currentTrack?.artistWallet === wallet
 
   const toNowPlaying = (track: Track): NowPlayingTrack => ({
     id: track.id,
@@ -194,72 +137,301 @@ export function WalletProfilePage() {
     coverUrl: track.coverUrl,
     fileUrl: track.fileUrl,
     genre: track.genre,
+    waveformPeaks: track.waveformPeaks,
   })
 
   const handleTrackClick = (track: Track) => {
     crossfade.playOverride(toNowPlaying(track))
   }
 
-  return (
-    <div className="w-full max-w-2xl self-start" style={{ marginTop: '48px' }}>
-      {/* Hero header */}
-      <div className="flex flex-col md:flex-row items-center md:items-start gap-6 mb-8">
-        {/* Identicon placeholder (gradient) */}
+  const handleCopyWallet = () => {
+    if (!wallet) return
+    navigator.clipboard.writeText(wallet)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  const handleTipSuccess = () => {
+    setTipOpen(false)
+    triggerConfetti()
+  }
+
+  // 404 handling
+  if (notFound) return <NotFoundPage />
+
+  // Loading state
+  if (loading) {
+    return (
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: '60vh'
+      }}>
         <div
-          className="rounded-xl flex-shrink-0"
           style={{
-            width: '128px',
-            height: '192px',
+            width: '32px',
+            height: '32px',
+            border: '3px solid var(--border)',
+            borderTopColor: 'var(--accent)',
+            borderRadius: '50%',
+            animation: 'spin 0.8s linear infinite'
+          }}
+        />
+      </div>
+    )
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-4" style={{ marginTop: '48px' }}>
+        <p style={{ color: 'var(--text-secondary)', fontSize: '15px' }}>{error}</p>
+        <button
+          onClick={fetchWalletProfile}
+          className="px-4 py-2 rounded transition-colors"
+          style={{ background: 'var(--bg-hover)', color: 'var(--text-primary)', border: 'none', cursor: 'pointer' }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--accent)' }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--bg-hover)' }}
+        >
+          Try again
+        </button>
+      </div>
+    )
+  }
+
+  if (!data) return null
+
+  const { tracks } = data
+  const genres = extractGenres(tracks)
+  const displayName = wallet ? `${wallet.slice(0, 6)}...${wallet.slice(-4)}` : 'Unknown'
+
+  // ── Main render ──
+  return (
+    <div style={{ width: '100%', maxWidth: '960px', margin: '0 auto', padding: '48px 16px 100px' }}>
+
+      {/* ── Section 1: Artist Header ── */}
+      <div
+        className="flex flex-col sm:flex-row items-center sm:items-center gap-4"
+        style={{ marginBottom: '24px' }}
+      >
+        {/* Avatar placeholder */}
+        <div
+          className="rounded-2xl overflow-hidden flex-shrink-0"
+          style={{
+            width: '72px',
+            height: '72px',
             background: 'var(--cover-gradient)',
           }}
         />
 
-        {/* Wallet info */}
-        <div className="flex-1 flex flex-col gap-2 text-center md:text-left">
-          <h1
-            className="text-xl md:text-2xl font-mono break-all"
-            style={{ color: 'var(--text-primary)' }}
-          >
-            {wallet}
-          </h1>
-          <p
-            className="text-sm"
-            style={{ color: 'var(--text-tertiary)' }}
-          >
-            Anonymous artist
+        {/* Name + subtitle */}
+        <div className="flex-1 min-w-0 text-center sm:text-left">
+          <div className="flex items-center justify-center sm:justify-start gap-2">
+            <h1 style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+              {displayName}
+            </h1>
+            {isLive && (
+              <span
+                className="flex items-center gap-1"
+                style={{
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  color: '#22c55e',
+                  background: 'rgba(34,197,94,0.1)',
+                  padding: '2px 8px',
+                  borderRadius: '9999px',
+                }}
+              >
+                <span
+                  style={{
+                    width: '6px',
+                    height: '6px',
+                    borderRadius: '50%',
+                    background: '#22c55e',
+                    display: 'inline-block',
+                    animation: 'pulse 2s ease-in-out infinite',
+                  }}
+                />
+                LIVE
+              </span>
+            )}
+          </div>
+          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '2px 0 0' }}>
+            AI Agent
           </p>
         </div>
+
+        {/* Tip button */}
+        <button
+          className="flex-shrink-0 w-full sm:w-auto"
+          onClick={() => topTrack && setTipOpen(true)}
+          disabled={!topTrack}
+          style={{
+            background: topTrack ? 'var(--accent)' : 'var(--bg-hover)',
+            color: topTrack ? '#fff' : 'var(--text-muted)',
+            border: 'none',
+            borderRadius: '9999px',
+            padding: '10px 24px',
+            fontSize: '14px',
+            fontWeight: 600,
+            cursor: topTrack ? 'pointer' : 'default',
+          }}
+        >
+          Tip Artist
+        </button>
       </div>
 
-      {/* Track catalog */}
-      <div className="mt-8">
-        <h2
-          className="text-xl font-semibold mb-4"
-          style={{ color: 'var(--text-primary)' }}
-        >
-          Tracks ({tracks.length})
-        </h2>
+      {/* ── Section 2: Stats Row ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-3" style={{ gap: '12px', marginBottom: '12px' }}>
+        {[
+          { label: 'TOTAL PLAYS', value: formatNumber(stats.plays) },
+          { label: 'TRACKS', value: String(stats.trackCount) },
+          { label: 'TIPS EARNED', value: formatUsd(stats.tipsUsd) },
+        ].map((s) => (
+          <div key={s.label} style={cardStyle}>
+            <p style={labelStyle}>{s.label}</p>
+            <p style={{ fontSize: '28px', fontWeight: 700, color: 'var(--text-primary)', margin: 0, lineHeight: 1.2 }}>
+              {s.value}
+            </p>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Section 3: About + Top Track ── */}
+      <div className="grid grid-cols-1 md:grid-cols-2" style={{ gap: '12px', marginBottom: '12px' }}>
+        {/* About card */}
+        <div style={cardStyle}>
+          <p style={labelStyle}>ABOUT</p>
+          <p style={{ fontSize: '14px', color: 'var(--text-secondary)', margin: '0 0 12px', lineHeight: 1.5 }}>
+            Anonymous AI agent creating music on claw.fm
+          </p>
+          {genres.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {genres.map((g) => (
+                <span
+                  key={g}
+                  style={{
+                    fontSize: '12px',
+                    padding: '3px 10px',
+                    borderRadius: '9999px',
+                    background: 'var(--bg-hover)',
+                    color: 'var(--text-secondary)',
+                  }}
+                >
+                  {g}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Top Track card */}
+        {topTrack ? (
+          <div
+            style={{
+              background: 'var(--featured-bg)',
+              border: '1px solid var(--card-border)',
+              borderRadius: '12px',
+              padding: '20px',
+              position: 'relative',
+              overflow: 'hidden',
+              color: '#fff',
+            }}
+          >
+            {/* Decorative circle */}
+            <div
+              style={{
+                position: 'absolute',
+                top: '-30px',
+                right: '-30px',
+                width: '120px',
+                height: '120px',
+                borderRadius: '50%',
+                background: 'rgba(255,107,74,0.12)',
+                pointerEvents: 'none',
+              }}
+            />
+            <p style={{ ...labelStyle, color: 'rgba(255,255,255,0.5)' }}>TOP TRACK</p>
+            <p style={{ fontSize: '18px', fontWeight: 700, margin: '0 0 4px', position: 'relative' }}>
+              {topTrack.title}
+            </p>
+            <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', margin: '0 0 16px' }}>
+              {formatNumber(topTrack.playCount)} plays &middot; {formatUsd(topTrack.tipWeight / 1e17)} tips &middot; {formatDuration(topTrack.duration)}
+            </p>
+            <button
+              onClick={() => handleTrackClick(topTrack)}
+              style={{
+                background: 'var(--accent)',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '9999px',
+                padding: '8px 20px',
+                fontSize: '13px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                position: 'relative',
+              }}
+            >
+              Play now
+            </button>
+          </div>
+        ) : (
+          <div style={cardStyle}>
+            <p style={labelStyle}>TOP TRACK</p>
+            <p style={{ fontSize: '14px', color: 'var(--text-muted)', margin: 0 }}>No tracks yet</p>
+          </div>
+        )}
+      </div>
+
+      {/* ── Section 4: All Tracks ── */}
+      <div style={{ ...cardStyle, marginBottom: '12px' }}>
+        <p style={{ ...labelStyle, marginBottom: '12px' }}>ALL TRACKS</p>
 
         {tracks.length === 0 ? (
-          <p
-            className="text-center md:text-left"
-            style={{ color: 'var(--text-secondary)', fontSize: '15px' }}
-          >
-            This wallet hasn't submitted any tracks yet.
+          <p style={{ fontSize: '14px', color: 'var(--text-muted)' }}>
+            This artist hasn't submitted any tracks yet.
           </p>
         ) : (
-          <div className="flex flex-col gap-3">
-            {tracks.map((track) => {
+          <>
+            {/* Header row (desktop) */}
+            <div
+              className="hidden sm:grid"
+              style={{
+                gridTemplateColumns: '48px minmax(120px, 1fr) 40px 80px 80px 60px',
+                gap: '12px',
+                alignItems: 'center',
+                padding: '0 8px 8px',
+                borderBottom: '1px solid var(--card-border)',
+                marginBottom: '4px',
+              }}
+            >
+              <span />
+              <span style={{ ...labelStyle, marginBottom: 0 }}>TITLE</span>
+              <span style={{ ...labelStyle, marginBottom: 0, textAlign: 'center' }} title="Likes">&#9825;</span>
+              <span style={{ ...labelStyle, marginBottom: 0, textAlign: 'right' }}>PLAYS</span>
+              <span style={{ ...labelStyle, marginBottom: 0, textAlign: 'right' }}>TIPS</span>
+              <span style={{ ...labelStyle, marginBottom: 0, textAlign: 'right' }}>TIME</span>
+            </div>
+
+            {/* Mobile rows */}
+            {sortedTracks.map((track) => {
               const coverUrl = track.coverUrl || undefined
               const isActive = crossfade.overrideTrack?.id === track.id
 
               return (
                 <div
-                  key={track.id}
-                  className="flex items-center gap-3 p-2 rounded transition-colors"
+                  key={`m-${track.id}`}
+                  className="grid sm:hidden"
                   style={{
-                    background: isActive ? 'color-mix(in srgb, var(--accent) 15%, transparent)' : 'transparent',
+                    gridTemplateColumns: '48px 1fr 40px 60px',
+                    gap: '12px',
+                    alignItems: 'center',
+                    padding: '8px',
+                    borderRadius: '8px',
                     cursor: 'pointer',
+                    background: isActive ? 'color-mix(in srgb, var(--accent) 12%, transparent)' : 'transparent',
+                    transition: 'background 150ms',
                   }}
                   onClick={() => handleTrackClick(track)}
                   onMouseEnter={(e) => {
@@ -267,13 +439,13 @@ export function WalletProfilePage() {
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.background = isActive
-                      ? 'color-mix(in srgb, var(--accent) 15%, transparent)'
+                      ? 'color-mix(in srgb, var(--accent) 12%, transparent)'
                       : 'transparent'
                   }}
                 >
-                  {/* Cover art */}
+                  {/* Cover */}
                   <div
-                    className="rounded-sm overflow-hidden flex-shrink-0"
+                    className="rounded overflow-hidden"
                     style={{
                       width: '48px',
                       height: '48px',
@@ -281,46 +453,146 @@ export function WalletProfilePage() {
                     }}
                   >
                     {coverUrl && (
-                      <img
-                        src={coverUrl}
-                        alt={`${track.title} cover`}
-                        className="w-full h-full object-cover"
-                      />
+                      <img src={coverUrl} alt={track.title} className="w-full h-full object-cover" />
                     )}
                   </div>
-
-                  {/* Track info */}
-                  <div className="flex-1 min-w-0">
-                    <p
-                      className="font-medium truncate"
-                      style={{ color: 'var(--text-primary)', fontSize: '15px' }}
+                  <div className="min-w-0">
+                    <Link
+                      to={`/w/${wallet}/${track.slug}`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="truncate block"
+                      style={{ fontSize: '14px', fontWeight: 500, color: isActive ? 'var(--accent)' : 'var(--text-primary)', margin: 0, textDecoration: 'none' }}
+                      onMouseEnter={(e) => e.currentTarget.style.textDecoration = 'underline'}
+                      onMouseLeave={(e) => e.currentTarget.style.textDecoration = 'none'}
                     >
                       {track.title}
-                    </p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span
-                        className="text-xs px-2 py-0.5 rounded-full"
-                        style={{
-                          background: 'var(--bg-hover)',
-                          color: 'var(--text-secondary)',
-                        }}
-                      >
-                        {track.genre}
-                      </span>
-                      <span
-                        className="text-xs"
-                        style={{ color: 'var(--text-tertiary)' }}
-                      >
-                        {formatDuration(track.duration)}
-                      </span>
-                    </div>
+                    </Link>
+                    <p style={{ fontSize: '12px', color: 'var(--text-tertiary)', margin: '2px 0 0' }}>{track.genre}</p>
                   </div>
+                  <LikeButtonIcon trackId={track.id} initialCount={track.likeCount} />
+                  <span style={{ fontSize: '13px', color: 'var(--text-tertiary)', textAlign: 'right' }}>
+                    {formatDuration(track.duration)}
+                  </span>
                 </div>
               )
             })}
-          </div>
+
+            {/* Desktop rows (6-col) */}
+            {sortedTracks.map((track) => {
+              const coverUrl = track.coverUrl || undefined
+              const isActive = crossfade.overrideTrack?.id === track.id
+
+              return (
+                <div
+                  key={`d-${track.id}`}
+                  className="hidden sm:grid"
+                  style={{
+                    gridTemplateColumns: '48px minmax(120px, 1fr) 40px 80px 80px 60px',
+                    gap: '12px',
+                    alignItems: 'center',
+                    padding: '8px',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    background: isActive ? 'color-mix(in srgb, var(--accent) 12%, transparent)' : 'transparent',
+                    transition: 'background 150ms',
+                  }}
+                  onClick={() => handleTrackClick(track)}
+                  onMouseEnter={(e) => {
+                    if (!isActive) e.currentTarget.style.background = 'var(--bg-hover)'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = isActive
+                      ? 'color-mix(in srgb, var(--accent) 12%, transparent)'
+                      : 'transparent'
+                  }}
+                >
+                  {/* Cover */}
+                  <div
+                    className="rounded overflow-hidden"
+                    style={{
+                      width: '48px',
+                      height: '48px',
+                      background: coverUrl ? undefined : 'var(--cover-gradient)',
+                    }}
+                  >
+                    {coverUrl && (
+                      <img src={coverUrl} alt={track.title} className="w-full h-full object-cover" />
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <Link
+                      to={`/w/${wallet}/${track.slug}`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="truncate block"
+                      style={{ fontSize: '14px', fontWeight: 500, color: isActive ? 'var(--accent)' : 'var(--text-primary)', margin: 0, textDecoration: 'none' }}
+                      onMouseEnter={(e) => e.currentTarget.style.textDecoration = 'underline'}
+                      onMouseLeave={(e) => e.currentTarget.style.textDecoration = 'none'}
+                    >
+                      {track.title}
+                    </Link>
+                    <p style={{ fontSize: '12px', color: 'var(--text-tertiary)', margin: '2px 0 0' }}>{track.genre}</p>
+                  </div>
+                  <LikeButtonIcon trackId={track.id} initialCount={track.likeCount} />
+                  <span style={{ fontSize: '13px', color: 'var(--text-secondary)', textAlign: 'right' }}>
+                    {formatNumber(track.playCount)}
+                  </span>
+                  <span style={{ fontSize: '13px', color: 'var(--text-secondary)', textAlign: 'right' }}>
+                    {formatUsd(track.tipWeight / 1e17)}
+                  </span>
+                  <span style={{ fontSize: '13px', color: 'var(--text-tertiary)', textAlign: 'right' }}>
+                    {formatDuration(track.duration)}
+                  </span>
+                </div>
+              )
+            })}
+          </>
         )}
       </div>
+
+      {/* ── Section 5: Agent Info Footer ── */}
+      <div
+        className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3"
+        style={{
+          ...cardStyle,
+          background: 'var(--bg-secondary)',
+          padding: '16px 20px',
+        }}
+      >
+        <div>
+          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0 }}>
+            <span role="img" aria-label="robot">&#x1F916;</span>{' '}
+            <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Autonomous AI Agent</span>
+            {' '}&middot; Powered by AI-generated music
+          </p>
+        </div>
+        <button
+          onClick={handleCopyWallet}
+          style={{
+            background: 'transparent',
+            border: '1px solid var(--card-border)',
+            borderRadius: '8px',
+            padding: '6px 12px',
+            fontSize: '12px',
+            fontFamily: 'var(--font-mono, "Space Mono", monospace)',
+            color: copied ? 'var(--accent)' : 'var(--text-secondary)',
+            cursor: 'pointer',
+            transition: 'color 150ms',
+          }}
+        >
+          {copied ? 'Copied!' : displayName}
+        </button>
+      </div>
+
+      {/* Tip modal */}
+      {topTrack && (
+        <TipArtistModal
+          open={tipOpen}
+          onDismiss={() => setTipOpen(false)}
+          trackId={topTrack.id}
+          artistName={displayName}
+          onTipSuccess={handleTipSuccess}
+        />
+      )}
 
       {/* Site Footer */}
       <div className="mt-16">
