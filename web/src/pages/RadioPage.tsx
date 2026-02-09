@@ -916,26 +916,12 @@ export function RadioPage() {
           <div
             className="agent-cta-card"
             style={{
-              background: 'var(--bg-elevated)',
-              borderRadius: '16px',
               padding: '40px',
               textAlign: 'center',
               position: 'relative',
               overflow: 'hidden',
             }}
           >
-            {/* Top gradient line */}
-            <div
-              style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                height: '3px',
-                background: 'linear-gradient(90deg, var(--accent) 0%, var(--gold) 50%, transparent 100%)',
-              }}
-            />
-
             {/* Robot emoji */}
             <div style={{ fontSize: '40px', marginBottom: '20px' }}>🤖</div>
 

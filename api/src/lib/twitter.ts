@@ -131,6 +131,7 @@ export async function postTweet(
   config: TwitterConfig
 ): Promise<TweetResult> {
   const url = 'https://api.twitter.com/2/tweets'
+  console.log('Posting tweet:', text.substring(0, 50) + '...')
 
   console.log('[Twitter] Attempting to post tweet:', text.substring(0, 50) + '...')
   console.log('[Twitter] Using API key:', config.apiKey?.substring(0, 8) + '...')

@@ -44,22 +44,40 @@ interface XTweet {
   author_id: string
 }
 
-async function searchTweets(query: string, bearerToken: string): Promise<XTweet[]> {
+interface TweetSearchResult {
+  tweets: XTweet[]
+  users: Map<string, XUser>
+}
+
+async function searchTweets(query: string, bearerToken: string): Promise<TweetSearchResult> {
   const url = new URL('https://api.x.com/2/tweets/search/recent')
   url.searchParams.set('query', query)
   url.searchParams.set('max_results', '10')
-  
+  url.searchParams.set('expansions', 'author_id')
+  url.searchParams.set('user.fields', 'profile_image_url,public_metrics')
+
   const res = await fetch(url.toString(), {
     headers: { 'Authorization': `Bearer ${bearerToken}` }
   })
-  
+
   if (!res.ok) {
     console.error('X API search error:', res.status, await res.text())
-    return []
+    return { tweets: [], users: new Map() }
   }
-  
-  const data = await res.json() as { data?: XTweet[] }
-  return data.data || []
+
+  const data = await res.json() as {
+    data?: XTweet[]
+    includes?: { users?: XUser[] }
+  }
+
+  const users = new Map<string, XUser>()
+  if (data.includes?.users) {
+    for (const user of data.includes.users) {
+      users.set(user.id, user)
+    }
+  }
+
+  return { tweets: data.data || [], users }
 }
 
 async function getUser(username: string, bearerToken: string): Promise<XUser | null> {
@@ -88,10 +106,7 @@ async function getUserById(userId: string, bearerToken: string): Promise<XUser |
   })
   
   if (!res.ok) {
-    const errorText = await res.text()
-    console.error('X API user lookup error:', res.status, errorText)
-    // Store error for debugging
-    ;(getUserById as any).lastError = { status: res.status, body: errorText }
+    console.error('X API user lookup error:', res.status, await res.text())
     return null
   }
   
@@ -256,9 +271,9 @@ claimRoute.post('/verify', async (c) => {
 
   // If we have X API access, actually verify the tweet
   if (bearerToken) {
-    // Search for tweets containing the verification code
-    const tweets = await searchTweets(`"${claim.verification_code}" @claw_fm`, bearerToken)
-    
+    // Search for tweets containing the verification code (includes user data via expansions)
+    const { tweets, users } = await searchTweets(`"${claim.verification_code}" @claw_fm`, bearerToken)
+
     if (tweets.length === 0) {
       return c.json({
         error: 'TWEET_NOT_FOUND',
@@ -267,29 +282,23 @@ claimRoute.post('/verify', async (c) => {
       }, 400)
     }
 
-    // Get user info - try by username first (more reliable), fall back to author_id
-    xUser = await getUser(xHandle, bearerToken)
-    
-    if (!xUser) {
-      // Fall back to author_id lookup
-      const authorId = tweets[0].author_id
-      xUser = await getUserById(authorId, bearerToken)
-    }
+    // Get user info from the included user data (no separate API call needed)
+    const authorId = tweets[0].author_id
+    xUser = users.get(authorId) || null
 
     if (!xUser) {
       return c.json({
         error: 'USER_LOOKUP_FAILED',
-        message: 'Could not look up X user',
-        hint: 'Try again in a moment',
-        debug: { searched_handle: xHandle, tweet_author_id: tweets[0].author_id }
+        message: 'Could not look up X user from tweet data',
+        hint: 'Try again in a moment'
       }, 500)
     }
 
-    // Verify the handle matches what was tweeted
+    // Verify the handle matches
     if (xUser.username.toLowerCase() !== xHandle) {
       return c.json({
         error: 'HANDLE_MISMATCH',
-        message: `Provided handle @${xHandle} doesn't match tweet author @${xUser.username}`,
+        message: `Tweet was posted by @${xUser.username}, not @${xHandle}`,
         hint: 'Make sure you provided the correct X handle'
       }, 400)
     }

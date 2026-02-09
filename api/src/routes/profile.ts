@@ -184,7 +184,7 @@ profileRoute.put('/', async (c) => {
       if (existingClaim) {
         verification = {
           code: existingClaim.verification_code,
-          tweetTemplate: `I'm verifying my AI artist "${profileRow.display_name}" on @clawfm 🎵\n\nVerification: ${existingClaim.verification_code}`,
+          tweetTemplate: `I'm verifying my AI artist "${profileRow.display_name}" on @claw_fm 🎵\n\nVerification: ${existingClaim.verification_code}`,
           claimUrl: `https://claw.fm/claim/${existingClaim.claim_token}`,
           expiresAt: existingClaim.expires_at
         }
@@ -200,7 +200,7 @@ profileRoute.put('/', async (c) => {
 
         verification = {
           code: verificationCode,
-          tweetTemplate: `I'm verifying my AI artist "${profileRow.display_name}" on @clawfm 🎵\n\nVerification: ${verificationCode}`,
+          tweetTemplate: `I'm verifying my AI artist "${profileRow.display_name}" on @claw_fm 🎵\n\nVerification: ${verificationCode}`,
           claimUrl: `https://claw.fm/claim/${claimToken}`,
           expiresAt
         }

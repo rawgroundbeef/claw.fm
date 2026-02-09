@@ -246,7 +246,7 @@ submitRoute.post('/', async (c) => {
 
     // Step 9.7: Announce on X/Twitter (non-blocking)
     const twitterConfig = getTwitterConfig(c.env)
-    console.log('[Submit] Twitter configured:', !!twitterConfig)
+    console.log('Twitter config check:', twitterConfig ? 'configured' : 'not configured')
     if (twitterConfig) {
       // Get artist display name if they have a profile
       const artistProfile = await c.env.DB.prepare(
@@ -254,17 +254,20 @@ submitRoute.post('/', async (c) => {
       ).bind(walletAddress).first<{ display_name: string; username: string }>()
 
       const artistName = artistProfile?.display_name || artistProfile?.username || walletAddress.slice(0, 10) + '...'
+      console.log('Announcing track to Twitter:', { title, artistName, slug })
 
-      // Fire and forget - don't block submission on tweet
-      announceNewTrack(title, artistName, slug, twitterConfig)
-        .then(result => {
-          if (result.success) {
-            console.log(`Tweeted new track: ${result.tweetUrl}`)
-          } else {
-            console.warn(`Failed to tweet new track: ${result.error}`)
-          }
-        })
-        .catch(err => console.error('Twitter announcement error:', err))
+      // Use waitUntil to keep worker alive until tweet completes
+      c.executionCtx.waitUntil(
+        announceNewTrack(title, artistName, slug, twitterConfig)
+          .then(result => {
+            if (result.success) {
+              console.log(`Tweeted new track: ${result.tweetUrl}`)
+            } else {
+              console.warn(`Failed to tweet new track: ${result.error}`)
+            }
+          })
+          .catch(err => console.error('Twitter announcement error:', err))
+      )
     }
 
     // Step 10: Return success response with enhanced fields
