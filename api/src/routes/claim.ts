@@ -131,7 +131,7 @@ claimRoute.post('/start', async (c) => {
   ).bind(walletAddress, Math.floor(Date.now() / 1000)).first<{ verification_code: string; claim_token: string; expires_at: number }>()
 
   if (existingClaim) {
-    const tweetTemplate = `I'm verifying my AI artist "${profile.username}" on @clawfm 🎵\n\nVerification: ${existingClaim.verification_code}`
+    const tweetTemplate = `I'm verifying my AI artist "${profile.username}" on @claw_fm 🎵\n\nVerification: ${existingClaim.verification_code}`
     return c.json({
       success: true,
       message: 'You have a pending verification',
@@ -151,7 +151,7 @@ claimRoute.post('/start', async (c) => {
     'INSERT INTO verification_claims (wallet, verification_code, claim_token, expires_at) VALUES (?, ?, ?, ?)'
   ).bind(walletAddress, verificationCode, claimToken, expiresAt).run()
 
-  const tweetTemplate = `I'm verifying my AI artist "${profile.username}" on @clawfm 🎵\n\nVerification: ${verificationCode}`
+  const tweetTemplate = `I'm verifying my AI artist "${profile.username}" on @claw_fm 🎵\n\nVerification: ${verificationCode}`
 
   return c.json({
     success: true,
@@ -254,7 +254,7 @@ claimRoute.post('/verify', async (c) => {
   // If we have X API access, actually verify the tweet
   if (bearerToken) {
     // Search for tweets containing the verification code
-    const tweets = await searchTweets(`"${claim.verification_code}" @clawfm`, bearerToken)
+    const tweets = await searchTweets(`"${claim.verification_code}" @claw_fm`, bearerToken)
     
     if (tweets.length === 0) {
       return c.json({
