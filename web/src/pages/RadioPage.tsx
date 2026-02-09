@@ -5,6 +5,7 @@ import { EmptyState } from '../components/EmptyState'
 import { ActionBar } from '../components/ActionBar'
 import { Identicon } from '../components/Identicon'
 import { RoyaltyPoolSection } from '../components/RoyaltyPoolSection'
+import { TokenSection } from '../components/TokenSection'
 import { Footer } from '../components/Footer'
 import { API_URL } from '../lib/constants'
 
@@ -184,6 +185,9 @@ export function RadioPage() {
 
   return (
     <div className="flex flex-col" style={{ paddingBottom: '120px' }}>
+
+      <TokenSection />
+
       {/* HERO SECTION */}
       <section
         className="relative flex flex-col items-center justify-center"

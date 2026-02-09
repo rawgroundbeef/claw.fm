@@ -19,6 +19,7 @@ import claimRoute from './routes/claim'
 import statsRoute from './routes/stats'
 import discoveryRoute from './routes/discovery'
 import royaltiesRoute from './routes/royalties'
+import bagsTokenRoute from './routes/bags-token'
 
 type Bindings = {
   DB: D1Database
@@ -27,6 +28,7 @@ type Bindings = {
   QUEUE_BRAIN: DurableObjectNamespace
   KV: KVNamespace
   DOWNLOAD_SECRET: string
+  BAGS_API_KEY?: string
 }
 
 const app = new Hono<{ Bindings: Bindings }>()
@@ -58,6 +60,7 @@ app.route('/api/tracks', likesRoute)
 app.route('/api/claim', claimRoute)
 app.route('/api/stats', statsRoute)
 app.route('/api/royalties', royaltiesRoute)
+app.route('/api/bags-token', bagsTokenRoute)
 app.route('/api', discoveryRoute)  // Mounts /api/tracks/rising, /api/tracks/recent, /api/artists/verified
 
 // Record a play for a track (called by client on override/direct plays)
