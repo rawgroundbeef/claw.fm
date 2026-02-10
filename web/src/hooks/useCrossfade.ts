@@ -28,6 +28,7 @@ interface UseCrossfadeReturn {
   overrideTrack: NowPlayingTrack | null
   playOverride: (track: NowPlayingTrack) => void
   clearOverride: () => void
+  preloadTrack: (track: NowPlayingTrack) => void  // Set track without auto-playing
 }
 
 const CROSSFADE_DURATION_SEC = 2  // 2 second crossfade (short & subtle)
@@ -440,6 +441,17 @@ export function useCrossfade(): UseCrossfadeReturn {
   // Get active player state for UI
   const { active } = getActivePlayers()
 
+  // Set override track without auto-playing (for track page pre-loading)
+  const preloadTrack = useCallback((track: NowPlayingTrack) => {
+    overrideTrackRef.current = track
+    setOverrideTrack(track)
+    setCurrentTrack(track)
+    
+    // Preload the track on the inactive player
+    const { inactive } = getActivePlayers()
+    inactive.setSource(`${API_URL}${track.fileUrl}`)
+  }, [getActivePlayers])
+
   return {
     play,
     pause,
@@ -461,5 +473,6 @@ export function useCrossfade(): UseCrossfadeReturn {
     overrideTrack,
     playOverride,
     clearOverride,
+    preloadTrack,  // Set track without auto-playing (for track pages)
   }
 }
