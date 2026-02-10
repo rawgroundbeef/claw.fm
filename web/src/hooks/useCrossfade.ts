@@ -362,6 +362,14 @@ export function useCrossfade(): UseCrossfadeReturn {
     setHasInteracted(true)  // User has clicked play
     userPausedRef.current = false  // User intends to play
 
+    // If there's an override track (e.g., from track page), resume it instead of live radio
+    if (overrideTrackRef.current) {
+      const { active } = getActivePlayers()
+      await active.play()
+      setIsPlaying(true)
+      return
+    }
+
     if (!nowPlaying.track || !nowPlaying.startedAt) {
       console.warn('Cannot play: no track available')
       return
