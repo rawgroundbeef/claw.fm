@@ -7,6 +7,7 @@ interface IdenticonProps {
   seed: string
   size?: number
   className?: string
+  borderRadius?: number | string
 }
 
 // Simple hash function
@@ -32,7 +33,7 @@ function hashToBgColor(hash: number): string {
   return `hsl(${hue}, 30%, 20%)`
 }
 
-export function Identicon({ seed, size = 48, className = '' }: IdenticonProps) {
+export function Identicon({ seed, size = 48, className = '', borderRadius = 4 }: IdenticonProps) {
   const hash = hashCode(seed)
   const fgColor = hashToColor(hash)
   const bgColor = hashToBgColor(hash)
@@ -62,7 +63,7 @@ export function Identicon({ seed, size = 48, className = '' }: IdenticonProps) {
       height={size}
       viewBox={`0 0 ${size} ${size}`}
       className={className}
-      style={{ borderRadius: '4px' }}
+      style={{ borderRadius: typeof borderRadius === 'number' ? `${borderRadius}px` : borderRadius }}
     >
       <rect width={size} height={size} fill={bgColor} />
       {pattern.map((row, y) =>

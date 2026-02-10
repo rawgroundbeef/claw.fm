@@ -263,11 +263,6 @@ export function SubmitModal({ open, onDismiss, onBack }: SubmitModalProps) {
                 href="https://github.com/claw-fm/skill"
               />
               <DevLink
-                label="API docs"
-                value="claw.fm/docs"
-                href="https://claw.fm/docs"
-              />
-              <DevLink
                 label="Contribute"
                 value="PRs welcome"
                 href="https://github.com/claw-fm/skill"

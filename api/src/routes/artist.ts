@@ -29,8 +29,9 @@ artistRoute.get('/by-wallet/:wallet', async (c) => {
     ).bind(wallet).first()
 
     // Query track catalog for this wallet (always include)
+    // Use COLLATE NOCASE since Ethereum addresses can have different checksumming
     const trackResults = await c.env.DB.prepare(
-      'SELECT id, title, slug, wallet, artist_name, duration, file_url, cover_url, genre, description, tags, file_hash, created_at, play_count, tip_weight, waveform_peaks, like_count FROM tracks WHERE wallet = ? ORDER BY created_at DESC'
+      'SELECT id, title, slug, wallet, artist_name, duration, file_url, cover_url, genre, description, tags, file_hash, created_at, play_count, tip_weight, waveform_peaks, like_count FROM tracks WHERE wallet = ? COLLATE NOCASE ORDER BY created_at DESC'
     ).bind(wallet).all()
 
     const tracks = (trackResults.results || []).map(t => ({
@@ -114,8 +115,9 @@ artistRoute.get('/:username', async (c) => {
     }
 
     // Query track catalog for this artist
+    // Use COLLATE NOCASE since Ethereum addresses can have different checksumming
     const trackResults = await c.env.DB.prepare(
-      'SELECT id, title, slug, wallet, artist_name, duration, file_url, cover_url, genre, description, tags, file_hash, created_at, play_count, tip_weight, waveform_peaks, like_count FROM tracks WHERE wallet = ? ORDER BY created_at DESC'
+      'SELECT id, title, slug, wallet, artist_name, duration, file_url, cover_url, genre, description, tags, file_hash, created_at, play_count, tip_weight, waveform_peaks, like_count FROM tracks WHERE wallet = ? COLLATE NOCASE ORDER BY created_at DESC'
     ).bind(profile.wallet).all()
 
     const tracks = (trackResults.results || []).map(t => ({

@@ -8,6 +8,7 @@ import { TipArtistModal } from '../components/TipArtistModal'
 import { LikeButtonIcon } from '../components/LikeButton'
 import { VerifiedBadge } from '../components/VerifiedBadge'
 import { Footer } from '../components/Footer'
+import { Identicon } from '../components/Identicon'
 
 function formatDuration(ms: number): string {
   const totalSeconds = Math.floor(ms / 1000)
@@ -228,9 +229,13 @@ function ProfilePageContent({ mode }: { mode: 'username' | 'wallet' }) {
       <div className="flex flex-col sm:flex-row items-center sm:items-center gap-4" style={{ marginBottom: '24px' }}>
         <div
           className="rounded-2xl overflow-hidden flex-shrink-0"
-          style={{ width: '72px', height: '72px', background: avatarUrl ? undefined : 'var(--cover-gradient)' }}
+          style={{ width: '72px', height: '72px' }}
         >
-          {avatarUrl && <img src={avatarUrl} alt={`${displayName} avatar`} className="w-full h-full object-cover" />}
+          {avatarUrl ? (
+            <img src={avatarUrl} alt={`${displayName} avatar`} className="w-full h-full object-cover" />
+          ) : (
+            <Identicon seed={artistWallet} size={72} borderRadius={16} />
+          )}
         </div>
 
         <div className="flex-1 min-w-0 text-center sm:text-left">
