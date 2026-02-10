@@ -1,19 +1,19 @@
 import * as blockies from 'blockies-ts'
 
 /**
- * Generate a deterministic identicon from a wallet address
- * @param walletAddress - Ethereum wallet address
+ * Generate a deterministic identicon from a seed string
+ * @param seed - Any string to use as seed (e.g., wallet address, wallet+title)
  * @returns Data URL (PNG base64) of the identicon image
  */
-export function generateIdenticon(walletAddress: string): string {
+export function generateIdenticon(seed: string): string {
   // blockies-ts generates a canvas-based identicon
   // In Cloudflare Workers, we need to handle this differently
   // The library returns a data URL from the canvas
 
   try {
-    // Create identicon with normalized wallet address as seed
+    // Create identicon with normalized seed
     const iconDataUrl = blockies.create({
-      seed: walletAddress.toLowerCase(),
+      seed: seed.toLowerCase(),
       size: 8, // 8x8 grid
       scale: 8, // Each cell is 8x8 pixels, resulting in 64x64 image
     }).toDataURL()
@@ -22,17 +22,17 @@ export function generateIdenticon(walletAddress: string): string {
   } catch (error) {
     // Fallback: create a simple SVG identicon if blockies-ts fails
     // This can happen if the library requires browser APIs not available in Workers
-    return generateSvgIdenticon(walletAddress)
+    return generateSvgIdenticon(seed)
   }
 }
 
 /**
  * Fallback SVG identicon generator
- * Creates a simple deterministic SVG from wallet address hash
+ * Creates a simple deterministic SVG from any seed string
  */
-function generateSvgIdenticon(walletAddress: string): string {
-  // Generate deterministic colors from wallet address
-  const normalized = walletAddress.toLowerCase().replace(/^0x/, '')
+function generateSvgIdenticon(seed: string): string {
+  // Generate deterministic hash from seed
+  const normalized = seed.toLowerCase().split('').map(c => c.charCodeAt(0).toString(16)).join('').slice(0, 64).padEnd(64, '0')
   const hue1 = parseInt(normalized.slice(0, 2), 16)
   const hue2 = parseInt(normalized.slice(2, 4), 16)
   const saturation = 60 + (parseInt(normalized.slice(4, 6), 16) % 40)

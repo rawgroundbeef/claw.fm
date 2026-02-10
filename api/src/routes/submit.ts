@@ -163,10 +163,12 @@ submitRoute.post('/', async (c) => {
         coverUrl = imageKey
       } catch (error) {
         // If cover art upload fails, fall back to identicon
-        coverUrl = generateIdenticon(walletAddress)
+        // Use wallet + title for unique identicon per track
+        coverUrl = generateIdenticon(`${walletAddress}-${title}`)
       }
     } else {
-      coverUrl = generateIdenticon(walletAddress)
+      // No cover art provided - generate unique identicon from wallet + title
+      coverUrl = generateIdenticon(`${walletAddress}-${title}`)
     }
 
     // Step 7.5: Generate unique slug
