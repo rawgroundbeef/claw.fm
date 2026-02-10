@@ -149,11 +149,12 @@ export function RadioPage() {
   // Determine state machine
   const isWaiting = nowPlaying.state === 'waiting'
 
-  // Display artist name
+  // Display artist name (always truncate wallet addresses)
+  const rawArtistName = crossfade.currentTrack?.artistDisplayName || crossfade.currentTrack?.artistName
   const displayArtist = crossfade.currentTrack
-    ? crossfade.currentTrack.artistDisplayName ||
-      crossfade.currentTrack.artistName ||
-      `${crossfade.currentTrack.artistWallet.slice(0, 6)}...${crossfade.currentTrack.artistWallet.slice(-4)}`
+    ? (rawArtistName && !rawArtistName.startsWith('0x')
+        ? rawArtistName
+        : `${crossfade.currentTrack.artistWallet.slice(0, 6)}...${crossfade.currentTrack.artistWallet.slice(-4)}`)
     : ''
 
   // Artist link
@@ -287,8 +288,9 @@ export function RadioPage() {
                 border: '1px solid var(--border)',
                 borderRadius: '16px',
                 padding: '20px',
-                minWidth: '380px',
-                maxWidth: '100%',
+                minWidth: '320px',
+                maxWidth: '420px',
+                width: '100%',
                 cursor: crossfade.isPlaying ? 'default' : 'pointer',
                 transition: 'border-color 0.3s, box-shadow 0.3s',
                 opacity: 0,
@@ -358,11 +360,15 @@ export function RadioPage() {
                 <Link
                   to={artistPath}
                   onClick={(e) => e.stopPropagation()}
-                  className="transition-colors"
+                  className="transition-colors block"
                   style={{
                     fontSize: '13px',
                     color: 'var(--text-secondary)',
                     textDecoration: 'none',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    maxWidth: '100%',
                   }}
                   onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
                   onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-secondary)')}
