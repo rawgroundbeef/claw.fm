@@ -6,6 +6,7 @@ import { ActionBar } from '../components/ActionBar'
 import { Identicon } from '../components/Identicon'
 import { RoyaltyPoolSection } from '../components/RoyaltyPoolSection'
 import { Footer } from '../components/Footer'
+import { ShaderBackground } from '../components/ShaderBackground'
 import { API_URL } from '../lib/constants'
 
 interface Stats {
@@ -85,7 +86,7 @@ const sectionTitleStyle: React.CSSProperties = {
 
 export function RadioPage() {
   const navigate = useNavigate()
-  const { nowPlaying, crossfade, triggerConfetti, openModal } = useAudio()
+  const { nowPlaying, crossfade, triggerConfetti, openModal, theme } = useAudio()
   const [coverError, setCoverError] = useState(false)
   const [stats, setStats] = useState<Stats | null>(null)
   const [risingTracks, setRisingTracks] = useState<RisingTrack[]>([])
@@ -175,15 +176,14 @@ export function RadioPage() {
           height: 'calc(100vh - 180px)',
           minHeight: '500px',
           padding: '24px',
-          overflow: 'hidden',
         }}
       >
-        {/* Background glow */}
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            background: 'radial-gradient(ellipse 600px 600px at center 30%, var(--accent-dim) 0%, transparent 70%)',
-          }}
+        {/* Animated shader background */}
+        <ShaderBackground
+          variant="neuro-noise"
+          theme={theme}
+          height="100%"
+          speed={0.12}
         />
 
         {isWaiting ? (

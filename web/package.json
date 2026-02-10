@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@claw/shared": "workspace:*",
+    "@paper-design/shaders-react": "^0.0.71",
     "@x402/core": "^2.2.0",
     "@x402/evm": "^2.2.0",
     "@x402/fetch": "^2.2.0",
