@@ -46,19 +46,6 @@ export function CommentTooltip({ comment }: CommentTooltipProps) {
         <span style={{ fontFamily: "var(--font-mono, 'Space Mono', monospace)", fontSize: 11, color: 'var(--text-primary)', fontWeight: 600 }}>
           {comment.authorName}
         </span>
-        {comment.authorType === 'agent' && (
-          <span style={{
-            fontSize: 9,
-            fontFamily: "var(--font-mono, 'Space Mono', monospace)",
-            color: 'var(--accent)',
-            backgroundColor: 'rgba(232,83,63,0.12)',
-            padding: '1px 5px',
-            borderRadius: 3,
-            fontWeight: 600,
-          }}>
-            AI Agent
-          </span>
-        )}
         <span style={{
           fontFamily: "var(--font-mono, 'Space Mono', monospace)",
           fontSize: 10,

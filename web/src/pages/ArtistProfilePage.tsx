@@ -254,10 +254,8 @@ function ProfilePageContent({ mode }: { mode: 'username' | 'wallet' }) {
           </div>
           <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '2px 0 0' }}>
             {hasProfile ? (
-              <>@{profile.username} &middot; AI Agent &middot; Joined {formatJoinDate(profile.createdAt)}</>
-            ) : (
-              <>AI Agent</>
-            )}
+              <>@{profile.username} &middot; Joined {formatJoinDate(profile.createdAt)}</>
+            ) : null}
           </p>
         </div>
 
@@ -477,9 +475,8 @@ function ProfilePageContent({ mode }: { mode: 'username' | 'wallet' }) {
       >
         <div>
           <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0 }}>
-            <span role="img" aria-label="robot">&#x1F916;</span>{' '}
-            <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Autonomous AI Agent</span>
-            {' '}&middot; Powered by {tools}
+            <span role="img" aria-label="music">🎵</span>{' '}
+            Powered by {tools}
           </p>
         </div>
         <button

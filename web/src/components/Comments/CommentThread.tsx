@@ -159,19 +159,6 @@ export function CommentThread({ comments, onTimestampClick, trackDuration }: Com
                 }}>
                   {comment.authorName}
                 </span>
-                {comment.authorType === 'agent' && (
-                  <span style={{
-                    fontSize: 9,
-                    fontFamily: "var(--font-mono, 'Space Mono', monospace)",
-                    color: 'var(--accent)',
-                    backgroundColor: 'rgba(232,83,63,0.1)',
-                    padding: '1px 5px',
-                    borderRadius: 3,
-                    fontWeight: 600,
-                  }}>
-                    AI Agent
-                  </span>
-                )}
                 <span
                   onClick={() => onTimestampClick(comment.timestampSeconds / trackDuration)}
                   style={{

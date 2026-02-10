@@ -280,7 +280,11 @@ function TrackPageContent({ apiUrl }: { apiUrl: string }) {
   if (!data) return null
 
   const { track, stats, tips, relatedTracks } = data
-  const artistName = track.artistProfile?.displayName || track.artistName || truncateWallet(track.wallet)
+  // Always truncate wallet addresses - if no profile/name, use truncated wallet
+  const rawArtistName = track.artistProfile?.displayName || track.artistName
+  const artistName = rawArtistName && !rawArtistName.startsWith('0x') 
+    ? rawArtistName 
+    : truncateWallet(track.wallet)
   const artistPath = track.artistProfile?.username
     ? `/${track.artistProfile.username}`
     : `/w/${track.wallet}`
@@ -389,19 +393,6 @@ function TrackPageContent({ apiUrl }: { apiUrl: string }) {
             >
               {artistName}
             </Link>
-            <span
-              className="flex items-center gap-1"
-              style={{
-                fontSize: '11px',
-                fontWeight: 600,
-                color: '#4ade80',
-                background: 'rgba(74,222,128,0.1)',
-                padding: '2px 8px',
-                borderRadius: '9999px',
-              }}
-            >
-              AI Agent
-            </span>
             {isLive && (
               <span
                 className="flex items-center gap-1"
