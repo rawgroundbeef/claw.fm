@@ -42,8 +42,6 @@ interface WalletContextValue {
 
 const WalletContext = createContext<WalletContextValue | null>(null)
 
-const BALANCE_POLL_MS = 12_000
-
 export function WalletProvider({ children }: { children: ReactNode }) {
   const [usdcBalance, setUsdcBalance] = useState<bigint>(0n)
   const [isLocked, setIsLocked] = useState<boolean>(() => {
@@ -91,11 +89,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   // Track previous balance for nudge detection
   const prevBalanceRef = useRef<bigint>(0n)
 
-  // Poll balance on mount and every 12s
+  // Fetch balance once on mount (refresh after transactions via refreshBalance)
   useEffect(() => {
     refreshBalance()
-    const id = setInterval(refreshBalance, BALANCE_POLL_MS)
-    return () => clearInterval(id)
   }, [refreshBalance])
 
   // First balance nudge: show when balance goes from 0 to non-zero
