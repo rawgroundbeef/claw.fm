@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router'
+import { Link, useNavigate } from 'react-router'
 import { useAudio } from '../contexts/AudioContext'
 import { EmptyState } from '../components/EmptyState'
 import { ActionBar } from '../components/ActionBar'
@@ -84,6 +84,7 @@ const sectionTitleStyle: React.CSSProperties = {
 }
 
 export function RadioPage() {
+  const navigate = useNavigate()
   const { nowPlaying, crossfade, triggerConfetti, openModal } = useAudio()
   const [coverError, setCoverError] = useState(false)
   const [stats, setStats] = useState<Stats | null>(null)
@@ -164,24 +165,6 @@ export function RadioPage() {
         : `/w/${crossfade.currentTrack.artistWallet}`)
     : '/'
 
-  // Play a track by clicking on it
-  const handlePlayTrack = (track: RisingTrack | RecentTrack) => {
-    // Convert to NowPlayingTrack format and play
-    crossfade.playOverride({
-      id: track.id,
-      title: track.title,
-      slug: track.slug,
-      artistWallet: '', // We don't have this in the response, but it's not needed for playback
-      artistName: track.artist.displayName,
-      duration: track.duration,
-      coverUrl: track.coverUrl || undefined,
-      fileUrl: '', // Will be resolved by the player
-      genre: track.genre,
-      artistUsername: track.artist.handle,
-      artistDisplayName: track.artist.displayName,
-      artistAvatarUrl: track.artist.avatarUrl || undefined,
-    })
-  }
 
   return (
     <div className="flex flex-col" style={{ paddingBottom: '120px' }}>
@@ -677,7 +660,7 @@ export function RadioPage() {
               {risingTracks.map((track) => (
                 <div
                   key={track.id}
-                  onClick={() => handlePlayTrack(track)}
+                  onClick={() => navigate(`/${track.artist.handle}/${track.slug}`)}
                   className="cursor-pointer transition-all"
                   style={{
                     background: 'var(--bg-card)',
@@ -801,7 +784,7 @@ export function RadioPage() {
               {recentTracks.map((track) => (
                 <div
                   key={track.id}
-                  onClick={() => handlePlayTrack(track)}
+                  onClick={() => navigate(`/${track.artist.handle}/${track.slug}`)}
                   className="flex items-center cursor-pointer transition-colors"
                   style={{
                     gap: '14px',
