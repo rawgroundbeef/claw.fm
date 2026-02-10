@@ -178,15 +178,17 @@ function TrackPageContent({ apiUrl }: { apiUrl: string }) {
   }, [fetchTrack])
 
   // Auto-set this track as the "current" track when viewing the page
-  // This makes the bottom bar controls apply to this track
+  // BUT only if nothing is currently playing (don't interrupt radio)
   useEffect(() => {
     if (!data?.track) return
-    
-    // Don't override if already playing this track
+
+    // Don't override if user is currently playing something
+    if (crossfade.isPlaying) return
+
+    // Don't override if already set to this track
     if (crossfade.overrideTrack?.id === data.track.id) return
     if (crossfade.currentTrack?.id === data.track.id) return
-    
-    // Set this track as the current track (but don't auto-play)
+
     const track = data.track
     const nowPlayingTrack: NowPlayingTrack = {
       id: track.id,
@@ -203,10 +205,9 @@ function TrackPageContent({ apiUrl }: { apiUrl: string }) {
       artistAvatarUrl: track.artistProfile?.avatarUrl || undefined,
       waveformPeaks: track.waveformPeaks,
     }
-    
-    // Preload the track so bottom bar controls this track
+
     crossfade.preloadTrack(nowPlayingTrack)
-  }, [data?.track, crossfade.overrideTrack?.id, crossfade.currentTrack?.id, crossfade.preloadTrack])
+  }, [data?.track, crossfade.isPlaying, crossfade.overrideTrack?.id, crossfade.currentTrack?.id, crossfade.preloadTrack])
 
   // Check if this track is currently playing
   const isCurrentlyPlaying = crossfade.overrideTrack?.id === data?.track.id ||
