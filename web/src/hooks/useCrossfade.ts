@@ -365,7 +365,14 @@ export function useCrossfade(): UseCrossfadeReturn {
 
     // If there's an override track (e.g., from track page), resume it instead of live radio
     if (overrideTrackRef.current) {
+      await resumeAudioContext()
       const { active } = getActivePlayers()
+      
+      // Record play count if this is the first play (not a resume)
+      if (!isPlaying && overrideTrackRef.current.id) {
+        fetch(`${API_URL}/api/tracks/${overrideTrackRef.current.id}/play`, { method: 'POST' }).catch(() => {})
+      }
+      
       await active.play()
       setIsPlaying(true)
       return
@@ -447,10 +454,15 @@ export function useCrossfade(): UseCrossfadeReturn {
     setOverrideTrack(track)
     setCurrentTrack(track)
     
-    // Preload the track on the inactive player
-    const { inactive } = getActivePlayers()
-    inactive.setSource(`${API_URL}${track.fileUrl}`)
-  }, [getActivePlayers])
+    // Preload the track on the ACTIVE player so play() works correctly
+    const { active } = getActivePlayers()
+    active.setSource(`${API_URL}${track.fileUrl}`)
+    
+    // Set gain to user volume (will be used when play() is called)
+    if (active.gainNode) {
+      active.gainNode.gain.value = userVolume
+    }
+  }, [getActivePlayers, userVolume])
 
   return {
     play,
