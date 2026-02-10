@@ -36,14 +36,14 @@ export function AudioProvider({ children }: { children: ReactNode }) {
   // Theme
   const { theme, toggle: toggleTheme } = useTheme()
 
-  // Now playing state from API
+  // Now playing state from API (lazy - only polls when activated)
   const nowPlaying = useNowPlaying()
 
-  // Server time sync
-  const { offset: serverOffset } = useServerTime()
+  // Server time sync (lazy - only syncs when needed)
+  const serverTime = useServerTime()
 
-  // Audio engine with crossfade
-  const crossfade = useCrossfade()
+  // Audio engine with crossfade (receives nowPlaying + serverTime to avoid duplicate hooks)
+  const crossfade = useCrossfade({ nowPlaying, serverTime })
 
   // Volume state
   const [volume, setVolume] = useState<number>(0.8)
@@ -66,7 +66,7 @@ export function AudioProvider({ children }: { children: ReactNode }) {
     isPlaying: crossfade.isPlaying,
     onReconnect: () => {
       // Re-fetch now-playing state
-      nowPlaying.refetch()
+      nowPlaying.fetch()
 
       // Skip re-sync if override track is playing (it has its own position)
       if (crossfade.overrideTrack) return
@@ -76,7 +76,7 @@ export function AudioProvider({ children }: { children: ReactNode }) {
         const position = getCorrectPlaybackPosition(
           nowPlaying.startedAt,
           nowPlaying.track.duration,
-          serverOffset
+          serverTime.offset
         )
 
         // Find active audio element from crossfade
@@ -98,7 +98,7 @@ export function AudioProvider({ children }: { children: ReactNode }) {
         const position = getCorrectPlaybackPosition(
           nowPlaying.startedAt,
           nowPlaying.track.duration,
-          serverOffset
+          serverTime.offset
         )
 
         const audioElement = document.querySelector('audio') as HTMLAudioElement | null

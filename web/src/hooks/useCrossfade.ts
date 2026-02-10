@@ -1,11 +1,16 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useAudioPlayer } from './useAudioPlayer'
-import { useNowPlaying } from './useNowPlaying'
-import { useServerTime } from './useServerTime'
 import { getCorrectPlaybackPosition } from '../utils/timeSync'
 import { getAudioContext, resumeAudioContext } from '../utils/audioContext'
 import type { NowPlayingTrack } from '@claw/shared'
 import { API_URL } from '../lib/constants'
+import type { useNowPlaying } from './useNowPlaying'
+import type { useServerTime } from './useServerTime'
+
+interface UseCrossfadeProps {
+  nowPlaying: ReturnType<typeof useNowPlaying>
+  serverTime: ReturnType<typeof useServerTime>
+}
 
 interface UseCrossfadeReturn {
   play: () => Promise<void>
@@ -41,11 +46,12 @@ const CROSSFADE_DURATION_SEC = 2  // 2 second crossfade (short & subtle)
  *
  * Uses linear ramp for 2-second crossfade (acceptable for short durations).
  * Equal-power curves would add complexity with minimal audible benefit at 2s.
+ *
+ * NOTE: nowPlaying and serverTime are passed in from AudioContext to avoid
+ * duplicate hook instances and excessive polling.
  */
-export function useCrossfade(): UseCrossfadeReturn {
-  // Server state and time sync
-  const nowPlaying = useNowPlaying()
-  const { offset: serverOffset } = useServerTime()
+export function useCrossfade({ nowPlaying, serverTime }: UseCrossfadeProps): UseCrossfadeReturn {
+  const serverOffset = serverTime.offset
 
   // Override track state (click-to-play from profile pages)
   const [overrideTrack, setOverrideTrack] = useState<NowPlayingTrack | null>(null)
@@ -349,6 +355,10 @@ export function useCrossfade(): UseCrossfadeReturn {
 
   // Return to live radio (alias for clearOverride with history handling)
   const returnToLive = useCallback(() => {
+    // Ensure now-playing is active for live radio
+    if (!nowPlaying.isActive) {
+      nowPlaying.activate()
+    }
     // Save current track to history before returning to live
     if (currentTrack) {
       const newHistory = [...playHistoryRef.current, currentTrack].slice(-20)
@@ -356,7 +366,7 @@ export function useCrossfade(): UseCrossfadeReturn {
       setPlayHistory(newHistory)
     }
     clearOverride()
-  }, [currentTrack, clearOverride])
+  }, [currentTrack, clearOverride, nowPlaying])
 
   // Play function - starts playback
   const play = useCallback(async () => {
@@ -367,19 +377,26 @@ export function useCrossfade(): UseCrossfadeReturn {
     if (overrideTrackRef.current) {
       await resumeAudioContext()
       const { active } = getActivePlayers()
-      
+
       // Record play count if this is the first play (not a resume)
       if (!isPlaying && overrideTrackRef.current.id) {
         fetch(`${API_URL}/api/tracks/${overrideTrackRef.current.id}/play`, { method: 'POST' }).catch(() => {})
       }
-      
+
       await active.play()
       setIsPlaying(true)
       return
     }
 
-    if (!nowPlaying.track || !nowPlaying.startedAt) {
-      console.warn('Cannot play: no track available')
+    // Sync server time for accurate playback position
+    await serverTime.syncOnce()
+
+    // Activate now-playing if not already active (lazy activation)
+    // activate() returns a promise with the first fetch result
+    const { track: liveTrack, startedAt: liveStartedAt } = await nowPlaying.activate()
+
+    if (!liveTrack || !liveStartedAt) {
+      console.warn('Cannot play: no track available (server may be waiting for first track)')
       return
     }
 
@@ -387,10 +404,10 @@ export function useCrossfade(): UseCrossfadeReturn {
 
     // Load track if not loaded
     const audioEl = active.audioElement
-    const needsLoad = !audioEl?.src || !audioEl.src.endsWith(nowPlaying.track.fileUrl)
+    const needsLoad = !audioEl?.src || !audioEl.src.endsWith(liveTrack.fileUrl)
     if (needsLoad) {
-      active.setSource(`${API_URL}${nowPlaying.track.fileUrl}`)
-      setCurrentTrack(nowPlaying.track)
+      active.setSource(`${API_URL}${liveTrack.fileUrl}`)
+      setCurrentTrack(liveTrack)
 
       // Wait for load — use audioElement.readyState directly (not stale closure)
       await new Promise<void>((resolve) => {
@@ -407,8 +424,8 @@ export function useCrossfade(): UseCrossfadeReturn {
     // Seek to correct position
     if (active.audioElement) {
       const position = getCorrectPlaybackPosition(
-        nowPlaying.startedAt,
-        nowPlaying.track.duration,
+        liveStartedAt,
+        liveTrack.duration,
         serverOffset
       )
       active.audioElement.currentTime = position
@@ -417,7 +434,7 @@ export function useCrossfade(): UseCrossfadeReturn {
     // Start playback
     await active.play()
     setIsPlaying(true)
-  }, [nowPlaying.track, nowPlaying.startedAt, getActivePlayers, serverOffset])
+  }, [nowPlaying, serverTime, serverOffset, getActivePlayers, isPlaying])
 
   // Pause function
   const pause = useCallback(() => {

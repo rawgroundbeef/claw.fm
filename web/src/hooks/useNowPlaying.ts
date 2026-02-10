@@ -3,46 +3,57 @@ import type { NowPlayingResponse, NowPlayingTrack } from '@claw/shared'
 import { API_URL } from '../lib/constants'
 
 interface UseNowPlayingReturn {
-  state: 'waiting' | 'playing' | 'loading'
+  state: 'idle' | 'waiting' | 'playing' | 'loading'
   track: NowPlayingTrack | null
   nextTrack: NowPlayingTrack | null
   startedAt: number | null
   endsAt: number | null
-  message: string | null      // "Waiting for first track" when state === 'waiting'
-  timeRemaining: number | null // seconds until track ends
+  message: string | null
   error: string | null
-  refetch: () => Promise<void> // Manually trigger a fetch (for recovery scenarios)
+  /** Manually fetch now-playing state */
+  fetch: () => Promise<{ track: NowPlayingTrack | null; startedAt: number | null }>
+  /** Start listening - fetches immediately and schedules next fetch based on endsAt. Returns promise that resolves with first fetch result. */
+  activate: () => Promise<{ track: NowPlayingTrack | null; startedAt: number | null }>
+  /** Stop listening - cancels any scheduled fetches */
+  deactivate: () => void
+  isActive: boolean
 }
 
 /**
- * React hook for polling now-playing state from the server.
+ * React hook for fetching now-playing state from the server.
  *
- * Polls /api/now-playing every 5 seconds (matching KV cache TTL for waiting state).
- * When timeRemaining < 10s, polls every 2 seconds to catch nextTrack appearing.
+ * LAZY by default - does NOT poll until activate() is called.
  *
- * Detects track transitions by comparing track.id across polls, allowing
- * the crossfade system to trigger when the track rotates.
+ * Once active:
+ * - Fetches immediately
+ * - Schedules next fetch ~5s before track ends (based on endsAt)
+ * - No wasteful constant polling
  */
 export function useNowPlaying(): UseNowPlayingReturn {
-  const [state, setState] = useState<'waiting' | 'playing' | 'loading'>('loading')
+  const [state, setState] = useState<'idle' | 'waiting' | 'playing' | 'loading'>('idle')
   const [track, setTrack] = useState<NowPlayingTrack | null>(null)
   const [nextTrack, setNextTrack] = useState<NowPlayingTrack | null>(null)
   const [startedAt, setStartedAt] = useState<number | null>(null)
   const [endsAt, setEndsAt] = useState<number | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [isActive, setIsActive] = useState(false)
+
+  // Refs for scheduling
+  const scheduledTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const isActiveRef = useRef(false)
 
   // Track previous ID to detect transitions
   const previousTrackIdRef = useRef<number | null>(null)
 
-  // Use ref for endsAt so the polling effect doesn't re-run on every change
-  const endsAtRef = useRef<number | null>(null)
-  endsAtRef.current = endsAt
+  const clearScheduledFetch = useCallback(() => {
+    if (scheduledTimeoutRef.current) {
+      clearTimeout(scheduledTimeoutRef.current)
+      scheduledTimeoutRef.current = null
+    }
+  }, [])
 
-  // Calculate time remaining
-  const timeRemaining = endsAt ? Math.max(0, (endsAt - Date.now()) / 1000) : null
-
-  const fetchNowPlaying = useCallback(async () => {
+  const fetchNowPlaying = useCallback(async (): Promise<{ track: NowPlayingTrack | null; startedAt: number | null }> => {
     try {
       const response = await fetch(`${API_URL}/api/now-playing`)
 
@@ -60,12 +71,21 @@ export function useNowPlaying(): UseNowPlayingReturn {
         setEndsAt(null)
         setMessage(data.message || 'Waiting for first track')
         setError(null)
+
+        // In waiting state, check again in 10s
+        if (isActiveRef.current) {
+          clearScheduledFetch()
+          scheduledTimeoutRef.current = setTimeout(() => {
+            if (isActiveRef.current) fetchNowPlaying()
+          }, 10000)
+        }
+
+        return { track: null, startedAt: null }
       } else if (data.state === 'playing' && data.track) {
         // Track transition detection
         const currentTrackId = data.track.id
         if (previousTrackIdRef.current !== null && previousTrackIdRef.current !== currentTrackId) {
-          // Track ID changed - transition occurred
-          console.log('Track transition detected:', previousTrackIdRef.current, '->', currentTrackId)
+          console.log('[NowPlaying] Track transition:', previousTrackIdRef.current, '->', currentTrackId)
         }
         previousTrackIdRef.current = currentTrackId
 
@@ -76,38 +96,65 @@ export function useNowPlaying(): UseNowPlayingReturn {
         setEndsAt(data.endsAt || null)
         setMessage(null)
         setError(null)
+
+        // Schedule next fetch ~5s before track ends
+        if (data.endsAt && isActiveRef.current) {
+          const msUntilEnd = data.endsAt - Date.now()
+          const fetchIn = Math.max(1000, msUntilEnd - 5000) // At least 1s, or 5s before end
+
+          clearScheduledFetch()
+          console.log(`[NowPlaying] Next fetch in ${Math.round(fetchIn / 1000)}s`)
+          scheduledTimeoutRef.current = setTimeout(() => {
+            if (isActiveRef.current) fetchNowPlaying()
+          }, fetchIn)
+        }
+
+        return { track: data.track, startedAt: data.startedAt || null }
       }
+
+      return { track: null, startedAt: null }
     } catch (err) {
-      console.warn('Error fetching now-playing:', err)
-      // Keep last known state, set error message
+      console.warn('[NowPlaying] Error fetching:', err)
       setError(err instanceof Error ? err.message : 'Failed to fetch now-playing')
-      // Don't crash - retry on next interval
-    }
-  }, [])
 
+      // On error, retry in 10s if still active
+      if (isActiveRef.current) {
+        clearScheduledFetch()
+        scheduledTimeoutRef.current = setTimeout(() => {
+          if (isActiveRef.current) fetchNowPlaying()
+        }, 10000)
+      }
+
+      return { track: null, startedAt: null }
+    }
+  }, [clearScheduledFetch])
+
+  const activate = useCallback(async (): Promise<{ track: NowPlayingTrack | null; startedAt: number | null }> => {
+    if (isActiveRef.current) {
+      // Already active - return current state
+      return { track, startedAt }
+    }
+
+    console.log('[NowPlaying] Activated')
+    isActiveRef.current = true
+    setIsActive(true)
+    setState('loading')
+    return fetchNowPlaying()
+  }, [fetchNowPlaying, track, startedAt])
+
+  const deactivate = useCallback(() => {
+    console.log('[NowPlaying] Deactivated')
+    isActiveRef.current = false
+    setIsActive(false)
+    clearScheduledFetch()
+  }, [clearScheduledFetch])
+
+  // Cleanup on unmount
   useEffect(() => {
-    // Fetch immediately on mount
-    fetchNowPlaying()
-
-    // Poll with dynamic interval using setTimeout chain
-    let timeoutId: ReturnType<typeof setTimeout>
-
-    const scheduleNext = () => {
-      const remaining = endsAtRef.current
-        ? Math.max(0, (endsAtRef.current - Date.now()) / 1000)
-        : null
-      const interval = remaining !== null && remaining < 10 ? 2000 : 5000
-
-      timeoutId = setTimeout(async () => {
-        await fetchNowPlaying()
-        scheduleNext()
-      }, interval)
+    return () => {
+      clearScheduledFetch()
     }
-
-    scheduleNext()
-
-    return () => clearTimeout(timeoutId)
-  }, [fetchNowPlaying])
+  }, [clearScheduledFetch])
 
   return {
     state,
@@ -116,8 +163,10 @@ export function useNowPlaying(): UseNowPlayingReturn {
     startedAt,
     endsAt,
     message,
-    timeRemaining,
     error,
-    refetch: fetchNowPlaying,
+    fetch: fetchNowPlaying,
+    activate,
+    deactivate,
+    isActive,
   }
 }
