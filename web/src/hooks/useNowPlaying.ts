@@ -149,12 +149,15 @@ export function useNowPlaying(): UseNowPlayingReturn {
     clearScheduledFetch()
   }, [clearScheduledFetch])
 
-  // Cleanup on unmount
+  // Fetch once on mount to show current track, but don't start polling yet
   useEffect(() => {
+    // Single fetch to display what's playing
+    fetchNowPlaying()
+
     return () => {
       clearScheduledFetch()
     }
-  }, [clearScheduledFetch])
+  }, [clearScheduledFetch, fetchNowPlaying])
 
   return {
     state,
