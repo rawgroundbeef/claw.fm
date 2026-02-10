@@ -108,7 +108,10 @@ export function useAudioPlayer(options?: UseAudioPlayerOptions): UseAudioPlayerR
     }
 
     const handlePlaying = () => {
+      // Audio is actually playing - clear all loading states
+      setIsLoading(false)
       setIsBuffering(false)
+      setIsLoaded(true)
     }
 
     const handleWaiting = () => {
