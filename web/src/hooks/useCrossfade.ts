@@ -101,7 +101,8 @@ export function useCrossfade(): UseCrossfadeReturn {
   }, [nowPlaying.nextTrack, getActivePlayers])
 
   // Track whether user has explicitly paused (to prevent ghost playback)
-  const userPausedRef = useRef(false)
+  // Initialize to true — don't auto-play until user explicitly starts
+  const userPausedRef = useRef(true)
 
   // Handle track transitions
   useEffect(() => {
