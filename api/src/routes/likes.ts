@@ -44,12 +44,16 @@ likesRoute.get('/wallet/:walletAddress', async (c) => {
       t.slug,
       t.artist_wallet,
       t.cover_url,
+      t.file_url,
+      t.genre,
       t.duration_seconds,
       t.play_count,
       t.like_count,
+      t.waveform_peaks,
       l.created_at as liked_at,
       p.username as artist_username,
-      p.display_name as artist_display_name
+      p.display_name as artist_display_name,
+      p.avatar_url as artist_avatar_url
     FROM likes l
     JOIN tracks t ON l.track_id = t.id
     LEFT JOIN profiles p ON t.artist_wallet = p.wallet_address

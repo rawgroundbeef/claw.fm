@@ -11,12 +11,16 @@ interface LikedTrack {
   slug: string
   artist_wallet: string
   cover_url: string | null
+  file_url: string
+  genre: string
   duration_seconds: number
   play_count: number
   like_count: number
+  waveform_peaks: string | null
   liked_at: string
   artist_username: string | null
   artist_display_name: string | null
+  artist_avatar_url: string | null
 }
 
 interface FavoritesResponse {
@@ -80,8 +84,12 @@ export function FavoritesPage() {
       artistWallet: track.artist_wallet,
       artistUsername: track.artist_username ?? undefined,
       artistDisplayName: track.artist_display_name ?? undefined,
+      artistAvatarUrl: track.artist_avatar_url ?? undefined,
       coverUrl: track.cover_url ?? undefined,
-      durationMs: track.duration_seconds * 1000,
+      fileUrl: track.file_url,
+      genre: track.genre,
+      duration: track.duration_seconds * 1000,
+      waveformPeaks: track.waveform_peaks ? JSON.parse(track.waveform_peaks) : undefined,
     })
   }
 
