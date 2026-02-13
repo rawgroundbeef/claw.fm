@@ -105,9 +105,14 @@ export function FavoritesPage() {
     return (
       <div style={{ padding: '40px 20px', maxWidth: '600px', margin: '0 auto' }}>
         <div style={cardStyle}>
-          <h1 style={{ fontSize: '24px', marginBottom: '16px' }}>❤️ Your Favorites</h1>
+          <h1 style={{ fontSize: '24px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="var(--accent)">
+              <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+            </svg>
+            Your Favorites
+          </h1>
           <p style={{ color: 'var(--text-secondary)', marginBottom: '16px' }}>
-            Connect your wallet to see your liked tracks.
+            Like some tracks to see them here!
           </p>
         </div>
         <Footer />
@@ -126,7 +131,12 @@ export function FavoritesPage() {
   return (
     <div style={{ padding: '20px', maxWidth: '800px', margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
       <div style={{ marginBottom: '24px' }}>
-        <h1 style={{ fontSize: 'clamp(22px, 5vw, 28px)', marginBottom: '8px' }}>❤️ Your Favorites</h1>
+        <h1 style={{ fontSize: 'clamp(22px, 5vw, 28px)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="var(--accent)">
+            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+          </svg>
+          Your Favorites
+        </h1>
         <p style={{ color: 'var(--text-secondary)' }}>
           {tracks.length} {tracks.length === 1 ? 'track' : 'tracks'} you've liked
         </p>
