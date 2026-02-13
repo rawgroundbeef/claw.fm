@@ -4,7 +4,6 @@ import { API_URL } from '../lib/constants'
 import { useAudio } from '../contexts/AudioContext'
 import { LikeButtonIcon } from '../components/LikeButton'
 import { Footer } from '../components/Footer'
-import { Identicon } from '../components/Identicon'
 
 interface LikedTrack {
   id: number
@@ -32,11 +31,6 @@ function formatDuration(seconds: number): string {
   return `${minutes}:${secs.toString().padStart(2, '0')}`
 }
 
-function formatDate(dateStr: string): string {
-  const d = new Date(dateStr)
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-}
-
 const cardStyle: React.CSSProperties = {
   background: 'var(--card-bg)',
   border: '1px solid var(--card-border)',
@@ -45,7 +39,7 @@ const cardStyle: React.CSSProperties = {
 }
 
 export function FavoritesPage() {
-  const { crossfade } = useAudio()
+  const { crossfade: { playOverride } } = useAudio()
   const [loading, setLoading] = useState(true)
   const [tracks, setTracks] = useState<LikedTrack[]>([])
   const [wallet, setWallet] = useState<string | null>(null)
@@ -79,7 +73,7 @@ export function FavoritesPage() {
   }, [])
 
   const handlePlay = (track: LikedTrack) => {
-    crossfade({
+    playOverride({
       id: track.id,
       title: track.title,
       slug: track.slug,
