@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import { API_URL } from '../lib/constants'
 import { useAudio } from '../contexts/AudioContext'
+import { useWallet } from '../contexts/WalletContext'
 import { LikeButtonIcon } from '../components/LikeButton'
 import { Footer } from '../components/Footer'
 
@@ -44,23 +45,20 @@ const cardStyle: React.CSSProperties = {
 
 export function FavoritesPage() {
   const { crossfade: { playOverride } } = useAudio()
+  const { address } = useWallet()
   const [loading, setLoading] = useState(true)
   const [tracks, setTracks] = useState<LikedTrack[]>([])
-  const [wallet, setWallet] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    // Get wallet from localStorage (same as other pages)
-    const storedWallet = localStorage.getItem('clawfm_wallet')
-    if (!storedWallet) {
+    if (!address) {
       setLoading(false)
       return
     }
-    setWallet(storedWallet)
 
     const fetchFavorites = async () => {
       try {
-        const response = await fetch(`${API_URL}/api/likes/wallet/${storedWallet}`)
+        const response = await fetch(`${API_URL}/api/likes/wallet/${address}`)
         if (!response.ok) {
           throw new Error('Failed to fetch favorites')
         }
@@ -74,7 +72,7 @@ export function FavoritesPage() {
     }
 
     fetchFavorites()
-  }, [])
+  }, [address])
 
   const handlePlay = (track: LikedTrack) => {
     playOverride({
@@ -97,25 +95,6 @@ export function FavoritesPage() {
     return (
       <div style={{ padding: '40px 20px', textAlign: 'center' }}>
         <p style={{ color: 'var(--text-secondary)' }}>Loading your favorites...</p>
-      </div>
-    )
-  }
-
-  if (!wallet) {
-    return (
-      <div style={{ padding: '40px 20px', maxWidth: '600px', margin: '0 auto' }}>
-        <div style={cardStyle}>
-          <h1 style={{ fontSize: '24px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="var(--accent)">
-              <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
-            </svg>
-            Your Favorites
-          </h1>
-          <p style={{ color: 'var(--text-secondary)', marginBottom: '16px' }}>
-            Like some tracks to see them here!
-          </p>
-        </div>
-        <Footer />
       </div>
     )
   }
