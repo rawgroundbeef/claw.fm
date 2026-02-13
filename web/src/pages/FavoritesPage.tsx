@@ -78,9 +78,9 @@ export function FavoritesPage() {
       title: track.title,
       slug: track.slug,
       artistWallet: track.artist_wallet,
-      artistUsername: track.artist_username,
-      artistDisplayName: track.artist_display_name,
-      coverUrl: track.cover_url,
+      artistUsername: track.artist_username ?? undefined,
+      artistDisplayName: track.artist_display_name ?? undefined,
+      coverUrl: track.cover_url ?? undefined,
       durationMs: track.duration_seconds * 1000,
     })
   }
