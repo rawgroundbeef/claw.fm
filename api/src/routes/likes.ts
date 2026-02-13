@@ -10,6 +10,12 @@ type Env = {
 
 const likesRoute = new Hono<Env>()
 
+const prefixPath = (path: string | null) => {
+  if (!path) return null
+  if (path.startsWith('data:') || path.startsWith('http')) return path
+  return `/audio/${path}`
+}
+
 // Rate limit: 30 actions per minute per wallet
 const RATE_LIMIT_WINDOW = 60 // seconds
 const RATE_LIMIT_MAX = 30
@@ -61,10 +67,18 @@ likesRoute.get('/wallet/:walletAddress', async (c) => {
     ORDER BY l.created_at DESC
   `).bind(walletAddress).all()
 
+  const tracks = (result.results || []).map((row: any) => ({
+    ...row,
+    cover_url: prefixPath(row.cover_url),
+    file_url: prefixPath(row.file_url),
+    artist_avatar_url: prefixPath(row.artist_avatar_url),
+    duration_seconds: Math.floor((row.duration || 0) / 1000),
+  }))
+
   return c.json({
     wallet: walletAddress,
-    tracks: result.results || [],
-    total: result.results?.length || 0
+    tracks,
+    total: tracks.length
   }, 200)
 })
 
