@@ -38,15 +38,15 @@ likesRoute.get('/wallet/:walletAddress', async (c) => {
 
   // Get all tracks liked by this wallet with track details
   const result = await db.prepare(`
-    SELECT 
+    SELECT
       t.id,
       t.title,
       t.slug,
-      t.artist_wallet,
+      t.wallet as artist_wallet,
       t.cover_url,
       t.file_url,
       t.genre,
-      t.duration_seconds,
+      t.duration,
       t.play_count,
       t.like_count,
       t.waveform_peaks,
@@ -56,7 +56,7 @@ likesRoute.get('/wallet/:walletAddress', async (c) => {
       p.avatar_url as artist_avatar_url
     FROM likes l
     JOIN tracks t ON l.track_id = t.id
-    LEFT JOIN profiles p ON t.artist_wallet = p.wallet_address
+    LEFT JOIN artist_profiles p ON t.wallet = p.wallet
     WHERE l.wallet_address = ?
     ORDER BY l.created_at DESC
   `).bind(walletAddress).all()
