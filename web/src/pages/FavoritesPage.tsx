@@ -122,9 +122,9 @@ export function FavoritesPage() {
   }
 
   return (
-    <div style={{ padding: '40px 20px', maxWidth: '800px', margin: '0 auto' }}>
+    <div style={{ padding: '20px', maxWidth: '800px', margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
       <div style={{ marginBottom: '24px' }}>
-        <h1 style={{ fontSize: '28px', marginBottom: '8px' }}>❤️ Your Favorites</h1>
+        <h1 style={{ fontSize: 'clamp(22px, 5vw, 28px)', marginBottom: '8px' }}>❤️ Your Favorites</h1>
         <p style={{ color: 'var(--text-secondary)' }}>
           {tracks.length} {tracks.length === 1 ? 'track' : 'tracks'} you've liked
         </p>
@@ -158,13 +158,14 @@ export function FavoritesPage() {
                   ...cardStyle,
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '16px',
+                  gap: '12px',
                   cursor: 'pointer',
+                  padding: '12px',
                 }}
                 onClick={() => handlePlay(track)}
               >
                 {/* Cover art */}
-                <div style={{ width: '60px', height: '60px', flexShrink: 0 }}>
+                <div style={{ width: '50px', height: '50px', flexShrink: 0 }}>
                   {track.cover_url ? (
                     <img
                       src={track.cover_url}
@@ -224,13 +225,16 @@ export function FavoritesPage() {
                   </Link>
                 </div>
 
-                {/* Duration */}
-                <div style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>
+                {/* Duration - hidden on mobile */}
+                <div 
+                  className="hidden sm:block"
+                  style={{ color: 'var(--text-secondary)', fontSize: '14px', flexShrink: 0 }}
+                >
                   {formatDuration(track.duration_seconds)}
                 </div>
 
                 {/* Like button */}
-                <div onClick={(e) => e.stopPropagation()}>
+                <div onClick={(e) => e.stopPropagation()} style={{ flexShrink: 0 }}>
                   <LikeButtonIcon trackId={track.id} initialLiked={true} />
                 </div>
               </div>
