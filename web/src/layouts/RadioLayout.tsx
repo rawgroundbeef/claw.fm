@@ -71,6 +71,22 @@ export function RadioLayout() {
           >
             How it works
           </button>
+          <Link
+            to="/favorites"
+            className="transition-colors"
+            style={{
+              color: 'var(--text-secondary)',
+              textDecoration: 'none',
+              display: 'flex',
+              alignItems: 'center',
+              fontSize: '18px',
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
+            onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-secondary)')}
+            title="Your Favorites"
+          >
+            ❤️
+          </Link>
           <WalletButton />
           <button
             onClick={toggleTheme}
