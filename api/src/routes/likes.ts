@@ -27,6 +27,43 @@ async function checkRateLimit(kv: KVNamespace, wallet: string): Promise<{ allowe
   return { allowed: true, remaining: RATE_LIMIT_MAX - count - 1 }
 }
 
+// GET /api/likes/:walletAddress - Get all tracks liked by a user
+likesRoute.get('/wallet/:walletAddress', async (c) => {
+  const walletAddress = c.req.param('walletAddress')
+  if (!walletAddress || !walletAddress.startsWith('0x') || walletAddress.length !== 42) {
+    return c.json({ error: 'INVALID_WALLET', message: 'Invalid wallet address' }, 400)
+  }
+
+  const db = c.env.DB
+
+  // Get all tracks liked by this wallet with track details
+  const result = await db.prepare(`
+    SELECT 
+      t.id,
+      t.title,
+      t.slug,
+      t.artist_wallet,
+      t.cover_url,
+      t.duration_seconds,
+      t.play_count,
+      t.like_count,
+      l.created_at as liked_at,
+      p.username as artist_username,
+      p.display_name as artist_display_name
+    FROM likes l
+    JOIN tracks t ON l.track_id = t.id
+    LEFT JOIN profiles p ON t.artist_wallet = p.wallet_address
+    WHERE l.wallet_address = ?
+    ORDER BY l.created_at DESC
+  `).bind(walletAddress).all()
+
+  return c.json({
+    wallet: walletAddress,
+    tracks: result.results || [],
+    total: result.results?.length || 0
+  }, 200)
+})
+
 // GET /api/tracks/:trackId/like - Get like status
 likesRoute.get('/:trackId/like', async (c) => {
   const trackId = parseInt(c.req.param('trackId'), 10)
