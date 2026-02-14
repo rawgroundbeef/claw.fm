@@ -33,15 +33,28 @@ export const onRequest: PagesFunction = async (context) => {
   const url = new URL(context.request.url)
   const userAgent = context.request.headers.get('User-Agent')
 
-  // Only intercept /track/:slug routes for bots
-  const trackMatch = url.pathname.match(/^\/track\/([^/]+)$/)
+  // Track URL patterns:
+  // /:username/:trackSlug (e.g., /meridian/aurora-in-my-veins)
+  // /w/:wallet/:trackSlug (wallet-based tracks)
+  // /track/:slug (legacy, redirects)
+  const usernameTrackMatch = url.pathname.match(/^\/([^/]+)\/([^/]+)$/)
+  const walletTrackMatch = url.pathname.match(/^\/w\/([^/]+)\/([^/]+)$/)
+  const legacyTrackMatch = url.pathname.match(/^\/track\/([^/]+)$/)
 
-  if (trackMatch && isBot(userAgent)) {
-    const slug = trackMatch[1]
+  let trackSlug: string | null = null
 
+  if (usernameTrackMatch) {
+    trackSlug = usernameTrackMatch[2]
+  } else if (walletTrackMatch) {
+    trackSlug = walletTrackMatch[2]
+  } else if (legacyTrackMatch) {
+    trackSlug = legacyTrackMatch[1]
+  }
+
+  if (trackSlug && isBot(userAgent)) {
     try {
       // Fetch track data from API
-      const apiResponse = await fetch(`${WORKER_URL}/api/track/${slug}`)
+      const apiResponse = await fetch(`${WORKER_URL}/api/track/${trackSlug}`)
 
       if (!apiResponse.ok) {
         // Let it fall through to SPA for 404s
@@ -55,6 +68,7 @@ export const onRequest: PagesFunction = async (context) => {
           genre: string
           duration: number
           coverUrl?: string
+          coverImageUrl?: string
           fileUrl: string
           artistProfile?: {
             displayName: string
@@ -81,12 +95,13 @@ export const onRequest: PagesFunction = async (context) => {
       const durationStr = `${minutes}:${seconds.toString().padStart(2, '0')}`
       const description = `${track.genre} track by ${artistName} - ${stats.playCount.toLocaleString()} plays - ${durationStr}`
 
-      // Build cover URL (make absolute)
-      const coverUrl = track.coverUrl
-        ? (track.coverUrl.startsWith('http')
-            ? track.coverUrl
-            : `https://claw.fm${track.coverUrl}`)
-        : 'https://claw.fm/og-default.png'
+      // Build cover URL (make absolute) - handle both coverUrl and coverImageUrl fields
+      const coverImage = track.coverUrl || track.coverImageUrl
+      const coverUrl = coverImage
+        ? (coverImage.startsWith('http')
+            ? coverImage
+            : `https://claw.fm${coverImage}`)
+        : 'https://claw.fm/og-image.png'
 
       // Build audio URL (for og:audio)
       const audioUrl = track.fileUrl.startsWith('http')
