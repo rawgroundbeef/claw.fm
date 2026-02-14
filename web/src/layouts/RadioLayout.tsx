@@ -9,6 +9,7 @@ import { ReconnectingIndicator } from '../components/ReconnectingIndicator'
 import { WalletButton } from '../components/WalletButton'
 import { ConfettiCelebration } from '../components/ConfettiCelebration'
 import { WhatIsThisModal } from '../components/WhatIsThisModal'
+import { SearchBar } from '../components/SearchBar'
 import { Toaster } from 'sonner'
 
 export function RadioLayout() {
@@ -55,6 +56,7 @@ export function RadioLayout() {
           </span>
         </Link>
         <div className="flex items-center" style={{ gap: '16px' }}>
+          <SearchBar />
           <button
             onClick={openModal}
             className="transition-colors"

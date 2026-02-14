@@ -7,6 +7,7 @@ import { TrackPage, WalletTrackPage, LegacyTrackRedirect } from './pages/TrackPa
 import { RoyaltiesPage } from './pages/RoyaltiesPage'
 import { NotFoundPage } from './pages/NotFoundPage'
 import { FavoritesPage } from './pages/FavoritesPage'
+import { SearchPage } from './pages/SearchPage'
 
 export default function App() {
   return (
@@ -21,6 +22,8 @@ export default function App() {
             <Route path="royalties" element={<RoyaltiesPage />} />
             {/* Favorites page */}
             <Route path="favorites" element={<FavoritesPage />} />
+            {/* Search page */}
+            <Route path="search" element={<SearchPage />} />
             {/* Wallet-based track page (must be before wallet profile) */}
             <Route path="w/:wallet/:trackSlug" element={<WalletTrackPage />} />
             {/* Wallet lookup (no username) */}
