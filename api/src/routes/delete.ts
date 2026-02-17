@@ -1,5 +1,6 @@
 import { Hono, Context } from 'hono'
 import { verifyPayment } from '../middleware/x402'
+import { requireWalletAuth, extractWalletOptional } from '../middleware/auth'
 
 interface Env {
   Bindings: {
