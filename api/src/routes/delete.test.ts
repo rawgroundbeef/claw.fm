@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, beforeEach } from 'vitest'
 import { Hono } from 'hono'
-import deleteRoute from '../src/routes/delete'
+import deleteRoute from './delete'
 
 // Mock D1Database
 class MockD1Database {
@@ -124,7 +124,7 @@ describe('DELETE /api/tracks/:id', () => {
     const res = await app.request('/invalid', { method: 'DELETE' }, c.env)
     
     expect(res.status).toBe(400)
-    const body = await res.json()
+    const body = await res.json() as { error: string }
     expect(body.error).toBe('INVALID_TRACK_ID')
   })
   
@@ -136,7 +136,7 @@ describe('DELETE /api/tracks/:id', () => {
     const res = await app.request('/-1', { method: 'DELETE' }, c.env)
     
     expect(res.status).toBe(400)
-    const body = await res.json()
+    const body = await res.json() as { error: string }
     expect(body.error).toBe('INVALID_TRACK_ID')
   })
   
@@ -149,7 +149,7 @@ describe('DELETE /api/tracks/:id', () => {
     
     // Should return 402 with payment requirements
     expect(res.status).toBe(402)
-    const body = await res.json()
+    const body = await res.json() as { error: string }
     expect(body.error).toBe('PAYMENT_REQUIRED')
   })
   
@@ -196,7 +196,7 @@ describe('GET /api/tracks/:id/can-delete', () => {
     const res = await app.request('/123/can-delete', {}, c.env)
     
     expect(res.status).toBe(401)
-    const body = await res.json()
+    const body = await res.json() as { canDelete: boolean; reason: string }
     expect(body.canDelete).toBe(false)
     expect(body.reason).toBe('NO_WALLET')
   })
@@ -209,7 +209,7 @@ describe('GET /api/tracks/:id/can-delete', () => {
     const res = await app.request('/123/can-delete', {}, c.env)
     
     expect(res.status).toBe(401)
-    const body = await res.json()
+    const body = await res.json() as { canDelete: boolean; reason: string }
     expect(body.canDelete).toBe(false)
     expect(body.reason).toBe('NO_WALLET')
   })
@@ -223,7 +223,7 @@ describe('GET /api/tracks/:id/can-delete', () => {
     const res = await app.request('/123/can-delete', {}, c.env)
     
     expect(res.status).toBe(200)
-    const body = await res.json()
+    const body = await res.json() as { canDelete: boolean; isOwner: boolean; isLive: boolean }
     expect(body.canDelete).toBe(true)
     expect(body.isOwner).toBe(true)
     expect(body.isLive).toBe(false)
@@ -238,7 +238,7 @@ describe('GET /api/tracks/:id/can-delete', () => {
     const res = await app.request('/123/can-delete', {}, c.env)
     
     expect(res.status).toBe(200)
-    const body = await res.json()
+    const body = await res.json() as { canDelete: boolean; isOwner: boolean; isLive: boolean; reason: string }
     expect(body.canDelete).toBe(false)
     expect(body.isOwner).toBe(true)
     expect(body.isLive).toBe(true)
@@ -254,7 +254,7 @@ describe('GET /api/tracks/:id/can-delete', () => {
     const res = await app.request('/123/can-delete', {}, c.env)
     
     expect(res.status).toBe(200)
-    const body = await res.json()
+    const body = await res.json() as { canDelete: boolean; isOwner: boolean; reason: string }
     expect(body.canDelete).toBe(false)
     expect(body.isOwner).toBe(false)
     expect(body.reason).toBe('NOT_OWNER')
@@ -269,7 +269,7 @@ describe('GET /api/tracks/:id/can-delete', () => {
     const res = await app.request('/99999/can-delete', {}, c.env)
     
     expect(res.status).toBe(404)
-    const body = await res.json()
+    const body = await res.json() as { canDelete: boolean; reason: string }
     expect(body.canDelete).toBe(false)
     expect(body.reason).toBe('TRACK_NOT_FOUND')
   })
