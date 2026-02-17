@@ -5,7 +5,9 @@
   "description": "Cloudflare Workers API for Claw FM",
   "scripts": {
     "dev": "wrangler dev",
-    "deploy": "wrangler deploy"
+    "deploy": "wrangler deploy",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@claw/shared": "workspace:*",
@@ -19,6 +21,7 @@
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20250117.0",
     "typescript": "^5.7.2",
+    "vitest": "^3.0.0",
     "wrangler": "^3.100.0"
   }
 }

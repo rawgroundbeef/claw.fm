@@ -19,6 +19,7 @@ import claimRoute from './routes/claim'
 import statsRoute from './routes/stats'
 import discoveryRoute from './routes/discovery'
 import royaltiesRoute from './routes/royalties'
+import deleteRoute from './routes/delete'
 
 type Bindings = {
   DB: D1Database
@@ -60,6 +61,7 @@ app.route('/api/claim', claimRoute)
 app.route('/api/stats', statsRoute)
 app.route('/api/royalties', royaltiesRoute)
 app.route('/api', discoveryRoute)  // Mounts /api/tracks/rising, /api/tracks/recent, /api/artists/verified
+app.route('/api/tracks', deleteRoute)  // DELETE /api/tracks/:id
 
 // Record a play for a track (called by client on override/direct plays)
 app.post('/api/tracks/:id/play', async (c) => {
