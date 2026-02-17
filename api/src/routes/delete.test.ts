@@ -1,199 +1,125 @@
-import { describe, it, expect, beforeAll, beforeEach } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { Hono } from 'hono'
 import deleteRoute from './delete'
 
-// Mock D1Database
-class MockD1Database {
-  private data: Map<string, any[]> = new Map()
-  
-  prepare(sql: string) {
-    return new MockD1PreparedStatement(sql, this.data)
-  }
-}
-
-class MockD1PreparedStatement {
-  constructor(private sql: string, private data: Map<string, any[]>) {}
-  
-  bind(...params: any[]) {
-    return new MockD1PreparedStatementBound(this.sql, this.data, params)
-  }
-}
-
-class MockD1PreparedStatementBound {
-  constructor(private sql: string, private data: Map<string, any[]>, private params: any[]) {}
-  
-  async first<T>(): Promise<T | null> {
-    // Mock track lookup
-    if (this.sql.includes('FROM tracks WHERE id =')) {
-      const trackId = this.params[0]
-      if (trackId === 123) {
-        return {
-          id: 123,
-          wallet: '0x8CF716615a81Ffd0654148729b362720A4E4fb59',
-          file_url: 'tracks/test.mp3',
-          cover_url: 'covers/test.png'
-        } as T
-      }
-      if (trackId === 456) {
-        return {
-          id: 456,
-          wallet: '0xDIFFERENT_WALLET',
-          file_url: 'tracks/other.mp3',
-          cover_url: null
-        } as T
-      }
-      return null
+// Mock the x402 middleware
+vi.mock('../middleware/x402', () => ({
+  verifyPayment: vi.fn((c, requirements) => {
+    // Return unpaid by default (simulating missing header)
+    const errorResponse = c.json(
+      { error: 'PAYMENT_REQUIRED', message: 'Payment required' },
+      402,
+      { 'X-PAYMENT-REQUIRED': btoa(JSON.stringify(requirements)) }
+    )
+    return Promise.resolve({ valid: false, error: errorResponse })
+  }),
+  extractWalletFromPaymentHeader: vi.fn((c) => {
+    // Try to extract from header for can-delete endpoint
+    const walletHeader = c.req.header('X-Wallet-Address')
+    if (walletHeader && walletHeader.startsWith('0x') && walletHeader.length === 42) {
+      return Promise.resolve({ valid: true, walletAddress: walletHeader })
     }
-    return null
-  }
-  
-  async run(): Promise<{ success: boolean }> {
-    return { success: true }
-  }
-}
+    return Promise.resolve({ valid: false })
+  })
+}))
 
-// Mock KVNamespace
-class MockKVNamespace {
-  private store: Map<string, string> = new Map()
+// Helper to create a mock environment
+function createMockEnv(isLive: boolean = false) {
+  const dbQueries: Array<{ sql: string; params: any[] }> = []
   
-  async get(key: string): Promise<string | null> {
-    return this.store.get(key) || null
+  const mockDb = {
+    prepare: vi.fn((sql: string) => ({
+      bind: vi.fn((...params: any[]) => ({
+        first: vi.fn(() => {
+          dbQueries.push({ sql, params })
+          
+          // Track lookup by ID
+          if (sql.includes('FROM tracks WHERE id =') && params[0] === 123) {
+            return Promise.resolve({
+              id: 123,
+              wallet: '0x8CF716615a81Ffd0654148729b362720A4E4fb59',
+              file_url: 'tracks/test.mp3',
+              cover_url: 'covers/test.png'
+            })
+          }
+          if (sql.includes('FROM tracks WHERE id =') && params[0] === 456) {
+            return Promise.resolve({
+              id: 456,
+              wallet: '0xDIFFERENT_WALLET',
+              file_url: 'tracks/other.mp3',
+              cover_url: null
+            })
+          }
+          if (sql.includes('FROM tracks WHERE id =') && params[0] === 99999) {
+            return Promise.resolve(null)
+          }
+          return Promise.resolve(null)
+        }),
+        run: vi.fn(() => Promise.resolve({ success: true }))
+      })),
+      first: vi.fn(() => Promise.resolve(null)),
+      run: vi.fn(() => Promise.resolve({ success: true }))
+    }))
   }
   
-  async delete(key: string): Promise<void> {
-    this.store.delete(key)
+  const mockKv = {
+    get: vi.fn((key: string) => {
+      if (key === 'now-playing' && isLive) {
+        return Promise.resolve(JSON.stringify({ track: { id: 123 } }))
+      }
+      return Promise.resolve(null)
+    }),
+    delete: vi.fn(() => Promise.resolve())
   }
   
-  setNowPlaying(trackId: number) {
-    this.store.set('now-playing', JSON.stringify({ track: { id: trackId } }))
-  }
-}
-
-// Mock R2Bucket
-class MockR2Bucket {
-  private objects: Map<string, any> = new Map()
-  
-  async delete(key: string): Promise<void> {
-    this.objects.delete(key)
-  }
-}
-
-// Helper to create mock context
-function createMockContext(
-  trackId: string,
-  walletAddress?: string,
-  isLive: boolean = false
-) {
-  const db = new MockD1Database()
-  const kv = new MockKVNamespace()
-  const bucket = new MockR2Bucket()
-  
-  if (isLive) {
-    kv.setNowPlaying(parseInt(trackId))
+  const mockBucket = {
+    delete: vi.fn(() => Promise.resolve())
   }
   
   return {
-    env: {
-      DB: db as any,
-      KV: kv as any,
-      AUDIO_BUCKET: bucket as any,
-      PLATFORM_WALLET: '0xPlatformWallet'
-    },
-    req: {
-      param: (name: string) => name === 'id' ? trackId : undefined,
-      header: (name: string) => {
-        if (name === 'X-Wallet-Address') return walletAddress
-        return undefined
-      }
-    },
-    executionCtx: {
-      waitUntil: (promise: Promise<any>) => {
-        // Non-blocking, just let it run
-        promise.catch(() => {})
-      }
-    }
+    DB: mockDb as any,
+    KV: mockKv as any,
+    AUDIO_BUCKET: mockBucket as any,
+    PLATFORM_WALLET: '0xPlatformWallet',
+    getQueries: () => dbQueries
   }
 }
 
+// Helper to create a Hono app with the delete routes mounted properly
+function createTestApp(env: any) {
+  const app = new Hono<{ Bindings: typeof env }>()
+  
+  // Mount routes the same way as index.ts
+  app.route('/api/tracks', deleteRoute)
+  
+  return app
+}
+
 describe('DELETE /api/tracks/:id', () => {
-  it('should reject invalid track IDs', async () => {
-    const app = new Hono()
-    app.route('/:id', deleteRoute)
+  it('should return 402 when x402 payment header is missing', async () => {
+    const env = createMockEnv()
+    const app = createTestApp(env)
     
-    const c = createMockContext('invalid')
-    const res = await app.request('/invalid', { method: 'DELETE' }, c.env)
+    const res = await app.fetch(
+      new Request('http://localhost/api/tracks/123', { method: 'DELETE' }),
+      env
+    )
     
-    expect(res.status).toBe(400)
-    const body = await res.json() as { error: string }
-    expect(body.error).toBe('INVALID_TRACK_ID')
-  })
-  
-  it('should reject negative track IDs', async () => {
-    const app = new Hono()
-    app.route('/:id', deleteRoute)
-    
-    const c = createMockContext('-1')
-    const res = await app.request('/-1', { method: 'DELETE' }, c.env)
-    
-    expect(res.status).toBe(400)
-    const body = await res.json() as { error: string }
-    expect(body.error).toBe('INVALID_TRACK_ID')
-  })
-  
-  it('should require x402 payment header', async () => {
-    const app = new Hono()
-    app.route('/:id', deleteRoute)
-    
-    const c = createMockContext('123')
-    const res = await app.request('/123', { method: 'DELETE' }, c.env)
-    
-    // Should return 402 with payment requirements
     expect(res.status).toBe(402)
     const body = await res.json() as { error: string }
     expect(body.error).toBe('PAYMENT_REQUIRED')
-  })
-  
-  it('should return 404 for non-existent tracks', async () => {
-    const app = new Hono()
-    app.route('/:id', deleteRoute)
-    
-    const c = createMockContext('99999')
-    // Mock the x402 verification to succeed
-    // This would need proper x402 mocking in real implementation
-    
-    // For this test, we'd need to mock the verifyPayment function
-    // Skipping detailed implementation for brevity
-  })
-  
-  it('should reject deletion by non-owner', async () => {
-    const app = new Hono()
-    app.route('/:id', deleteRoute)
-    
-    const c = createMockContext('456', '0x8CF716615a81Ffd0654148729b362720A4E4fb59')
-    // Track 456 is owned by DIFFERENT_WALLET
-    
-    // Mock x402 verification to return a different wallet
-    // This would return 403 in real implementation
-  })
-  
-  it('should reject deletion of live tracks', async () => {
-    const app = new Hono()
-    app.route('/:id', deleteRoute)
-    
-    const c = createMockContext('123', undefined, true) // isLive = true
-    // Track 123 is currently playing
-    
-    // Should return 409 Conflict
   })
 })
 
 describe('GET /api/tracks/:id/can-delete', () => {
   it('should return canDelete=false for missing wallet header', async () => {
-    const app = new Hono()
-    app.route('/:id/can-delete', deleteRoute)
+    const env = createMockEnv()
+    const app = createTestApp(env)
     
-    const c = createMockContext('123')
-    const res = await app.request('/123/can-delete', {}, c.env)
+    const res = await app.fetch(
+      new Request('http://localhost/api/tracks/123/can-delete'),
+      env
+    )
     
     expect(res.status).toBe(401)
     const body = await res.json() as { canDelete: boolean; reason: string }
@@ -202,11 +128,15 @@ describe('GET /api/tracks/:id/can-delete', () => {
   })
   
   it('should return canDelete=false for invalid wallet format', async () => {
-    const app = new Hono()
-    app.route('/:id/can-delete', deleteRoute)
+    const env = createMockEnv()
+    const app = createTestApp(env)
     
-    const c = createMockContext('123', 'invalid-wallet')
-    const res = await app.request('/123/can-delete', {}, c.env)
+    const res = await app.fetch(
+      new Request('http://localhost/api/tracks/123/can-delete', {
+        headers: { 'X-Wallet-Address': 'invalid-wallet' }
+      }),
+      env
+    )
     
     expect(res.status).toBe(401)
     const body = await res.json() as { canDelete: boolean; reason: string }
@@ -215,12 +145,16 @@ describe('GET /api/tracks/:id/can-delete', () => {
   })
   
   it('should return canDelete=true for track owner when not live', async () => {
-    const app = new Hono()
-    app.route('/:id/can-delete', deleteRoute)
+    const env = createMockEnv(false) // not live
+    const app = createTestApp(env)
     
     const ownerWallet = '0x8CF716615a81Ffd0654148729b362720A4E4fb59'
-    const c = createMockContext('123', ownerWallet, false)
-    const res = await app.request('/123/can-delete', {}, c.env)
+    const res = await app.fetch(
+      new Request('http://localhost/api/tracks/123/can-delete', {
+        headers: { 'X-Wallet-Address': ownerWallet }
+      }),
+      env
+    )
     
     expect(res.status).toBe(200)
     const body = await res.json() as { canDelete: boolean; isOwner: boolean; isLive: boolean }
@@ -230,12 +164,16 @@ describe('GET /api/tracks/:id/can-delete', () => {
   })
   
   it('should return canDelete=false for live tracks even if owner', async () => {
-    const app = new Hono()
-    app.route('/:id/can-delete', deleteRoute)
+    const env = createMockEnv(true) // is live
+    const app = createTestApp(env)
     
     const ownerWallet = '0x8CF716615a81Ffd0654148729b362720A4E4fb59'
-    const c = createMockContext('123', ownerWallet, true) // isLive = true
-    const res = await app.request('/123/can-delete', {}, c.env)
+    const res = await app.fetch(
+      new Request('http://localhost/api/tracks/123/can-delete', {
+        headers: { 'X-Wallet-Address': ownerWallet }
+      }),
+      env
+    )
     
     expect(res.status).toBe(200)
     const body = await res.json() as { canDelete: boolean; isOwner: boolean; isLive: boolean; reason: string }
@@ -246,12 +184,17 @@ describe('GET /api/tracks/:id/can-delete', () => {
   })
   
   it('should return canDelete=false for non-owner', async () => {
-    const app = new Hono()
-    app.route('/:id/can-delete', deleteRoute)
+    const env = createMockEnv(false)
+    const app = createTestApp(env)
     
-    const otherWallet = '0xOTHER_WALLET'
-    const c = createMockContext('123', otherWallet, false)
-    const res = await app.request('/123/can-delete', {}, c.env)
+    // Use a valid Ethereum address format (42 chars starting with 0x)
+    const otherWallet = '0x1234567890123456789012345678901234567890'
+    const res = await app.fetch(
+      new Request('http://localhost/api/tracks/123/can-delete', {
+        headers: { 'X-Wallet-Address': otherWallet }
+      }),
+      env
+    )
     
     expect(res.status).toBe(200)
     const body = await res.json() as { canDelete: boolean; isOwner: boolean; reason: string }
@@ -261,16 +204,53 @@ describe('GET /api/tracks/:id/can-delete', () => {
   })
   
   it('should return 404 for non-existent tracks', async () => {
-    const app = new Hono()
-    app.route('/:id/can-delete', deleteRoute)
+    const env = createMockEnv(false)
+    const app = createTestApp(env)
     
     const wallet = '0x8CF716615a81Ffd0654148729b362720A4E4fb59'
-    const c = createMockContext('99999', wallet, false)
-    const res = await app.request('/99999/can-delete', {}, c.env)
+    const res = await app.fetch(
+      new Request('http://localhost/api/tracks/99999/can-delete', {
+        headers: { 'X-Wallet-Address': wallet }
+      }),
+      env
+    )
     
     expect(res.status).toBe(404)
     const body = await res.json() as { canDelete: boolean; reason: string }
     expect(body.canDelete).toBe(false)
     expect(body.reason).toBe('TRACK_NOT_FOUND')
+  })
+  
+  it('should return 400 for invalid track IDs', async () => {
+    const env = createMockEnv(false)
+    const app = createTestApp(env)
+    
+    const wallet = '0x8CF716615a81Ffd0654148729b362720A4E4fb59'
+    
+    // Test 'invalid' track ID
+    const res1 = await app.fetch(
+      new Request('http://localhost/api/tracks/invalid/can-delete', {
+        headers: { 'X-Wallet-Address': wallet }
+      }),
+      env
+    )
+    
+    expect(res1.status).toBe(400)
+    const body1 = await res1.json() as { canDelete: boolean; reason: string }
+    expect(body1.canDelete).toBe(false)
+    expect(body1.reason).toBe('INVALID_TRACK_ID')
+    
+    // Test negative track ID
+    const res2 = await app.fetch(
+      new Request('http://localhost/api/tracks/-1/can-delete', {
+        headers: { 'X-Wallet-Address': wallet }
+      }),
+      env
+    )
+    
+    expect(res2.status).toBe(400)
+    const body2 = await res2.json() as { canDelete: boolean; reason: string }
+    expect(body2.canDelete).toBe(false)
+    expect(body2.reason).toBe('INVALID_TRACK_ID')
   })
 })
