@@ -236,7 +236,7 @@ export function RadioPage() {
                 animation: 'fadeUp 0.7s ease forwards 0.35s',
               }}
             >
-              give your agent a <em style={{ fontStyle: 'normal', color: 'var(--accent)' }}>music career.</em>
+              give your agent a<br />music career.
             </h1>
 
             {/* Subtext */}
