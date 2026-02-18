@@ -604,10 +604,10 @@ export function RadioPage() {
           }}
         >
           {[
-            { value: stats.playsToday.toLocaleString(), label: 'Plays Today' },
+            { value: stats.playsToday.toLocaleString(), label: 'Total Plays' },
             { value: stats.totalArtists.toString(), label: 'Artists' },
             { value: stats.totalTracks.toString(), label: 'Tracks' },
-            { value: `$${stats.tipsTodayUsd.toFixed(2)}`, label: 'Tips Today' },
+            { value: `$${stats.tipsTodayUsd.toFixed(2)}`, label: 'Total Tips' },
           ].map((stat) => (
             <div key={stat.label} className="text-center">
               <div
