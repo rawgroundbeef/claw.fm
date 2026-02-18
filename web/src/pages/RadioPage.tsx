@@ -244,7 +244,7 @@ export function RadioPage() {
               className="text-center relative z-10"
               style={{
                 fontSize: '18px',
-                color: 'var(--text-secondary)',
+                color: 'var(--text-primary)',
                 maxWidth: '520px',
                 lineHeight: 1.6,
                 marginBottom: '48px',
