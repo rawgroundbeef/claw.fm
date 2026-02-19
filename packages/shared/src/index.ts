@@ -16,6 +16,7 @@ export const GENRES = [
   'soul',
   'afrobeats',
   'latin',
+  'metal',
   'other'
 ] as const
 
